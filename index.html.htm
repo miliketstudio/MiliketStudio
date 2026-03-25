@@ -1,0 +1,2037 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <title>Miliket Studio</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <style>
+        :root {
+    --gold: #b8860b;
+    --active-blue: #e3f2fd;
+    --sidebar-bg: #3a5a82;
+    --sidebar-btn-bg: #4a6a96;
+    --sidebar-btn-border: #5a7aaa;
+    --sidebar-label-color: #b8d4f4;
+    --sidebar-border: #4a6a96;
+    --topbar-bg: #ddeeff;
+    --topbar-color: #1a2a3a;
+    --topbar-border: #b8d4ee;
+    --workspace-bg: #ffffff;
+    --workspace-color: #000000;
+        --page-bg: #f5f9ff;
+        --text-color: #1a2a3a;
+    --m-btn-bg: #4a6a96;
+    --m-btn-border: #5a7aaa;
+    --m-btn-color: #ffffff;
+    --section-label-color: #ddeeff;
+    --section-label-border: #4a6a96;
+}
+body.dark-mode {
+    --sidebar-bg: #1e2a3a;
+    --sidebar-btn-bg: #2e4a6a;
+    --sidebar-btn-border: #3a6a9a;
+    --sidebar-label-color: #7eb8f7;
+    --sidebar-border: #2e4a6a;
+    --topbar-bg: #1a1a2a;
+    --topbar-color: #e0e0e0;
+    --topbar-border: #2a2a3a;
+    --workspace-bg: #f5f0e8;
+    --workspace-color: #000000;
+        --page-bg: #243040;
+        --text-color: #ffffff;
+    --m-btn-bg: #2e4a6a;
+    --m-btn-border: #3a6a9a;
+    --m-btn-color: #ffffff;
+    --section-label-color: #7eb8f7;
+    --section-label-border: #2e4a6a;
+}
+body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; background: var(--page-bg); }
+        #step-1 { position: fixed; inset: 0; background: #fdfaf0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #bulk-input { width: 50%; height: 120px; font-size: 24px; padding: 15px; border: 2px solid var(--gold); border-radius: 8px; }
+        #step-2 { display: grid; height: 100vh; grid-template-columns: 330px 1fr; }
+        
+        #sidebar { background: var(--sidebar-bg); color: white; padding: 15px; border-right: 4px solid var(--sidebar-border); display: flex; flex-direction: column; gap: 8px; overflow-y: auto; user-select: none; }
+        .section-label { color: var(--section-label-color); font-size: 11px; text-transform: uppercase; margin-top: 15px; border-bottom: 1px solid var(--section-label-border); padding-bottom: 5px; font-weight: bold; }
+        
+        .m-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+        .source-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+        
+        .m-btn { background: var(--m-btn-bg); border: 1px solid var(--m-btn-border); color: var(--m-btn-color); padding: 8px 2px; cursor: pointer; border-radius: 4px; display: flex; align-items: center; justify-content: center; min-height: 45px; font-size: 22px; }
+        .m-btn:hover { background: var(--sidebar-btn-bg); border-color: #7eb8f7; }
+        .special-btn { background: var(--sidebar-btn-bg); border: 1px dashed #7eb8f7; font-size: 13px; font-weight: bold; }
+
+        #top-bar { background: var(--topbar-bg); padding: 12px; border-bottom: 2px solid var(--topbar-border); display: flex; gap: 10px; align-items: center; color: var(--topbar-color); }
+        .tool-btn { padding: 8px 15px; cursor: pointer; font-weight: bold; border-radius: 4px; border: 1px solid #999; background: white; }
+        
+        #workspace-container { background: var(--workspace-bg); overflow-y: auto; padding: 60px 40px; display: flex; flex-direction: column; align-items: center; }
+        .score-row { display: flex; flex-wrap: wrap; width: 100%; max-width: 1200px; column-gap: 0; row-gap: 20px; }
+        
+    .miliket-tray {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-start; 
+        align-items: center;
+        min-height: 82px;
+        min-width: 54px; 
+        width: auto; 
+        border: 1px dotted #ccc;
+        outline: none;
+        gap: 0;
+        padding: 2px;
+        font-size: 31px;
+        font-family: 'Abyssinica SIL', serif;
+    }
+
+.miliket-tray:focus, .stack-slot:focus {
+    background-color: var(--active-blue) !important;
+}
+
+
+        /* FIXED STACK ALIGNMENT */
+        .stack-container { 
+            display: inline-flex; 
+            flex-direction: column-reverse; /* Stacks bottom-up */
+            align-items: center; 
+            border: 1px dashed var(--gold); 
+            padding: 0; 
+            margin: 0 2px; 
+            position: relative;
+            bottom: -5px; /* Pulls the stack closer to the letter without pushing the tray */
+        }
+        .stack-slot { 
+            min-width: 38px; 
+            min-height: 24px; 
+            border: 1px dotted #999; 
+            margin: -2px 0; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            outline: none; 
+            font-size: 22px;
+            overflow: visible;
+        }
+        
+        .m-word { display: inline-flex; flex-direction: column; align-items: center; position: relative; white-space: nowrap; }
+        .horizontal { font-size: 31px; }
+        .m-word,
+        .stack-slot,
+        .zema-base { font-weight: bold !important;}
+
+        .vertical-stack span { display: block; line-height: 0.45; font-size: 36px; text-align: center; }
+        .with-line {
+            text-decoration: overline !important;
+            text-decoration-thickness: 1.5px !important;
+            display: inline-block;
+            margin: 0;
+            padding-right: 0px;
+            padding-top: 4px;
+            box-decoration-break: clone;
+            -webkit-box-decoration-break: clone;
+        }
+        .m-word:empty::before, .m-word[data-space="true"] {
+            text-decoration: none !important;
+        }
+        
+    .zema-base {
+        width: auto; 
+            /* This ensures the box is at least 20px wide even if the letter is thin */
+        min-width: 54px; 
+        height: 50px;
+        font-size: 44px;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: flex-start;
+        padding-left: 4px;
+        outline: none;
+        border-top: 2px solid #000;
+        margin-top: 5px;
+        color: black !important;
+    }
+
+        
+        .stamp-red { color: #d11212 !important; }
+        .stamp-black { color: #000000 !important; }
+
+        #exit-clean { display: none; position: fixed; top: 15px; right: 15px; z-index: 1000; background: var(--gold); color: white; border: none; padding: 12px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .clean-view #sidebar, .clean-view #top-bar { display: none !important; }
+        .clean-view .stack-container, .clean-view .stack-slot, .clean-view .miliket-tray, .clean-view .zema-base { border: none !important; background: transparent !important; }
+        .clean-view #step-2 { grid-template-columns: 1fr !important; }
+        .clean-view #exit-clean { display: block !important; }
+        .full-page { 
+    position: fixed; inset: 0; background: var(--page-bg); z-index: 300; 
+    display: flex; flex-direction: column; align-items: center; justify-content: flex-start; padding-top: 50px; 
+}
+.nav-header { width: 80%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; color: var(--text-color); }
+.grid-container { width: 80%; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px; }
+.folder-item, .piece-item { 
+    background: var(--workspace-bg); border: 2px solid var(--sidebar-bg); padding: 20px; border-radius: 8px; cursor: pointer; text-align: center; font-weight: bold; color: var(--workspace-color);
+}
+.folder-item:hover, .piece-item:hover { background: var(--topbar-bg); }
+.add-btn { margin-top: 40px; padding: 15px 30px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; }
+.delete-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    transition: transform 0.2s;
+}
+
+.delete-btn:hover {
+    background: #c0392b;
+    transform: scale(1.1);
+}
+
+.edit-text-btn {
+    position: absolute;
+    top: 5px;
+    left: 5px; /* Sits on the opposite side of the Delete button */
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.edit-text-btn:hover {
+    background: #2980b9;
+    transform: scale(1.1);
+}
+.studio-sidebar {
+    position: fixed;
+    left: -300px; /* Pushed further back */
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    background: #fdfaf0;
+    border-right: 3px solid var(--gold);
+    padding: 20px;
+    padding-top: 60px;
+    z-index: 9999; /* Stays on top */
+    transition: 0.3s ease-in-out;
+    box-shadow: none; /* Remove shadow when closed so it doesn't glow on the edge */
+}
+
+/* Add the shadow back ONLY when it's open */
+.studio-sidebar.active {
+    left: 0;
+    box-shadow: 5px 0 15px rgba(0,0,0,0.2);
+}
+
+.sidebar-item {
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    background: white;
+    border: 1px solid #eee;
+    cursor: pointer;
+    font-size: 14px;
+    transition: 0.2s;
+    color: black;
+}
+
+.sidebar-item:hover {
+    border-color: var(--gold);
+    background: #fff9e6;
+}
+
+.sidebar-item.current-active {
+    border-left: 5px solid var(--gold);
+    font-weight: bold;
+}
+
+.char-stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* anchors everything to the left */
+    gap: 5px;               /* space between trays/slots */
+}
+
+/* ===== PRESENT PAGE ===== */
+#page-present {
+    position: fixed; inset: 0; background: #fdfaf0; z-index: 200;
+    display: none; flex-direction: column; overflow-y: auto;
+}
+
+/* TOP BAR */
+#present-top-bar {
+    background: #1a1a1a; padding: 12px 20px; border-bottom: 3px solid var(--gold);
+    display: flex; align-items: center; gap: 10px; flex-shrink: 0;
+}
+
+/* LIBRARY + QUEUE GRID BOX */
+#present-grid-box-wrap {
+    background: #f1f1f1; padding: 20px; flex-shrink: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    border-bottom: 2px solid #ccc;
+}
+#present-grid-box {
+    display: grid; grid-template-columns: 1fr 1fr;
+    width: 100%; max-width: 800px; max-height: 240px;
+    border: 2px solid var(--gold); border-radius: 8px; overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+#present-action-bar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center;
+}
+#present-action-bar button {
+    padding: 7px 14px; border-radius: 4px; border: none;
+    cursor: pointer; font-weight: bold; font-size: 12px;
+}
+.action-divider { width: 1px; height: 24px; background: #ccc; margin: 0 4px; }
+#present-selection {
+    background: var(--sidebar-bg); color: white;
+    display: flex; flex-direction: column; overflow: hidden;
+    border-right: 2px solid var(--gold);
+}
+#present-selection h3 {
+    color: var(--gold); margin: 0; padding: 12px 15px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333;
+    flex-shrink: 0;
+}
+#present-folder-tree { flex: 1; overflow-y: auto; padding: 8px; }
+.present-folder-label {
+    color: var(--gold); font-size: 10px; text-transform: uppercase;
+    padding: 6px 5px 3px; border-bottom: 1px solid #333; margin-bottom: 3px;
+}
+.present-piece-row {
+    display: flex; align-items: center; justify-content: space-between;
+    background: #2a2a2a; border: 1px solid #3a3a3a; border-radius: 4px;
+    padding: 6px 8px; margin-bottom: 3px;
+}
+.present-piece-row:hover { border-color: #555; }
+.present-piece-name { font-size: 12px; flex: 1; }
+.add-queue-btn {
+    background: var(--gold); color: white; border: none; border-radius: 3px;
+    padding: 2px 7px; font-size: 11px; cursor: pointer; white-space: nowrap;
+}
+.add-queue-btn:hover { background: #a07608; }
+
+/* QUEUE PANEL */
+#present-queue-panel {
+    background: #f5f0e0; display: flex; flex-direction: column; overflow: hidden;
+}
+#present-queue-panel h3 {
+    color: var(--gold); margin: 0; padding: 12px 15px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #ccc;
+    background: #ede8d8; flex-shrink: 0;
+}
+#queue-list { flex: 1; overflow-y: auto; padding: 8px; }
+.queue-item {
+    display: flex; align-items: center; justify-content: space-between;
+    background: white; border: 1px solid #ddd; border-radius: 4px;
+    padding: 6px 10px; margin-bottom: 4px; cursor: pointer; transition: 0.15s;
+}
+.queue-item:hover { border-color: var(--gold); }
+.queue-item.selected-piece { background: white; border: 2px solid var(--gold); font-weight: bold; }
+.queue-item-name { font-size: 12px; flex: 1; }
+.queue-item-folder { font-size: 10px; color: #999; }
+.queue-remove-btn {
+    background: #e74c3c; color: white; border: none; border-radius: 50%;
+    width: 16px; height: 16px; font-size: 12px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* BUTTONS ROW */
+#present-action-bar {
+    background: #f1f1f1; padding: 8px 15px; border-bottom: 2px solid #ccc;
+    display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap;
+}
+#present-action-bar button {
+    padding: 7px 14px; border-radius: 4px; border: none;
+    cursor: pointer; font-weight: bold; font-size: 12px;
+}
+.action-divider {
+    width: 1px; height: 24px; background: #ccc; margin: 0 4px;
+}
+
+/* DISPLAY AREA */
+#present-display-wrap {
+    display: flex; position: relative; min-height: 100vh;
+}
+#present-display {
+    flex: 1; padding: 50px 60px;
+    display: flex; flex-direction: column; align-items: center; background: white;
+}
+.present-piece-block { width: 100%; max-width: 1400px; margin-bottom: 60px; }
+.present-piece-title {
+    font-size: 13px; font-weight: bold; color: var(--gold);
+    text-transform: uppercase; letter-spacing: 1px;
+    border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-bottom: 15px;
+}
+.present-piece-divider {
+    width: 100%; border: none; border-top: 2px dashed #ddd; margin: 40px 0;
+}
+
+/* OUTLINE DRAWER */
+#outline-drawer {
+    position: fixed; right: -240px; top: 0; bottom: 0; width: 240px;
+    background: #fdfaf0; border-left: 2px solid var(--gold);
+    display: flex; flex-direction: column; transition: right 0.3s ease; z-index: 9999;
+    visibility: hidden;
+}
+#outline-drawer.open { right: 0; visibility: visible; }
+#outline-tab {
+    position: absolute; left: -32px; top: 50%; transform: translateY(-50%);
+    background: var(--gold); color: white; border: none;
+    width: 32px; height: 64px; cursor: pointer; border-radius: 6px 0 0 6px;
+    font-size: 16px; display: flex; align-items: center; justify-content: center;
+    visibility: visible;
+}
+#outline-drawer h3 {
+    color: var(--gold); margin: 0; padding: 15px; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #ddd;
+    flex-shrink: 0;
+}
+#outline-list { flex: 1; overflow-y: auto; padding: 10px; }
+.outline-entry {
+    padding: 8px 10px; border-radius: 4px; margin-bottom: 4px; cursor: pointer;
+    font-size: 12px; border-left: 3px solid transparent; transition: 0.15s;
+    line-height: 1.4;
+}
+.outline-entry:hover { background: white; border-left-color: var(--gold); }
+.outline-folder-tag { font-size: 10px; color: #999; display: block; margin-top: 2px; }
+
+/* ===== CONFIRM MODAL ===== */
+#confirm-modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 99999;
+}
+#confirm-modal.open { display: flex; }
+#confirm-box {
+    background: white; border-radius: 10px; padding: 30px;
+    width: 380px; border-top: 4px solid var(--gold);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    display: flex; flex-direction: column; gap: 15px;
+}
+#confirm-box h3 { margin: 0; font-size: 16px; color: #1a1a1a; }
+#confirm-box p { margin: 0; font-size: 13px; color: #666; line-height: 1.6; }
+#confirm-hint { font-size: 13px; color: var(--gold); font-weight: bold; letter-spacing: 1px; }
+#confirm-input {
+    padding: 10px; border: 2px solid #ddd; border-radius: 5px;
+    font-size: 14px; font-family: 'Abyssinica SIL', serif; outline: none;
+    transition: 0.2s;
+}
+#confirm-input:focus { border-color: var(--gold); }
+#confirm-input.error { border-color: #e74c3c; background: #fff5f5; }
+#confirm-error { font-size: 12px; color: #e74c3c; display: none; }
+#confirm-error.show { display: block; }
+#confirm-buttons { display: flex; gap: 10px; justify-content: flex-end; }
+#confirm-buttons button { padding: 9px 20px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; font-size: 13px; }
+#confirm-cancel { background: #eee; color: #333; }
+#confirm-cancel:hover { background: #ddd; }
+#confirm-ok { background: #e74c3c; color: white; }
+#confirm-ok:hover { background: #c0392b; }
+
+    </style>
+</head>
+<body id="main-body">
+    <button id="theme-toggle-btn" onclick="toggleTheme()" style="position:fixed; bottom:20px; right:20px; z-index:99998; background:#1e2a3a; color:#7eb8f7; border:1px solid #3a6a9a; border-radius:20px; padding:8px 16px; font-weight:bold; cursor:pointer; font-size:13px;">☾ Dark</button>
+    <div id="studio-sidebar" class="studio-sidebar">
+    <h3 style="color:var(--gold); border-bottom:1px solid #ddd; padding-bottom:10px; margin-top:0;">Quick Switch</h3>
+    <div id="sidebar-piece-list"></div>
+    <button onclick="toggleQuickSwitch()" style="margin-top:20px; width:100%; cursor:pointer; padding:10px;">Close ×</button>
+</div>
+
+<div id="page-login" class="full-page">
+    <h1 style="color: var(--text-color);">Miliket Studio</h1>
+    <p style="color: var(--text-color);">Select a project to enter</p>
+    <p id="sync-status" style="font-size:12px; color:#7eb8f7;">⟳ Syncing from cloud...</p>
+    <div id="project-list" class="grid-container" style="margin-top:20px;"></div>
+    <button onclick="createProject()" class="add-btn" style="margin-top:30px;">+ New Project</button>
+    <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; width: 300px; text-align: center;">
+        <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Transfer Your Work</p>
+        <button onclick="exportAllData()" class="tool-btn" style="background: #27ae60; color: white; margin-right: 10px;">💾 Export Data</button>
+        <button onclick="importAllData()" class="tool-btn" style="background: #e67e22; color: white;">📁 Import Data</button>
+    </div>
+</div>
+
+<div id="page-dashboard" class="full-page" style="display:none;">
+    <div class="nav-header">
+        <button onclick="showPage('page-login')">← Back</button>
+        <h2 style="color: var(--text-color);">My Library</h2>
+    </div>
+    <div id="folder-list" class="grid-container"></div>
+    <button onclick="createFolder()" class="add-btn">+ New Folder</button>
+    <button onclick="openPresentPage()" class="add-btn" style="background: var(--gold);">🎵 Present Mode</button>
+</div>
+
+<div id="page-folder-detail" class="full-page" style="display:none;">
+    <div class="nav-header">
+        <button onclick="showPage('page-dashboard')">← Back to Library</button>
+        <h2 id="current-folder-name">Folder</h2>
+    </div>
+    <div id="piece-list" class="grid-container"></div>
+    <button onclick="createPiece()" class="add-btn">+ New Piece</button>
+</div>
+
+<div id="step-1">
+    <div style="width: 100%; padding: 20px;">
+    <button onclick="showPage('page-folder-detail')" class="tool-btn">← Back to Folder</button>
+</div>
+    <h1 style="color:var(--gold)">ምልክት Studio</h1>
+    <textarea id="bulk-input" placeholder="Type text here..."></textarea>
+    <div style="font-size: 16px; color: #666; width: 55%; margin-top: 20px; text-align: center; line-height: 2.2; border-top: 1px solid #ddd; padding-top: 15px;">
+    <strong style="color: var(--gold); font-size: 11px; display: block; margin-bottom: 10px; letter-spacing: 1px;">HANDY LETTERS / SYMBOLS</strong>
+    ፥ &nbsp; ፣ &nbsp; ፤ &nbsp; ፦ &nbsp; ፠ &nbsp; ፨ &nbsp; ቈ &nbsp; ኈ &nbsp; ኰ &nbsp; ዀ &nbsp; ጐ &nbsp; ቊ &nbsp; ኊ &nbsp; ኲ &nbsp; ዂ &nbsp; ጒ &nbsp; ቋ &nbsp; ኋ &nbsp; ኳ &nbsp; ዃ &nbsp; ጓ &nbsp; ቌ &nbsp; ኌ &nbsp; ኴ &nbsp;  &nbsp; ጔ &nbsp; ቍ &nbsp; ኍ &nbsp; ኵ &nbsp;  &nbsp; ጕ &nbsp; ሏ &nbsp; ሗ &nbsp; ሟ &nbsp; ሧ &nbsp; ሯ &nbsp; ሷ &nbsp; ሿ &nbsp; ቇ &nbsp; ቧ &nbsp; ቯ &nbsp; ቷ &nbsp; ቿ &nbsp; ኇ &nbsp; ኗ &nbsp; ኟ &nbsp; ኧ &nbsp; ኯ &nbsp; ዟ &nbsp; ዧ &nbsp; ዷ &nbsp; ጇ &nbsp; ጏ &nbsp; ጧ &nbsp; ጯ &nbsp; ጷ &nbsp; ጿ &nbsp; ፏ &nbsp; ፗ
+</div>
+    <button class="tool-btn" style="background:#1e90ff; color:white; padding:15px 50px; border:none;" onclick="startEditor()">Open Studio</button>
+</div>
+
+<div id="step-2" style="display:none;">
+    <button id="exit-clean" onclick="toggleCleanMode()">Back to Editor</button>
+    
+    <div id="sidebar">
+        <button id="color-toggle" class="tool-btn" style="background: black; color: white; width: 100%; margin-bottom:10px;" onclick="toggleColor()">Color: BLACK</button>
+        
+        <div class="section-label">Smart Stack Tools</div>
+        <div class="m-grid">
+            <button class="m-btn special-btn" onclick="insertStackTemplate(2)">Double</button>
+            <button class="m-btn special-btn" onclick="insertStackTemplate(3)">Triple</button>
+            <button class="m-btn special-btn" onclick="insertEmptyStack()">Empty</button>
+            <button class="m-btn special-btn" style="grid-column: span 3; background: #2980b9; color: white;" onclick="applyOverline()">Create Overline</button>
+        </div>
+
+        <div class="section-label">ቅዱስ ያሬድ ምልክት</div>
+        <div class="m-grid">
+            <button class="m-btn" onmousedown="insertIsland('᎐', false)">᎐</button>
+            <button class="m-btn" onmousedown="insertIsland('᎓', false)">᎓</button>
+            <button class="m-btn" onmousedown="insertIsland('᎒', false)">᎒</button>
+            <button class="m-btn" onmousedown="insertIsland('᎙', false)">᎙</button>
+            <button class="m-btn" onmousedown="insertIsland('᎑', false)">᎑</button>
+            <button class="m-btn" onmousedown="insertIsland('᎔', false)">᎔</button>
+            <button class="m-btn" onmousedown="insertIsland('᎖', false)">᎖</button>
+            <button class="m-btn" onmousedown="insertIsland('᎗', false)">᎗</button>
+            <button class="m-btn" onmousedown="insertIsland('᎘', false)">᎘</button>
+            <button class="m-btn" onmousedown="insertIsland('᎕', false)">᎕</button>
+            <button class="m-btn" onmousedown="insertIsland('፦', false)">፦</button>
+        </div>
+        
+        <div class="section-label">Quick</div>
+        <div class="m-grid">
+            <button class="m-btn" onmousedown="insertIsland('●', false)">●</button>
+            <button class="m-btn" onmousedown="insertIsland('T', false)">T</button>
+            <button class="m-btn" onmousedown="insertIsland('l', false)">l</button>
+        </div>
+
+        <div class="section-label">ጉሮሮ</div>
+        <div class="m-grid">
+            <button class="m-btn" onmousedown="insertIsland('፴', false)">፴</button>
+            <button class="m-btn" onmousedown="insertIsland('ፔር', true)">ፔር</button>
+            <button class="m-btn" onmousedown="insertIsland('ቡበ', true)">ቡበ</button>
+            <button class="m-btn" onmousedown="insertIsland('ዓይ', true)">ዓይ</button>
+            <button class="m-btn" onmousedown="insertIsland('ዕለ', true)">ዕለ</button>
+            <button class="m-btn" onmousedown="insertIsland('ጸጋ', true)">ጸጋ</button>
+            <button class="m-btn" onmousedown="insertIsland('ቡር', true)">ቡር</button>
+            <button class="m-btn" onmousedown="insertIsland('ኃዘ', true)">ኃዘ</button>            
+         </div>
+         
+        <div class="section-label">ሠረገላዎች</div>
+        <div class="source-grid">
+            <button class="m-btn" onmousedown="insertIsland('ቤሠ', true)">ቤሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('እምሠ', true)">እምሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('እግሠ', true)">እግሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ኃሠ', true)">ኃሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ናሠ', true)">ናሠ</button>            
+            <button class="m-btn" onmousedown="insertIsland('በደሠ', true)">በደሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('አሠ', true)">አሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ንዜሠ', true)">ንዜሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ፀሠ', true)">ፀሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('መሠ', true)">መሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሪትሠ', true)">ሪትሠ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሰጠሠ', true)">ሰጠሠ</button>            
+         </div>
+         
+        <div class="section-label">መዳልወ አልባብ</div>
+        <div class="source-grid">
+            <button class="m-btn" onmousedown="insertIsland('ወር', true)">ወር</button>
+            <button class="m-btn" onmousedown="insertIsland('ዕጠ', true)">ዕጠ</button>
+            <button class="m-btn" onmousedown="insertIsland('አመ', true)">አመ</button>
+            <button class="m-btn" onmousedown="insertIsland('መረ', true)">መረ</button>
+            <button class="m-btn" onmousedown="insertIsland('ንዛ', true)">ንዛ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሰር', true)">ሰር</button>
+            <button class="m-btn" onmousedown="insertIsland('አጋ', true)">አጋ</button>
+            <button class="m-btn" onmousedown="insertIsland('ዓተ', true)">ዓተ</button>
+            <button class="m-btn" onmousedown="insertIsland('ወዝ', true)">ወዝ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሣ', true)">ሣ</button>
+            <button class="m-btn" onmousedown="insertIsland('ምዘ', true)">ምዘ</button>
+            <button class="m-btn" onmousedown="insertIsland('ውዛ', true)">ውዛ</button>
+            <button class="m-btn" onmousedown="insertIsland('ግድ', true)">ግድ</button>
+            <button class="m-btn" onmousedown="insertIsland('ለቀ', true)">ለቀ</button>
+        </div>
+
+        <div class="section-label">ጸናጽል</div>
+        <div class="m-grid">
+            <button class="m-btn" onmousedown="insertIsland('በዚ', true)">በዚ</button>
+            <button class="m-btn" onmousedown="insertIsland('●', false)">●</button>
+            <button class="m-btn" onmousedown="insertIsland('T', false)">T</button>
+            <button class="m-btn" onmousedown="insertIsland('l', false)">l</button>
+            <button class="m-btn" onmousedown="insertIsland('ታ', true)">ታ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሙ', true)">ሙ</button>
+            <button class="m-btn" onmousedown="insertIsland('ላ', true)">ላ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሳ', true)">ሳ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሲሄ', true)">ሲሄ</button>
+            <button class="m-btn" onmousedown="insertIsland('ሲመ', true)">ሲመ</button>
+            <button class="m-btn" onmousedown="insertIsland('ላይ', true)">ላይ</button>
+            <button class="m-btn" onmousedown="insertIsland('ጨፍ', true)">ጨፍ</button>            
+        </div>
+
+        <div class="section-label">ምዕራፍ</div>
+        <div class="source-grid">
+            <button class="m-btn" onmousedown="insertSeq(['᎑', '᎑'])"><span class="vertical-stack"><span>᎑</span><span>᎑</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎑', '᎑', '᎑'])"><span class="vertical-stack"><span>᎑</span><span>᎑</span><span>᎑</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎑', '᎔'])"><span class="vertical-stack"><span>᎑</span><span>᎔</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎔', '᎑'])"><span class="vertical-stack"><span>᎔</span><span>᎑</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎔', '᎔'])"><span class="vertical-stack"><span>᎔</span><span>᎔</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎑', '᎔', '᎔'])"><span class="vertical-stack"><span>᎑</span><span>᎔</span><span>᎔</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎔', '᎑', '᎑'])"><span class="vertical-stack"><span>᎔</span><span>᎑</span><span>᎑</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎔', '᎑', '᎔'])"><span class="vertical-stack"><span>᎔</span><span>᎑</span><span>᎔</span></span></button>
+            <button class="m-btn" onmousedown="insertSeq(['᎔', '᎔', '᎔'])"><span class="vertical-stack"><span>᎔</span><span>᎔</span><span>᎔</span></span></button>
+        </div>
+        
+        <div class="section-label">Ge'ez Numbers</div>
+        <div class="m-grid">           
+            <button class="m-btn" onmousedown="insertIsland('፩', false)">፩</button>
+            <button class="m-btn" onmousedown="insertIsland('፪', false)">፪</button>
+            <button class="m-btn" onmousedown="insertIsland('፫', false)">፫</button>
+            <button class="m-btn" onmousedown="insertIsland('፬', false)">፬</button>
+            <button class="m-btn" onmousedown="insertIsland('፭', false)">፭</button>
+            <button class="m-btn" onmousedown="insertIsland('፮', false)">፮</button>
+            <button class="m-btn" onmousedown="insertIsland('፯', false)">፯</button>
+            <button class="m-btn" onmousedown="insertIsland('፰', false)">፰</button>
+            <button class="m-btn" onmousedown="insertIsland('፱', false)">፱</button>
+            <button class="m-btn" onmousedown="insertIsland('፲', false)">፲</button>
+        </div>
+        
+        <button class="tool-btn" style="width:100%; margin-top:20px; background:#e74c3c; color:white; border:none;" onclick="clearActiveArea()">Clear Selected</button>
+    </div>
+
+    <div style="display:flex; flex-direction:column; overflow:hidden;">
+    <div id="top-bar">
+        <button onclick="toggleQuickSwitch()" class="tool-btn" style="font-size: 20px; background:var(--gold); color:white; padding: 5px 12px;">☰</button>
+        <button onclick="backToFolder()" class="tool-btn" style="background: #444; color: white; border-color: var(--gold);">
+    ← Exit to Folder
+        </button>
+        <button class="tool-btn" onclick="addMiliketRow()">+ Add Layer</button>
+        <button class="tool-btn" onclick="removeMiliketRow()">- Remove Layer</button>
+        <button class="tool-btn" style="background:#9b59b6; color:white;" onclick="toggleCleanMode()">✨ View Mode</button>
+        <button class="tool-btn" style="background:#2ecc71; color:white;" onclick="exportProject('image')">Export Image</button>
+        <button class="tool-btn" style="background:#e67e22; color:white;" onclick="exportProject('pdf')">Export PDF (16:9)</button>
+    </div>
+
+    <div id="workspace-container">
+        <div class="score-row" id="main-line"></div>
+            </div>
+    </div>
+</div> <!-- ✅ CLOSES #step-2 -->
+
+<!-- ===== PRESENT PAGE ===== -->
+<div id="page-present">
+
+    <div id="present-top-bar">
+        <button onclick="showPage('page-dashboard')" class="tool-btn" style="background:#444; color:white;">← Back</button>
+        <span style="font-weight:bold; color:var(--gold); font-size:15px;">ምልክት Present Mode</span>
+        <div style="margin-left:auto; display:flex; align-items:center; gap:8px;">
+            <button onclick="toggleTimerMode()" id="timer-mode-btn" class="tool-btn" style="background:#2c3a4a; color:#7eb8f7; border-color:#3a6a9a; min-width:90px;">⏱ Stopwatch</button>
+            <input type="text" id="timer-countdown-input" placeholder="mm:ss" style="width:60px; padding:6px; border-radius:4px; border:1px solid #3a6a9a; background:#2c3a4a; color:#7eb8f7; font-size:13px; text-align:center; display:none;">
+            <span id="timer-display" style="font-size:18px; font-weight:bold; color:#7eb8f7; min-width:60px; text-align:center;">00:00</span>
+            <button onclick="startStopTimer()" id="timer-start-btn" class="tool-btn" style="background:#27ae60; color:white; border:none;">▶ Start</button>
+            <button onclick="resetTimer()" class="tool-btn" style="background:#e74c3c; color:white; border:none;">↺ Reset</button>
+            <button onclick="enterFullscreen()" class="tool-btn" style="background:#1e2a3a; color:#7eb8f7; border-color:#3a6a9a;">⛶ Full Screen</button>
+        </div>
+    </div>
+
+    <div id="present-grid-box-wrap">
+        <div id="present-grid-box">
+            <div id="present-selection">
+                <h3>📚 Library</h3>
+                <div id="present-folder-tree"></div>
+            </div>
+            <div id="present-queue-panel">
+                <h3>🎵 Queue</h3>
+                <div id="queue-list"></div>
+            </div>
+        </div>
+        <div id="present-action-bar">
+            <button onclick="deleteSelectedFromQueue()" style="background:#e74c3c; color:white;">✕ Remove Selected</button>
+            <button onclick="clearQueue()" style="background:#555; color:white;">🗑 Clear All</button>
+            <div class="action-divider"></div>
+            <button onclick="exportQueue('image')" style="background:#2ecc71; color:white;">🖼 Image</button>
+            <button onclick="exportQueue('pdf')" style="background:#e67e22; color:white;">📄 PDF</button>
+            <button onclick="exportQueue('slides')" style="background:#8e44ad; color:white;">📊 Slides</button>
+        </div>
+    </div>
+
+    <div id="present-display-wrap">
+        <div id="present-display">
+            <p style="color:#aaa; font-style:italic;">Add pieces from the library to begin.</p>
+        </div>
+        <div id="outline-drawer">
+            <button id="outline-tab" onclick="toggleOutlineDrawer()">◀</button>
+            <h3>📋 Outline</h3>
+            <div id="outline-list"></div>
+        </div>
+    </div>
+
+</div>
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal">
+    <div id="confirm-box">
+        <h3 id="confirm-title">Are you sure?</h3>
+        <p id="confirm-desc"></p>
+        <p>Type <span id="confirm-hint"></span> to confirm:</p>
+        <input type="text" id="confirm-input" placeholder="Type name here..." autocomplete="off">
+        <div id="confirm-error">Incorrect name. Try again.</div>
+        <div id="confirm-buttons">
+            <button id="confirm-cancel" onclick="closeConfirmModal()">Cancel</button>
+            <button id="confirm-ok" onclick="submitConfirmModal()">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- CENTRAL DATA SYSTEM ---
+let confirmCallback = null;
+let confirmAnswer = '';
+let currentUser = null;
+let currentFolder = null;
+let currentPiece = null;
+let appData = JSON.parse(localStorage.getItem('zema_studio_data')) || {};
+
+// ===== GITHUB GIST SYNC =====
+const GIST_ID = 'c394b7c2ccc44cb2b79931e8633bb5af';
+const GIST_FILENAME = 'miliket_backup.json';
+function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
+
+async function pushToGist() {
+    try {
+        await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': `token ${getGistToken()}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                files: { [GIST_FILENAME]: { content: JSON.stringify(appData) } }
+            })
+        });
+    } catch (err) { console.error('Gist sync failed:', err); }
+}
+
+async function pullFromGist() {
+    const status = document.getElementById('sync-status');
+    if (status) { status.innerText = '⟳ Syncing from cloud...'; status.style.color = '#7eb8f7'; }
+    try {
+        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+            headers: { 'Authorization': `token ${getGistToken()}` }
+        });
+        const data = await res.json();
+        const content = data.files[GIST_FILENAME]?.content;
+        if (content) {
+            const parsed = JSON.parse(content);
+            if (Object.keys(parsed).length > 0) {
+                appData = parsed;
+                localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+            }
+        }
+        if (status) { status.innerText = '✓ Synced'; status.style.color = '#27ae60'; }
+    } catch (err) {
+        console.error('Gist pull failed:', err);
+        if (status) { status.innerText = '✗ Offline — using local data'; status.style.color = '#e74c3c'; }
+    }
+}
+
+// Save all changes to the computer
+function saveData() {
+    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+}
+
+// Save + push to Gist (for meaningful actions)
+function saveAndSync() {
+    saveData();
+    pushToGist();
+}
+
+function exportAllData() {
+    const data = localStorage.getItem('zema_studio_data');
+    if (!data) {
+        alert("No data to export! Create some work first.");
+        return;
+    }
+    const blob = new Blob([data], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'miliket_backup_' + new Date().toISOString().split('T')[0] + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function importAllData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = event => {
+            try {
+                appData = JSON.parse(event.target.result);
+                localStorage.setItem('zema_studio_data', event.target.result);
+                pushToGist().then(() => {
+                    alert('Backup loaded and synced to cloud! Refreshing...');
+                    location.reload();
+                });
+            } catch (err) {
+                alert('Error: That file is not a valid backup.');
+            }
+        };
+        reader.readAsText(file);
+    };
+    input.click();
+}
+
+function backToFolder() {
+    saveWorkToPiece();
+    saveAndSync();
+    showPage('page-folder-detail');
+    renderPieces();
+}
+
+// Navigation Logic
+function showPage(pageId) {
+    // Hide all main pages
+    ['page-login', 'page-dashboard', 'page-folder-detail', 'step-1', 'step-2', 'page-present'].forEach(id => {
+        const el = document.getElementById(id);
+        if(el) el.style.display = 'none';
+    });
+    // Show requested page
+    document.getElementById(pageId).style.display = (pageId === 'step-2') ? 'grid' : 'flex';
+}
+
+// --- PAGE 1: LOGIN ---
+function renderProjects() {
+    const container = document.getElementById('project-list');
+    if (!container) return;
+    container.innerHTML = '';
+    Object.keys(appData).forEach(name => {
+        const div = document.createElement('div');
+        div.className = 'folder-item';
+        div.style.position = 'relative';
+        div.draggable = true;
+        div.dataset.name = name;
+        div.innerHTML = `
+            <button onclick="deleteProject(event, '${name}')" class="delete-btn" title="Delete">×</button>
+            <button onclick="renameProject(event, '${name}')" class="edit-text-btn" style="top:5px; left:5px;">✎</button>
+            <div style="font-size:40px; margin-top:10px;">☦</div>
+            <div style="font-weight:bold;">${name}</div>
+        `;
+        div.onclick = () => loginToProject(name);
+
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', name);
+            div.style.opacity = '0.4';
+        });
+        div.addEventListener('dragend', () => {
+            div.style.opacity = '1';
+        });
+        div.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            div.style.outline = '2px dashed var(--sidebar-bg)';
+        });
+        div.addEventListener('dragleave', () => {
+            div.style.outline = '';
+        });
+        div.addEventListener('drop', (e) => {
+            e.preventDefault();
+            div.style.outline = '';
+            const fromName = e.dataTransfer.getData('text/plain');
+            const toName = div.dataset.name;
+            if (fromName === toName) return;
+            const keys = Object.keys(appData);
+            const fromIdx = keys.indexOf(fromName);
+            const toIdx = keys.indexOf(toName);
+            const reordered = {};
+            keys.splice(fromIdx, 1);
+            keys.splice(toIdx, 0, fromName);
+            keys.forEach(k => reordered[k] = appData[k]);
+            appData = reordered;
+            saveAndSync();
+            renderProjects();
+        });
+
+        container.appendChild(div);
+    });
+}
+
+function createProject() {
+    const name = prompt("Enter Project Name:");
+    if (!name) return;
+    if (appData[name]) return alert("A project with that name already exists.");
+    appData[name] = { folders: [] };
+    saveAndSync();
+    renderProjects();
+}
+
+function loginToProject(name) {
+    currentUser = name;
+    renderDashboard();
+    showPage('page-dashboard');
+}
+
+function renameProject(event, oldName) {
+    event.stopPropagation();
+    showConfirmModal(
+        'Rename Project',
+        `You are about to rename "${oldName}".`,
+        oldName,
+        'Confirm',
+        () => {
+            const newName = prompt("Rename project to:", oldName);
+            if (!newName || newName === oldName) return;
+            if (appData[newName]) return alert("A project with that name already exists.");
+            appData[newName] = appData[oldName];
+            delete appData[oldName];
+            if (currentUser === oldName) currentUser = newName;
+            saveAndSync();
+            renderProjects();
+        }
+    );
+}
+
+function deleteProject(event, name) {
+    event.stopPropagation();
+    showConfirmModal(
+        'Delete Project',
+        `"${name}" and all its folders and pieces will be permanently deleted.`,
+        name,
+        'Delete',
+        () => {
+            delete appData[name];
+            saveAndSync();
+            renderProjects();
+        }
+    );
+}
+
+function handleLogin() {
+    // legacy — kept for compatibility
+}
+
+// --- PAGE 2: DASHBOARD (FOLDERS) ---
+function createFolder() {
+    const name = prompt("Enter Folder Name:");
+    if (!name) return;
+    appData[currentUser].folders.push({ name: name, pieces: [] });
+    saveAndSync();
+    renderDashboard();
+}
+
+// Render projects on load
+window.addEventListener('DOMContentLoaded', async () => {
+    if (!localStorage.getItem('miliket_gist_token')) {
+        const token = prompt('Enter your GitHub token to enable cloud sync:');
+        if (token) localStorage.setItem('miliket_gist_token', token.trim());
+    }
+    await pullFromGist();
+    renderProjects();
+});
+
+function renderDashboard() {
+    const container = document.getElementById('folder-list');
+    container.innerHTML = '';
+    appData[currentUser].folders.forEach((folder, index) => {
+        const div = document.createElement('div');
+        div.className = 'folder-item';
+        div.style.position = 'relative'; // Allows absolute positioning for buttons
+        
+        div.innerHTML = `
+            <div onclick="openFolder(${index})" style="padding-top:10px;">
+                <div style="font-size:40px;">📁</div>
+                <div style="font-weight:bold;">${folder.name}</div>
+            </div>
+            <button onclick="deleteFolder(event, ${index})" class="delete-btn" style="top:5px; right:5px;">×</button>
+            <button onclick="renameFolder(event, ${index})" class="edit-text-btn" style="top:5px; left:5px;">✎</button>
+        `;
+        container.appendChild(div);
+    });
+}
+
+function deleteFolder(event, index) {
+    event.stopPropagation();
+    const name = appData[currentUser].folders[index].name;
+    showConfirmModal(
+        'Delete Folder',
+        `"${name}" and all its pieces will be permanently deleted.`,
+        name,
+        'Delete',
+        () => {
+            appData[currentUser].folders.splice(index, 1);
+            saveAndSync();
+            renderDashboard();
+        }
+    );
+}
+
+function renameFolder(event, index) {
+    event.stopPropagation();
+    const oldName = appData[currentUser].folders[index].name;
+    const newName = prompt("Rename folder to:", oldName);
+    if (newName && newName !== oldName) {
+        appData[currentUser].folders[index].name = newName;
+        saveAndSync();
+        renderDashboard();
+    }
+}
+
+// --- PAGE 3: FOLDER DETAIL (PIECES) ---
+function openFolder(index) {
+    currentFolder = index;
+    showPage('page-folder-detail');
+    document.getElementById('current-folder-name').innerText = appData[currentUser].folders[index].name;
+    renderPieces();
+}
+
+function createPiece() {
+    const name = prompt("Enter Piece Name:");
+    if (!name) return;
+    appData[currentUser].folders[currentFolder].pieces.push({ 
+        name: name, 
+        content: "", 
+        lastModified: new Date().toLocaleDateString() 
+    });
+    saveAndSync();
+    renderPieces();
+}
+
+function deletePiece(event, index) {
+    event.stopPropagation();
+    const name = appData[currentUser].folders[currentFolder].pieces[index].name;
+    showConfirmModal(
+        'Delete Piece',
+        `"${name}" will be permanently deleted.`,
+        name,
+        'Delete',
+        () => {
+            appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
+            saveAndSync();
+            renderPieces();
+        }
+    );
+}
+
+// Updated Bridge: Can go to Step 1 (insert) or Step 2 (studio)
+// MASTER LOAD: Takes you straight to the Studio with all visual data intact
+// MASTER LOAD: Takes you straight to the Studio with all visual data intact
+function loadPiece(index) {
+    currentPiece = index;
+    const pieceData = appData[currentUser].folders[currentFolder].pieces[currentPiece];
+    
+    // 1. Sync the text box just in case
+    document.getElementById('bulk-input').value = pieceData.content || "";
+    
+    // 2. Load the visual layout (Stacks, Colors, Symbols)
+    if (pieceData.visualData && pieceData.visualData.trim() !== "") {
+        document.getElementById('workspace-container').innerHTML = pieceData.visualData;
+        showPage('step-2');
+    } else {
+        // If it's a brand new piece, process the text for the first time
+        processText();
+    }
+}
+
+// UPDATED RENDER: Cleaner look, clicking the piece opens the Studio
+function renderPieces() {
+    const container = document.getElementById('piece-list');
+    if(!container) return;
+    container.innerHTML = '';
+    appData[currentUser].folders[currentFolder].pieces.forEach((piece, index) => {
+        const div = document.createElement('div');
+        div.className = 'piece-item';
+        div.style.position = 'relative';
+        div.draggable = true;
+        div.dataset.index = index;
+        div.innerHTML = `
+            <button onclick="deletePiece(event, ${index})" class="delete-btn" title="Delete">×</button>
+            <button onclick="renamePiece(event, ${index})" class="edit-text-btn" style="top:5px; left:5px;">✎</button>
+            <button onclick="duplicatePiece(event, ${index})" class="edit-text-btn" style="top:5px; left:30px;">⧉</button>
+            <button onclick="movePiece(event, ${index})" class="edit-text-btn" style="top:5px; left:55px;">↪</button>
+            <div style="font-size:40px; margin-top:10px;">📜</div>
+            <div style="font-weight:bold;">${piece.name}</div>
+            <button onclick="event.stopPropagation(); confirmEditText(${index});" style="margin-top:10px; font-size:10px; cursor:pointer; background:none; border:1px solid #ccc; border-radius:3px;">Edit Text?</button>
+            <div style="font-size:10px; color:#999; margin-top:5px;">Last Edit: ${piece.lastModified}</div>
+        `;
+        div.onclick = () => loadPiece(index);
+
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', index);
+            div.style.opacity = '0.4';
+        });
+        div.addEventListener('dragend', () => {
+            div.style.opacity = '1';
+        });
+        div.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            div.style.outline = '2px dashed var(--sidebar-bg)';
+        });
+        div.addEventListener('dragleave', () => {
+            div.style.outline = '';
+        });
+        div.addEventListener('drop', (e) => {
+            e.preventDefault();
+            div.style.outline = '';
+            const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+            const toIndex = parseInt(div.dataset.index);
+            if (fromIndex === toIndex) return;
+            const pieces = appData[currentUser].folders[currentFolder].pieces;
+            const moved = pieces.splice(fromIndex, 1)[0];
+            pieces.splice(toIndex, 0, moved);
+            saveAndSync();
+            renderPieces();
+        });
+
+        container.appendChild(div);
+    });
+}
+
+function movePiece(event, index) {
+    event.stopPropagation();
+    const folders = appData[currentUser].folders;
+    if (folders.length < 2) return alert("You need at least 2 folders to move a piece.");
+    
+    const options = folders
+        .map((f, i) => i === currentFolder ? null : `${i}: ${f.name}`)
+        .filter(Boolean)
+        .join('\n');
+    
+    const input = prompt(`Move to which folder?\n\n${options}\n\nType the number:`);
+    if (input === null) return;
+    
+    const targetIndex = parseInt(input);
+    if (isNaN(targetIndex) || targetIndex === currentFolder || !folders[targetIndex]) {
+        return alert("Invalid folder number.");
+    }
+    
+    const piece = appData[currentUser].folders[currentFolder].pieces.splice(index, 1)[0];
+    appData[currentUser].folders[targetIndex].pieces.push(piece);
+    saveAndSync();
+    renderPieces();
+}
+
+function duplicatePiece(event, index) {
+    event.stopPropagation();
+    const original = appData[currentUser].folders[currentFolder].pieces[index];
+    const copy = JSON.parse(JSON.stringify(original));
+    copy.name = original.name + ' (Copy)';
+    copy.lastModified = new Date().toLocaleDateString();
+    appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
+    saveAndSync();
+    renderPieces();
+}
+
+function renamePiece(event, index) {
+    event.stopPropagation();
+    const oldName = appData[currentUser].folders[currentFolder].pieces[index].name;
+    const newName = prompt("Rename piece to:", oldName);
+    if (newName && newName !== oldName) {
+        appData[currentUser].folders[currentFolder].pieces[index].name = newName;
+        saveAndSync();
+        renderPieces();
+    }
+}
+
+// Update your existing startStudio or processText function to save progress!
+function saveWorkToPiece() {
+    if (currentUser && currentFolder !== null && currentPiece !== null) {
+        // 1. Save the raw text (for the 'Edit Text' mode)
+        const rawText = document.getElementById('bulk-input').value;
+        
+        // 2. Save the entire visual layout (The Grid)
+        const studioHTML = document.getElementById('workspace-container').innerHTML;
+        
+        // Update the database
+        appData[currentUser].folders[currentFolder].pieces[currentPiece].content = rawText;
+        appData[currentUser].folders[currentFolder].pieces[currentPiece].visualData = studioHTML;
+        appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toLocaleDateString();
+        
+        saveAndSync();
+    }
+}
+    let lastClickedSlot = null;
+    let currentColor = 'black';
+    let miliketRows = 1;
+
+    document.addEventListener('mousedown', (e) => {
+        if (e.target.classList.contains('stack-slot') || 
+            e.target.classList.contains('miliket-tray') || 
+            e.target.classList.contains('zema-base')) {
+            lastClickedSlot = e.target;
+        }
+    });
+
+    function toggleColor() {
+        currentColor = (currentColor === 'black' ? 'red' : 'black');
+        const btn = document.getElementById('color-toggle');
+        btn.style.background = (currentColor === 'red' ? '#d11212' : 'black');
+        btn.innerText = 'Color: ' + currentColor.toUpperCase();
+        
+        if (lastClickedSlot) {
+            lastClickedSlot.classList.remove('stamp-red', 'stamp-black');
+            lastClickedSlot.classList.add(currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+            lastClickedSlot.style.color = (currentColor === 'red' ? '#d11212' : 'black');
+        }
+    }
+    
+function applyOverline() {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        const selectedElement = selection.anchorNode.parentElement;
+        if (selectedElement.classList.contains('m-word')) {
+            selectedElement.classList.toggle('with-line');
+        }
+    }
+}
+    
+    function insertStackTemplate(levels) {
+        if (!lastClickedSlot) return;
+        const targetTray = lastClickedSlot.classList.contains('miliket-tray') ? lastClickedSlot : lastClickedSlot.closest('.miliket-tray');
+        const container = document.createElement('div');
+        container.className = 'stack-container';
+        for(let i=0; i<levels; i++) {
+            const slot = document.createElement('div');
+            slot.className = 'stack-slot ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+            slot.contentEditable = "true";
+            container.appendChild(slot);
+        }
+        targetTray.appendChild(container);
+    }
+
+    function insertEmptyStack() {
+    if (!lastClickedSlot) return;
+    const targetTray = lastClickedSlot.classList.contains('miliket-tray') ? lastClickedSlot : lastClickedSlot.closest('.miliket-tray');
+    const slot = document.createElement('div');
+    
+    // This line ensures the new slot matches your current sidebar color
+    slot.className = 'stack-slot ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+    
+    slot.style.border = '1px dashed #b8860b';
+    slot.contentEditable = "true";
+    targetTray.appendChild(slot);
+    slot.focus();
+    lastClickedSlot = slot;
+    }
+
+
+    function createGapSpan() {
+        const gap = document.createElement('span');
+        gap.className = 'miliket-gap';
+        gap.contentEditable = 'true';
+        gap.innerHTML = '&#8203;'; // zero-width space — clickable but invisible
+        gap.style.cssText = 'display:inline-block; min-width:2px; outline:none; cursor:text;';
+        gap.addEventListener('click', (e) => {
+            e.stopPropagation();
+            gap.focus();
+        });
+        return gap;
+    }
+
+    function insertIsland(text, useLine) {
+        event.preventDefault();
+        if (!lastClickedSlot) return;
+        lastClickedSlot.classList.remove('stamp-red', 'stamp-black');
+        lastClickedSlot.classList.add(currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+
+        const span = document.createElement('span');
+        span.className = 'm-word horizontal ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black') + (useLine ? ' with-line' : '');
+        span.innerText = text;
+
+        lastClickedSlot.appendChild(span);
+        lastClickedSlot.appendChild(createGapSpan()); // clickable gap after every miliket
+        lastClickedSlot.style.justifyContent = 'flex-start';
+        lastClickedSlot.focus();
+    }
+
+
+    function insertSeq(symbols) {
+        event.preventDefault();
+        if (!lastClickedSlot) return;
+
+        const wrapper = document.createElement('span');
+        wrapper.className = 'm-word vertical-stack ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+
+        symbols.forEach(s => {
+        const part = document.createElement('span'); 
+        part.innerText = s;
+        wrapper.appendChild(part);
+        });
+
+        lastClickedSlot.appendChild(wrapper); // append to right
+        lastClickedSlot.style.justifyContent = 'flex-start'; // left-anchored
+        lastClickedSlot.focus();
+    }
+
+
+    function clearActiveArea() { if(lastClickedSlot) lastClickedSlot.innerHTML = ''; }
+
+    function startEditor() {
+        const text = document.getElementById('bulk-input').value || "";
+        const line = document.getElementById('main-line');
+        line.innerHTML = '';
+        line.appendChild(createColumn("")); 
+        [...text].forEach(char => line.appendChild(createColumn(char)));
+        document.getElementById('step-1').style.display = 'none';
+        document.getElementById('step-2').style.display = 'grid';
+        saveWorkToPiece();
+    }
+
+    function createColumn(char = "") {
+        const stack = document.createElement('div'); stack.className = 'char-stack';
+        for (let i = 0; i < miliketRows; i++) stack.appendChild(createTray());
+        const base = document.createElement('div'); base.className = 'zema-base';
+        base.contentEditable = "true"; base.innerText = char === " " ? "" : char;
+        stack.appendChild(base); return stack;
+    }
+
+    function createTray() { 
+        const tray = document.createElement('div'); 
+        tray.className = 'miliket-tray stamp-black'; 
+        tray.contentEditable = "true";
+        const spacer = document.createElement('span');
+        spacer.className = 'tray-spacer';
+        spacer.innerHTML = '\u00A0';
+        spacer.style.display = 'inline-block';
+        spacer.style.width = '10px';
+        tray.appendChild(spacer);
+        return tray; 
+    }
+
+    function addMiliketRow() { miliketRows++; document.querySelectorAll('.char-stack').forEach(stack => stack.insertBefore(createTray(), stack.firstChild)); }
+    function removeMiliketRow() { if (miliketRows <= 1) return; miliketRows--; document.querySelectorAll('.char-stack').forEach(stack => { if (stack.firstChild.className.includes('miliket-tray')) stack.removeChild(stack.firstChild); }); }
+    function toggleCleanMode() { document.getElementById('main-body').classList.toggle('clean-view'); }
+function toggleQuickSwitch() {
+    const sidebar = document.getElementById('studio-sidebar');
+    sidebar.classList.toggle('active');
+    if (sidebar.classList.contains('active')) {
+        renderSidebar();
+    }
+}
+
+function renderSidebar() {
+    const list = document.getElementById('sidebar-piece-list');
+    if (!list) return;
+    list.innerHTML = '';
+    
+    // Safety check to ensure we have pieces to show
+    if (!appData[currentUser].folders[currentFolder]) return;
+    
+    appData[currentUser].folders[currentFolder].pieces.forEach((piece, index) => {
+        const div = document.createElement('div');
+        div.className = 'sidebar-item' + (currentPiece === index ? ' current-active' : '');
+        div.innerText = piece.name;
+        div.onclick = () => {
+            saveWorkToPiece(); // Auto-save current before switching
+            loadPiece(index);  
+            toggleQuickSwitch(); // Hide the drawer
+        };
+        list.appendChild(div);
+    });
+}
+    
+// DELETE the old exportAsImage function and paste this one:
+    async function exportProject(format = 'image') {
+        const { jsPDF } = window.jspdf;
+        const workspace = document.getElementById('main-line');
+        const wasClean = document.body.classList.contains('clean-view');
+        
+        if (!wasClean) document.body.classList.add('clean-view');
+
+        const slideWidth = 1920; 
+        const slideHeight = 1080;
+
+        const originalWidth = workspace.style.width;
+        workspace.style.width = "1600px"; 
+
+        const canvas = await html2canvas(workspace, {
+            scale: 3, 
+            backgroundColor: "#ffffff",
+            useCORS: true
+        });
+
+        workspace.style.width = originalWidth;
+
+        if (format === 'image') {
+            const link = document.createElement('a');
+            link.download = 'zema-manuscript.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        } else if (format === 'pdf') {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pdf = new jsPDF('l', 'px', [slideWidth, slideHeight]);
+            
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            
+            let heightLeft = pdfHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= slideHeight;
+
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= slideHeight;
+            }
+            pdf.save("zema-presentation.pdf");
+        }
+
+        if (!wasClean) document.body.classList.remove('clean-view');
+    }
+// ===== PRESENT PAGE SYSTEM =====
+let serviceQueue = []; // [{folderIndex, pieceIndex}]
+let selectedQueueIndex = null;
+
+function openPresentPage() {
+    showPage('page-present');
+    renderPresentLibrary();
+    renderQueue();
+}
+
+function renderPresentLibrary() {
+    const tree = document.getElementById('present-folder-tree');
+    tree.innerHTML = '';
+    if (!currentUser || !appData[currentUser]) return;
+
+    appData[currentUser].folders.forEach((folder, fi) => {
+        const label = document.createElement('div');
+        label.className = 'present-folder-label';
+        label.innerText = '📁 ' + folder.name;
+        tree.appendChild(label);
+
+        folder.pieces.forEach((piece, pi) => {
+            const row = document.createElement('div');
+            row.className = 'present-piece-row';
+            row.innerHTML = `
+                <span class="present-piece-name">${piece.name}</span>
+                <button class="add-queue-btn" onclick="addToQueue(${fi}, ${pi})">+ Add</button>
+            `;
+            tree.appendChild(row);
+        });
+    });
+}
+
+function addToQueue(folderIndex, pieceIndex) {
+    serviceQueue.push({ folderIndex, pieceIndex });
+    renderQueue();
+    renderPresentDisplay();
+    renderOutline();
+}
+
+function renderQueue() {
+    const list = document.getElementById('queue-list');
+    list.innerHTML = '';
+    if (serviceQueue.length === 0) {
+        list.innerHTML = '<p style="color:#999; font-size:12px; padding:5px;">Queue is empty.</p>';
+        return;
+    }
+    serviceQueue.forEach((item, idx) => {
+        const folder = appData[currentUser].folders[item.folderIndex];
+        const piece = folder.pieces[item.pieceIndex];
+        const div = document.createElement('div');
+        div.className = 'queue-item' + (selectedQueueIndex === idx ? ' selected-piece' : '');
+        div.draggable = true;
+        div.dataset.index = idx;
+        div.innerHTML = `
+            <div style="font-size:11px; color:#999; padding-right:6px; cursor:grab;">⠿</div>
+            <div style="flex:1;" onclick="toggleQueueHighlight(${idx})">
+                <div class="queue-item-name">${piece.name}</div>
+                <div class="queue-item-folder">${folder.name}</div>
+            </div>
+            <button class="queue-remove-btn" onclick="removeFromQueue(${idx})">×</button>
+        `;
+
+        div.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', idx);
+            div.style.opacity = '0.4';
+        });
+        div.addEventListener('dragend', () => {
+            div.style.opacity = '1';
+        });
+        div.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            div.style.outline = '2px dashed var(--gold)';
+        });
+        div.addEventListener('dragleave', () => {
+            div.style.outline = '';
+        });
+        div.addEventListener('drop', (e) => {
+            e.preventDefault();
+            div.style.outline = '';
+            const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+            const toIdx = parseInt(div.dataset.index);
+            if (fromIdx === toIdx) return;
+            const moved = serviceQueue.splice(fromIdx, 1)[0];
+            serviceQueue.splice(toIdx, 0, moved);
+            selectedQueueIndex = null;
+            renderQueue();
+            renderPresentDisplay();
+        });
+
+        list.appendChild(div);
+    });
+}
+
+function toggleQueueHighlight(idx) {
+    selectedQueueIndex = (selectedQueueIndex === idx) ? null : idx;
+    renderQueue();
+}
+
+function removeFromQueue(idx) {
+    serviceQueue.splice(idx, 1);
+    if (selectedQueueIndex === idx) selectedQueueIndex = null;
+    else if (selectedQueueIndex > idx) selectedQueueIndex--;
+    renderQueue();
+    renderPresentDisplay();
+    renderOutline();
+}
+
+function deleteSelectedFromQueue() {
+    if (selectedQueueIndex === null) return alert("Click a piece in the queue to select it first.");
+    removeFromQueue(selectedQueueIndex);
+    selectedQueueIndex = null;
+}
+
+function clearQueue() {
+    if (!confirm("Clear the entire queue?")) return;
+    serviceQueue = [];
+    selectedQueueIndex = null;
+    renderQueue();
+    renderPresentDisplay();
+    renderOutline();
+}
+
+function renderPresentDisplay() {
+    const display = document.getElementById('present-display');
+    display.innerHTML = '';
+    if (serviceQueue.length === 0) {
+        display.innerHTML = '<p style="color:#aaa; font-style:italic;">Add pieces from the library to begin.</p>';
+        return;
+    }
+    serviceQueue.forEach((item, idx) => {
+        const folder = appData[currentUser].folders[item.folderIndex];
+        const piece = folder.pieces[item.pieceIndex];
+
+        const block = document.createElement('div');
+        block.className = 'present-piece-block';
+        block.id = 'present-block-' + idx;
+
+        const title = document.createElement('div');
+        title.className = 'present-piece-title';
+        title.innerText = piece.name + '  ·  ' + folder.name;
+        block.appendChild(title);
+
+        // Render the visual score if saved, otherwise show raw text
+        if (piece.visualData && piece.visualData.trim() !== '') {
+            const scoreWrap = document.createElement('div');
+            scoreWrap.className = 'score-row';
+            scoreWrap.innerHTML = piece.visualData;
+            // Strip borders for clean display
+            scoreWrap.querySelectorAll('.miliket-tray, .stack-slot, .stack-container, .zema-base').forEach(el => {
+                el.style.border = 'none';
+                el.style.background = 'transparent';
+            });
+            block.appendChild(scoreWrap);
+        } else if (piece.content) {
+            const raw = document.createElement('div');
+            raw.style.cssText = 'font-size:32px; font-family:"Abyssinica SIL",serif; padding:10px 0;';
+            raw.innerText = piece.content;
+            block.appendChild(raw);
+        } else {
+            const empty = document.createElement('div');
+            empty.style.color = '#ccc';
+            empty.innerText = '(empty piece)';
+            block.appendChild(empty);
+        }
+
+        if (idx < serviceQueue.length - 1) {
+            const divider = document.createElement('hr');
+            divider.className = 'present-piece-divider';
+            block.appendChild(divider);
+        }
+
+        display.appendChild(block);
+    });
+}
+
+function renderOutline() {
+    const list = document.getElementById('outline-list');
+    list.innerHTML = '';
+    serviceQueue.forEach((item, idx) => {
+        const folder = appData[currentUser].folders[item.folderIndex];
+        const piece = folder.pieces[item.pieceIndex];
+        const entry = document.createElement('div');
+        entry.className = 'outline-entry';
+        entry.innerHTML = `${piece.name}<span class="outline-folder-tag">(${folder.name})</span>`;
+        entry.onclick = () => {
+            const target = document.getElementById('present-block-' + idx);
+            if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        };
+        list.appendChild(entry);
+    });
+}
+
+function toggleOutlineDrawer() {
+    const drawer = document.getElementById('outline-drawer');
+    const tab = document.getElementById('outline-tab');
+    const isOpen = drawer.classList.toggle('open');
+    tab.innerText = isOpen ? '▶' : '◀';
+}
+
+async function exportQueue(format) {
+    if (serviceQueue.length === 0) return alert("Your queue is empty!");
+
+    // ---- existing image / pdf / html arms ----
+    if (format === 'image' || format === 'pdf' || format === 'html') {
+        const { jsPDF } = window.jspdf;
+        const display = document.getElementById('present-display');
+        const canvas = await html2canvas(display, { scale: 2, backgroundColor: '#ffffff', useCORS: true });
+
+        if (format === 'image') {
+            const link = document.createElement('a');
+            link.download = 'miliket-service.png';
+            link.href = canvas.toDataURL('image/png', 1.0);
+            link.click();
+        } else if (format === 'pdf') {
+            const imgData = canvas.toDataURL('image/png', 1.0);
+            const pdf = new jsPDF('l', 'px', [1920, 1080]);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            let heightLeft = pdfHeight, position = 0;
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= 1080;
+            while (heightLeft >= 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= 1080;
+            }
+            pdf.save('miliket-service.pdf');
+        }
+    }
+
+    // ---- SLIDES export ----
+    if (format !== 'slides') return;
+    const PptxGenJSClass = typeof PptxGenJS !== 'undefined' ? PptxGenJS : (typeof pptxgen !== 'undefined' ? pptxgen : null);
+    if (!PptxGenJSClass) return alert("Slides library not loaded. Check your internet connection.");
+
+    const SLIDE_W_PX = 1280; // render width
+    const SLIDE_H_PX = 720;  // 16:9 slide height in px
+
+    const pptx = new PptxGenJSClass();
+    pptx.defineLayout({ name: 'CUSTOM', width: 13.33, height: 7.5 });
+    pptx.layout = 'CUSTOM';
+
+    // Off-screen container for rendering each piece cleanly
+    const offscreen = document.createElement('div');
+    offscreen.style.cssText = `
+        position: fixed; left: -9999px; top: 0;
+        width: ${SLIDE_W_PX}px;
+        background: white;
+        padding: 40px;
+        box-sizing: border-box;
+        font-family: 'Abyssinica SIL', serif;
+    `;
+    document.body.appendChild(offscreen);
+
+    const statusMsg = document.createElement('div');
+    statusMsg.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:white;padding:12px 24px;border-radius:8px;z-index:99999;font-size:14px;';
+    statusMsg.innerText = 'Building slides...';
+    document.body.appendChild(statusMsg);
+
+    for (let qi = 0; qi < serviceQueue.length; qi++) {
+        const item = serviceQueue[qi];
+        const folder = appData[currentUser].folders[item.folderIndex];
+        const piece = folder.pieces[item.pieceIndex];
+
+        statusMsg.innerText = `Rendering piece ${qi + 1} of ${serviceQueue.length}: ${piece.name}`;
+
+        // Build the piece HTML into offscreen div
+        offscreen.innerHTML = '';
+
+        // Title bar
+        const titleEl = document.createElement('div');
+        titleEl.style.cssText = 'font-size:14px;font-weight:bold;color:#b8860b;text-transform:uppercase;letter-spacing:1px;border-bottom:1px solid #ddd;padding-bottom:8px;margin-bottom:16px;';
+        titleEl.innerText = piece.name + '  ·  ' + folder.name;
+        offscreen.appendChild(titleEl);
+
+        // Score content
+        const scoreWrap = document.createElement('div');
+        scoreWrap.className = 'score-row';
+        if (piece.visualData && piece.visualData.trim() !== '') {
+            scoreWrap.innerHTML = piece.visualData;
+            // Strip editor borders
+            scoreWrap.querySelectorAll('.miliket-tray, .stack-slot, .stack-container, .zema-base').forEach(el => {
+                el.style.border = 'none';
+                el.style.background = 'transparent';
+            });
+        } else if (piece.content) {
+            scoreWrap.style.fontSize = '36px';
+            scoreWrap.innerText = piece.content;
+        } else {
+            scoreWrap.style.color = '#ccc';
+            scoreWrap.innerText = '(empty piece)';
+        }
+        offscreen.appendChild(scoreWrap);
+
+        // Wait for layout to settle
+        await new Promise(r => setTimeout(r, 120));
+
+        // --- SMART SLICE LOGIC ---
+        // Get all char-stack columns and their positions relative to offscreen div
+        const offscreenTop = offscreen.getBoundingClientRect().top;
+        const columns = Array.from(offscreen.querySelectorAll('.char-stack'));
+        const totalHeight = offscreen.scrollHeight;
+
+        // Build list of safe cut points (gaps between columns, in px from top of offscreen)
+        // A safe cut is: between column[i] bottom and column[i+1] top
+        let safeCuts = []; // each entry: { afterColIndex, yPx }
+        for (let i = 0; i < columns.length - 1; i++) {
+            const thisRect = columns[i].getBoundingClientRect();
+            const nextRect = columns[i + 1].getBoundingClientRect();
+            const gapY = ((thisRect.bottom + nextRect.top) / 2) - offscreenTop;
+            safeCuts.push({ afterColIndex: i, yPx: gapY });
+        }
+
+        // Now figure out slice boundaries
+        // Each slice is SLIDE_H_PX tall (minus title height on first slice)
+        const titleHeight = titleEl.getBoundingClientRect().height + 24; // 24px margin
+        let slices = []; // [{startY, endY}]
+        let cursor = 0;
+        let isFirst = true;
+
+        while (cursor < totalHeight) {
+            const availableH = isFirst ? (SLIDE_H_PX - titleHeight) : SLIDE_H_PX;
+            let targetCut = cursor + availableH;
+
+            if (targetCut >= totalHeight) {
+                // Last slice — just take the rest
+                slices.push({ startY: cursor, endY: totalHeight });
+                break;
+            }
+
+            // Find the safe cut closest to targetCut but NOT exceeding it
+            // (scan downward from targetCut to find a gap)
+            let bestCut = targetCut; // fallback: cut exactly at target
+            // Find all gaps before targetCut
+            const gapsBefore = safeCuts.filter(c => c.yPx <= targetCut && c.yPx > cursor);
+            if (gapsBefore.length > 0) {
+                // Pick the gap closest to (but not past) targetCut
+                bestCut = gapsBefore[gapsBefore.length - 1].yPx;
+            }
+
+            slices.push({ startY: cursor, endY: bestCut });
+            cursor = bestCut;
+            isFirst = false;
+        }
+
+        // Render each slice as a slide
+        for (let si = 0; si < slices.length; si++) {
+            const slice = slices[si];
+            const sliceH = slice.endY - slice.startY;
+
+            // Capture just this vertical slice of the offscreen element
+            const canvas = await html2canvas(offscreen, {
+                scale: 2,
+                backgroundColor: '#ffffff',
+                useCORS: true,
+                y: slice.startY,
+                height: sliceH,
+                windowWidth: SLIDE_W_PX,
+            });
+
+            const imgData = canvas.toDataURL('image/png', 1.0);
+
+            const slide = pptx.addSlide();
+
+            // Black background
+            slide.background = { color: 'FFFFFF' };
+
+            // If multi-slide piece, show piece name + part number in top corner
+            if (slices.length > 1) {
+                slide.addText(`${piece.name}  (${si + 1}/${slices.length})`, {
+                    x: 0.1, y: 0.05, w: 9, h: 0.3,
+                    fontSize: 9, color: 'b8860b', bold: true,
+                    fontFace: 'Arial'
+                });
+            }
+
+            // Place the score image — fill the slide width, position from top
+            const aspectRatio = canvas.height / canvas.width;
+            const imgW = 10; // inches (full 16:9 slide width)
+            const imgH = Math.min(imgW * aspectRatio, 7.5); // cap at slide height
+            
+            slide.addImage({
+                data: imgData,
+                x: 0,
+                y: 0.35,
+                w: 13.33,
+                h: 7.15,
+                sizing: { type: 'contain', w: 13.33, h: 7.15 }
+            });
+        }
+    }
+
+    document.body.removeChild(offscreen);
+    statusMsg.innerText = 'Saving file...';
+
+    await pptx.writeFile({ fileName: `miliket-service-${new Date().toISOString().split('T')[0]}.pptx` });
+
+    document.body.removeChild(statusMsg);
+}
+
+// ===== FULLSCREEN PRESENT MODE =====
+function enterFullscreen() {
+    document.getElementById('present-top-bar').style.display = 'none';
+    document.getElementById('present-grid-box-wrap').style.display = 'none';
+    document.getElementById('present-display-wrap').style.flex = '1';
+    document.getElementById('present-display-wrap').style.height = '100vh';
+
+    const bar = document.createElement('div');
+    bar.id = 'fullscreen-bar';
+    bar.style.cssText = 'position:fixed; top:12px; right:12px; z-index:99999; display:flex; align-items:center; gap:8px;';
+
+    const timerDisplay = document.createElement('span');
+    timerDisplay.id = 'fullscreen-timer-display';
+    timerDisplay.style.cssText = 'font-size:20px; font-weight:bold; color:#fff; background:rgba(0,0,0,0.5); padding:6px 12px; border-radius:5px; min-width:70px; text-align:center;';
+    timerDisplay.innerText = document.getElementById('timer-display').innerText;
+
+    const exitBtn = document.createElement('button');
+    exitBtn.id = 'fullscreen-exit-btn';
+    exitBtn.innerText = '✕ Exit';
+    exitBtn.onclick = exitFullscreen;
+    exitBtn.style.cssText = 'background:#e74c3c; color:white; border:none; border-radius:5px; padding:8px 16px; font-weight:bold; cursor:pointer; font-size:13px;';
+
+    bar.appendChild(timerDisplay);
+    bar.appendChild(exitBtn);
+    document.body.appendChild(bar);
+}
+
+function exitFullscreen() {
+    document.getElementById('present-top-bar').style.display = 'flex';
+    document.getElementById('present-grid-box-wrap').style.display = 'flex';
+    document.getElementById('present-display-wrap').style.flex = '';
+    document.getElementById('present-display-wrap').style.height = '';
+    const bar = document.getElementById('fullscreen-bar');
+    if (bar) bar.remove();
+}
+
+// ===== TIMER =====
+let timerInterval = null;
+let timerRunning = false;
+let timerSeconds = 0;
+let timerMode = 'stopwatch'; // 'stopwatch' or 'countdown'
+let timerCountdownFrom = 0;
+
+function toggleTimerMode() {
+    timerMode = timerMode === 'stopwatch' ? 'countdown' : 'stopwatch';
+    const btn = document.getElementById('timer-mode-btn');
+    const input = document.getElementById('timer-countdown-input');
+    if (timerMode === 'countdown') {
+        btn.innerText = '⏱ Countdown';
+        input.style.display = 'inline-block';
+    } else {
+        btn.innerText = '⏱ Stopwatch';
+        input.style.display = 'none';
+    }
+    resetTimer();
+}
+
+function startStopTimer() {
+    const btn = document.getElementById('timer-start-btn');
+    if (timerRunning) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        btn.innerText = '▶ Start';
+        btn.style.background = '#27ae60';
+    } else {
+        if (timerMode === 'countdown' && timerSeconds === 0) {
+            const input = document.getElementById('timer-countdown-input').value;
+            const parts = input.split(':');
+            if (parts.length === 2) {
+                timerSeconds = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                timerCountdownFrom = timerSeconds;
+            }
+            if (!timerSeconds) return alert('Enter a valid time (mm:ss)');
+        }
+        timerRunning = true;
+        btn.innerText = '⏸ Pause';
+        btn.style.background = '#e67e22';
+        timerInterval = setInterval(() => {
+            if (timerMode === 'stopwatch') {
+                timerSeconds++;
+            } else {
+                timerSeconds--;
+                if (timerSeconds <= 0) {
+                    timerSeconds = 0;
+                    clearInterval(timerInterval);
+                    timerRunning = false;
+                    btn.innerText = '▶ Start';
+                    btn.style.background = '#27ae60';
+                }
+            }
+            updateTimerDisplay();
+        }, 1000);
+    }
+}
+
+function resetTimer() {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    timerSeconds = 0;
+    const btn = document.getElementById('timer-start-btn');
+    if (btn) { btn.innerText = '▶ Start'; btn.style.background = '#27ae60'; }
+    updateTimerDisplay();
+}
+
+function updateTimerDisplay() {
+    const mins = String(Math.floor(timerSeconds / 60)).padStart(2, '0');
+    const secs = String(timerSeconds % 60).padStart(2, '0');
+    const text = `${mins}:${secs}`;
+    const main = document.getElementById('timer-display');
+    if (main) main.innerText = text;
+    const fs = document.getElementById('fullscreen-timer-display');
+    if (fs) fs.innerText = text;
+}
+
+// ===== THEME TOGGLE =====
+function toggleTheme() {
+    const isDark = document.body.classList.toggle('dark-mode');
+    const btn = document.getElementById('theme-toggle-btn');
+    if (isDark) {
+        btn.textContent = '☀ Light';
+        btn.style.background = '#ddeeff';
+        btn.style.color = '#1a2a3a';
+        btn.style.borderColor = '#b8d4ee';
+    } else {
+        btn.textContent = '☾ Dark';
+        btn.style.background = '#1e2a3a';
+        btn.style.color = '#7eb8f7';
+        btn.style.borderColor = '#3a6a9a';
+    }
+    localStorage.setItem('miliket_theme', isDark ? 'dark' : 'light');
+}
+
+(function() {
+    if (localStorage.getItem('miliket_theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+        window.addEventListener('DOMContentLoaded', () => {
+            const btn = document.getElementById('theme-toggle-btn');
+            if (btn) {
+                btn.textContent = '☀ Light';
+                btn.style.background = '#ddeeff';
+                btn.style.color = '#1a2a3a';
+                btn.style.borderColor = '#b8d4ee';
+            }
+        });
+    }
+})();
+
+// ===== CONFIRM MODAL SYSTEM =====
+
+function showConfirmModal(title, desc, fullName, okLabel, callback) {
+    const hint = fullName.slice(0, 2) + '*'.repeat(Math.max(0, fullName.length - 2));
+    confirmAnswer = fullName;
+    confirmCallback = callback;
+
+    document.getElementById('confirm-title').innerText = title;
+    document.getElementById('confirm-desc').innerText = desc;
+    document.getElementById('confirm-hint').innerText = hint;
+    document.getElementById('confirm-input').value = '';
+    document.getElementById('confirm-input').classList.remove('error');
+    document.getElementById('confirm-error').classList.remove('show');
+    document.getElementById('confirm-ok').innerText = okLabel || 'Confirm';
+    document.getElementById('confirm-modal').classList.add('open');
+
+    setTimeout(() => document.getElementById('confirm-input').focus(), 100);
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirm-modal').classList.remove('open');
+    confirmCallback = null;
+    confirmAnswer = '';
+}
+
+function submitConfirmModal() {
+    const input = document.getElementById('confirm-input').value.trim();
+    if (input !== confirmAnswer) {
+        document.getElementById('confirm-input').classList.add('error');
+        document.getElementById('confirm-error').classList.add('show');
+        return;
+    }
+    const cb = confirmCallback;
+    closeConfirmModal();
+    if (cb) cb();
+}
+
+// Allow pressing Enter to submit
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && document.getElementById('confirm-modal').classList.contains('open')) {
+        submitConfirmModal();
+    }
+    if (e.key === 'Escape' && document.getElementById('confirm-modal').classList.contains('open')) {
+        closeConfirmModal();
+    }
+});
+
+function confirmEditText(index) {
+    const name = appData[currentUser].folders[currentFolder].pieces[index].name;
+    showConfirmModal(
+        'Edit Text',
+        `You are about to edit the raw text of "${name}".`,
+        name,
+        'Open',
+        () => {
+            currentPiece = index;
+            showPage('step-1');
+        }
+    );
+}
+
+// Auto-save every 4 seconds (local), sync to Gist every 30 seconds
+setInterval(() => {
+    if (document.getElementById('step-2').style.display === 'grid') {
+        saveWorkToPiece();
+    }
+}, 4000);
+
+setInterval(() => {
+    if (document.getElementById('step-2').style.display === 'grid') {
+        saveAndSync();
+    }
+}, 30000);
+</script>
+</body>
+</html>
