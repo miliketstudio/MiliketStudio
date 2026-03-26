@@ -2,6 +2,7 @@
 <html lang="am">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Miliket Studio</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -268,8 +269,8 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
 
 /* ===== PRESENT PAGE ===== */
 #page-present {
-    position: fixed; inset: 0; background: #fdfaf0; z-index: 200;
-    display: none; flex-direction: column; overflow-y: auto;
+    position: fixed; inset: 0; background: #ffffff; z-index: 200;
+    display: none; flex-direction: column; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 
 /* TOP BAR */
@@ -308,7 +309,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #333;
     flex-shrink: 0;
 }
-#present-folder-tree { flex: 1; overflow-y: auto; padding: 8px; }
+#present-folder-tree { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
 .present-folder-label {
     color: var(--gold); font-size: 10px; text-transform: uppercase;
     padding: 6px 5px 3px; border-bottom: 1px solid #333; margin-bottom: 3px;
@@ -335,7 +336,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #ccc;
     background: #ede8d8; flex-shrink: 0;
 }
-#queue-list { flex: 1; overflow-y: auto; padding: 8px; }
+#queue-list { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px; }
 .queue-item {
     display: flex; align-items: center; justify-content: space-between;
     background: white; border: 1px solid #ddd; border-radius: 4px;
@@ -382,34 +383,45 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     width: 100%; border: none; border-top: 2px dashed #ddd; margin: 40px 0;
 }
 
-/* OUTLINE DRAWER */
+/* OUTLINE BUBBLE */
 #outline-drawer {
-    position: fixed; right: -240px; top: 0; bottom: 0; width: 240px;
-    background: #fdfaf0; border-left: 2px solid var(--gold);
-    display: flex; flex-direction: column; transition: right 0.3s ease; z-index: 9999;
-    visibility: hidden;
+    position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
+    width: 200px; max-height: 70vh;
+    background: #fdfaf0; border: 2px solid var(--gold); border-radius: 16px;
+    display: flex; flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    z-index: 9999; overflow: hidden;
+    transition: opacity 0.2s, transform 0.2s;
+    opacity: 0; pointer-events: none;
+    transform: translateY(-50%) scale(0.95);
 }
-#outline-drawer.open { right: 0; visibility: visible; }
+#outline-drawer.open {
+    opacity: 1; pointer-events: all;
+    transform: translateY(-50%) scale(1);
+}
 #outline-tab {
-    position: absolute; left: -32px; top: 50%; transform: translateY(-50%);
+    position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
     background: var(--gold); color: white; border: none;
-    width: 32px; height: 64px; cursor: pointer; border-radius: 6px 0 0 6px;
-    font-size: 16px; display: flex; align-items: center; justify-content: center;
-    visibility: visible;
+    width: 36px; height: 36px; cursor: pointer; border-radius: 50%;
+    font-size: 14px; display: flex; align-items: center; justify-content: center;
+    z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: right 0.2s;
 }
+#outline-drawer.open ~ #outline-tab,
+#outline-drawer.open + * #outline-tab { right: 228px; }
 #outline-drawer h3 {
-    color: var(--gold); margin: 0; padding: 15px; font-size: 11px;
+    color: var(--gold); margin: 0; padding: 10px 12px; font-size: 10px;
     text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #ddd;
     flex-shrink: 0;
 }
-#outline-list { flex: 1; overflow-y: auto; padding: 10px; }
+#outline-list { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 6px; }
 .outline-entry {
-    padding: 8px 10px; border-radius: 4px; margin-bottom: 4px; cursor: pointer;
-    font-size: 12px; border-left: 3px solid transparent; transition: 0.15s;
+    padding: 6px 8px; border-radius: 6px; margin-bottom: 3px; cursor: pointer;
+    font-size: 11px; border-left: 3px solid transparent; transition: 0.15s;
     line-height: 1.4;
 }
 .outline-entry:hover { background: white; border-left-color: var(--gold); }
-.outline-folder-tag { font-size: 10px; color: #999; display: block; margin-top: 2px; }
+.outline-folder-tag { font-size: 9px; color: #999; display: block; margin-top: 1px;
 
 /* ===== CONFIRM MODAL ===== */
 #confirm-modal {
@@ -685,8 +697,8 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         <div id="present-display">
             <p style="color:#aaa; font-style:italic;">Add pieces from the library to begin.</p>
         </div>
+        <button id="outline-tab" onclick="toggleOutlineDrawer()">◀</button>
         <div id="outline-drawer">
-            <button id="outline-tab" onclick="toggleOutlineDrawer()">◀</button>
             <h3>📋 Outline</h3>
             <div id="outline-list"></div>
         </div>
@@ -964,7 +976,9 @@ function renderDashboard() {
     appData[currentUser].folders.forEach((folder, index) => {
         const div = document.createElement('div');
         div.className = 'folder-item';
-        div.style.position = 'relative'; // Allows absolute positioning for buttons
+        div.style.position = 'relative';
+        div.draggable = true;
+        div.dataset.index = index;
         
         div.innerHTML = `
             <div onclick="openFolder(${index})" style="padding-top:10px;">
@@ -974,6 +988,42 @@ function renderDashboard() {
             <button onclick="deleteFolder(event, ${index})" class="delete-btn" style="top:5px; right:5px;">×</button>
             <button onclick="renameFolder(event, ${index})" class="edit-text-btn" style="top:5px; left:5px;">✎</button>
         `;
+        // ===== DRAG & DROP FOR FOLDERS =====
+div.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('text/plain', index);
+    div.style.opacity = '0.4';
+});
+
+div.addEventListener('dragend', () => {
+    div.style.opacity = '1';
+});
+
+div.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    div.style.outline = '2px dashed var(--sidebar-bg)';
+});
+
+div.addEventListener('dragleave', () => {
+    div.style.outline = '';
+});
+
+div.addEventListener('drop', (e) => {
+    e.preventDefault();
+    div.style.outline = '';
+
+    const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+    const toIndex = parseInt(div.dataset.index);
+
+    if (fromIndex === toIndex) return;
+
+    const folders = appData[currentUser].folders;
+
+    const moved = folders.splice(fromIndex, 1)[0];
+    folders.splice(toIndex, 0, moved);
+
+    saveAndSync();
+    renderDashboard();
+});
         container.appendChild(div);
     });
 }
@@ -1608,6 +1658,7 @@ function toggleOutlineDrawer() {
     const tab = document.getElementById('outline-tab');
     const isOpen = drawer.classList.toggle('open');
     tab.innerText = isOpen ? '▶' : '◀';
+    tab.style.right = isOpen ? '228px' : '16px';
 }
 
 async function exportQueue(format) {
