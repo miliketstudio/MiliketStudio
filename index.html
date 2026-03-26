@@ -854,8 +854,8 @@ function renderProjects() {
         div.draggable = false;
         div.dataset.name = name;
         div.innerHTML = `
-            <button onclick="deleteProject(event, NAME)" onmousedown="event.stopPropagation()">×</button>
-            <button onclick="renameProject(event, NAME)" onmousedown="event.stopPropagation()">✎</button>
+            <button onclick="deleteProject(event, '${name}')" onmousedown="event.stopPropagation()" class="delete-btn" title="Delete">×</button>
+            <button onclick="renameProject(event, '${name}')" onmousedown="event.stopPropagation()" class="edit-text-btn" style="top:5px; left:5px;">✎</button>
             <div style="font-size:40px; margin-top:10px;">☦</div>
             <div style="font-weight:bold;">${name}</div>
         `;
@@ -934,7 +934,7 @@ function renameProject(event, oldName) {
 
 function deleteProject(event, name) {
     event.stopPropagation();
-    if (!confirm("Are you sure?")) return;
+    showConfirmModal(
         'Delete Project',
         `"${name}" and all its folders and pieces will be permanently deleted.`,
         name,
