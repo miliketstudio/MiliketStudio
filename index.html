@@ -469,7 +469,10 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     <p style="color: var(--text-color);">Select a project to enter</p>
     <p id="sync-status" style="font-size:12px; color:#7eb8f7;">⟳ Syncing from cloud...</p>
     <div id="project-list" class="grid-container" style="margin-top:20px;"></div>
-    <button onclick="createProject()" class="add-btn" style="margin-top:30px;">+ New Project</button>
+    <div style="display:flex; gap:10px; margin-top:30px;">
+        <button onclick="createProject()" class="add-btn" style="margin:0;">+ New Project</button>
+        <button onclick="showPage('page-activity-log')" class="add-btn" style="margin:0; background:#3a5a82;">📋 Activity Log</button>
+    </div>
     <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #ddd; width: 300px; text-align: center;">
         <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Transfer Your Work</p>
         <button onclick="exportAllData()" class="tool-btn" style="background: #27ae60; color: white; margin-right: 10px;">💾 Export Data</button>
@@ -706,6 +709,16 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
 
 </div>
 
+<!-- ACTIVITY LOG PAGE -->
+<div id="page-activity-log" class="full-page" style="display:none;">
+    <div class="nav-header">
+        <button onclick="showPage('page-login')">← Back</button>
+        <h2 style="color:var(--text-color);">Activity Log</h2>
+        <button onclick="clearActivityLog()" style="background:#e74c3c; color:white; border:none; border-radius:5px; padding:8px 16px; font-weight:bold; cursor:pointer;">🗑 Clear</button>
+    </div>
+    <div id="activity-log-list" style="width:80%; max-width:700px; display:flex; flex-direction:column; gap:10px; padding-bottom:40px;"></div>
+</div>
+
 <!-- CONFIRM MODAL -->
 <div id="confirm-modal">
     <div id="confirm-box">
@@ -729,6 +742,22 @@ let currentUser = null;
 let currentFolder = null;
 let currentPiece = null;
 let appData = JSON.parse(localStorage.getItem('zema_studio_data')) || {};
+let activityLog = JSON.parse(localStorage.getItem('zema_activity_log')) || [];
+
+function logActivity(type, description, projectName, folderIndex, pieceIndex) {
+    const now = new Date();
+    const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    activityLog.unshift({
+        type,
+        description,
+        timestamp,
+        projectName: projectName || null,
+        folderIndex: folderIndex !== undefined ? folderIndex : null,
+        pieceIndex: pieceIndex !== undefined ? pieceIndex : null
+    });
+    if (activityLog.length > 30) activityLog.pop();
+    localStorage.setItem('zema_activity_log', JSON.stringify(activityLog));
+}
 
 // ===== GITHUB GIST SYNC =====
 const GIST_ID = 'c394b7c2ccc44cb2b79931e8633bb5af';
@@ -737,6 +766,8 @@ function getGistToken() { return localStorage.getItem('miliket_gist_token') || '
 
 async function pushToGist() {
     try {
+        // Snapshot backup before every push
+        localStorage.setItem('zema_studio_backup', JSON.stringify(appData));
         await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
             headers: {
@@ -747,7 +778,11 @@ async function pushToGist() {
                 files: { [GIST_FILENAME]: { content: JSON.stringify(appData) } }
             })
         });
-    } catch (err) { console.error('Gist sync failed:', err); }
+        showSyncStatus('saved');
+    } catch (err) {
+        console.error('Gist sync failed:', err);
+        showSyncStatus('failed');
+    }
 }
 
 async function pullFromGist() {
@@ -778,11 +813,64 @@ function saveData() {
     localStorage.setItem('zema_studio_data', JSON.stringify(appData));
 }
 
-// Save + push to Gist (for meaningful actions)
+// Debounce timer for Gist pushes
+let syncDebounceTimer = null;
+let dataDirty = false;
+
+// Save + push to Gist (debounced — waits 5 seconds of inactivity before pushing)
 function saveAndSync() {
     saveData();
-    pushToGist();
+    dataDirty = true;
+    showSyncStatus('pending');
+    clearTimeout(syncDebounceTimer);
+    syncDebounceTimer = setTimeout(() => {
+        pushToGist();
+        dataDirty = false;
+    }, 5000);
 }
+
+// Create indicator on first call
+function getSyncIndicator() {
+    let indicator = document.getElementById('sync-indicator');
+    if (!indicator) {
+        indicator = document.createElement('div');
+        indicator.id = 'sync-indicator';
+        indicator.style.cssText = 'position:fixed; bottom:65px; right:20px; z-index:99999; width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:bold; color:white; transition:background 0.3s;';
+        document.body.appendChild(indicator);
+    }
+    return indicator;
+}
+
+function showSyncStatus(state) {
+    const indicator = getSyncIndicator();
+    if (state === 'saved') {
+        indicator.style.background = '#27ae60';
+        indicator.innerText = '✓';
+        indicator.title = 'Synced';
+    } else if (state === 'pending') {
+        indicator.style.background = '#e6a817';
+        indicator.style.width = 'auto';
+        indicator.style.padding = '6px 12px';
+        indicator.style.borderRadius = '6px';
+        indicator.innerText = '✓ Saving...';
+        indicator.title = 'Saving...';
+    } else if (state === 'failed') {
+        indicator.style.background = '#e74c3c';
+        indicator.innerText = '✕';
+        indicator.title = 'Sync failed';
+        // Add text label only on failure
+        indicator.style.width = 'auto';
+        indicator.style.padding = '6px 12px';
+        indicator.style.borderRadius = '6px';
+        indicator.innerText = '✕ Sync failed — export your data!';
+    }
+}
+
+// Init indicator as green on load
+window.addEventListener('DOMContentLoaded', () => {
+    getSyncIndicator();
+    showSyncStatus('saved');
+});
 
 function exportAllData() {
     const data = localStorage.getItem('zema_studio_data');
@@ -811,8 +899,12 @@ function importAllData() {
             try {
                 appData = JSON.parse(event.target.result);
                 localStorage.setItem('zema_studio_data', event.target.result);
+                localStorage.setItem('zema_studio_backup', event.target.result);
                 pushToGist().then(() => {
                     alert('Backup loaded and synced to cloud! Refreshing...');
+                    location.reload();
+                }).catch(() => {
+                    alert('Backup loaded locally but cloud sync failed. Your data is safe locally — try exporting again once your connection is restored.');
                     location.reload();
                 });
             } catch (err) {
@@ -833,13 +925,56 @@ function backToFolder() {
 
 // Navigation Logic
 function showPage(pageId) {
-    // Hide all main pages
-    ['page-login', 'page-dashboard', 'page-folder-detail', 'step-1', 'step-2', 'page-present'].forEach(id => {
+    ['page-login', 'page-dashboard', 'page-folder-detail', 'step-1', 'step-2', 'page-present', 'page-activity-log'].forEach(id => {
         const el = document.getElementById(id);
         if(el) el.style.display = 'none';
     });
-    // Show requested page
     document.getElementById(pageId).style.display = (pageId === 'step-2') ? 'grid' : 'flex';
+    if (pageId === 'page-activity-log') renderActivityLog();
+}
+
+function clearActivityLog() {
+    if (!confirm("Clear all activity logs?")) return;
+    activityLog = [];
+    localStorage.removeItem('zema_activity_log');
+    renderActivityLog();
+}
+
+function renderActivityLog() {
+    const container = document.getElementById('activity-log-list');
+    container.innerHTML = '';
+    if (activityLog.length === 0) {
+        container.innerHTML = '<p style="color:#999;">No activity yet.</p>';
+        return;
+    }
+    activityLog.forEach(entry => {
+        const div = document.createElement('div');
+        div.style.cssText = `background:var(--workspace-bg); border:1px solid var(--sidebar-border); border-radius:8px; padding:12px 16px; display:flex; justify-content:space-between; align-items:center; gap:10px;`;
+
+        const text = document.createElement('span');
+        text.style.cssText = 'font-size:13px; color:var(--workspace-color); flex:1;';
+        text.innerText = entry.description;
+
+        const time = document.createElement('span');
+        time.style.cssText = 'font-size:11px; color:#999; white-space:nowrap;';
+        time.innerText = entry.timestamp;
+
+        div.appendChild(text);
+        div.appendChild(time);
+
+        if (entry.type === 'symbol' && entry.projectName && entry.folderIndex !== null && entry.pieceIndex !== null) {
+            div.style.cursor = 'pointer';
+            div.style.borderLeft = '4px solid var(--gold)';
+            div.title = 'Click to open this piece';
+            div.onclick = () => {
+                currentUser = entry.projectName;
+                currentFolder = entry.folderIndex;
+                loadPiece(entry.pieceIndex);
+            };
+        }
+
+        container.appendChild(div);
+    });
 }
 
 // --- PAGE 1: LOGIN ---
@@ -851,7 +986,7 @@ function renderProjects() {
         const div = document.createElement('div');
         div.className = 'folder-item';
         div.style.position = 'relative';
-        div.draggable = false;
+        div.draggable = true;
         div.dataset.name = name;
         div.innerHTML = `
             <button onclick="deleteProject(event, '${name}')" onmousedown="event.stopPropagation()" class="delete-btn" title="Delete">×</button>
@@ -902,6 +1037,7 @@ function createProject() {
     if (!name) return;
     if (appData[name]) return alert("A project with that name already exists.");
     appData[name] = { folders: [] };
+    logActivity('info', `Created project "${name}"`, name);
     saveAndSync();
     renderProjects();
 }
@@ -926,6 +1062,7 @@ function renameProject(event, oldName) {
             appData[newName] = appData[oldName];
             delete appData[oldName];
             if (currentUser === oldName) currentUser = newName;
+            logActivity('info', `Renamed project "${oldName}" to "${newName}"`);
             saveAndSync();
             renderProjects();
         }
@@ -941,6 +1078,7 @@ function deleteProject(event, name) {
         'Delete',
         () => {
             delete appData[name];
+            logActivity('info', `Deleted project "${name}"`);
             saveAndSync();
             renderProjects();
         }
@@ -956,6 +1094,7 @@ function createFolder() {
     const name = prompt("Enter Folder Name:");
     if (!name) return;
     appData[currentUser].folders.push({ name: name, pieces: [] });
+    logActivity('info', `Created folder "${name}" in project "${currentUser}"`);
     saveAndSync();
     renderDashboard();
 }
@@ -977,7 +1116,7 @@ function renderDashboard() {
         const div = document.createElement('div');
         div.className = 'folder-item';
         div.style.position = 'relative';
-        div.draggable = false;
+        div.draggable = true;
         div.dataset.index = index;
         
         div.innerHTML = `
@@ -1038,6 +1177,7 @@ function deleteFolder(event, index) {
         'Delete',
         () => {
             appData[currentUser].folders.splice(index, 1);
+            logActivity('info', `Deleted folder "${name}" from project "${currentUser}"`);
             saveAndSync();
             renderDashboard();
         }
@@ -1050,6 +1190,7 @@ function renameFolder(event, index) {
     const newName = prompt("Rename folder to:", oldName);
     if (newName && newName !== oldName) {
         appData[currentUser].folders[index].name = newName;
+        logActivity('info', `Renamed folder "${oldName}" to "${newName}" in project "${currentUser}"`);
         saveAndSync();
         renderDashboard();
     }
@@ -1066,11 +1207,14 @@ function openFolder(index) {
 function createPiece() {
     const name = prompt("Enter Piece Name:");
     if (!name) return;
+    const folderName = appData[currentUser].folders[currentFolder].name;
     appData[currentUser].folders[currentFolder].pieces.push({ 
         name: name, 
         content: "", 
         lastModified: new Date().toLocaleDateString() 
     });
+    const newIndex = appData[currentUser].folders[currentFolder].pieces.length - 1;
+    logActivity('info', `Created piece "${name}" in folder "${folderName}", project "${currentUser}"`);
     saveAndSync();
     renderPieces();
 }
@@ -1078,6 +1222,7 @@ function createPiece() {
 function deletePiece(event, index) {
     event.stopPropagation();
     const name = appData[currentUser].folders[currentFolder].pieces[index].name;
+    const folderName = appData[currentUser].folders[currentFolder].name;
     showConfirmModal(
         'Delete Piece',
         `"${name}" will be permanently deleted.`,
@@ -1085,6 +1230,7 @@ function deletePiece(event, index) {
         'Delete',
         () => {
             appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
+            logActivity('info', `Deleted piece "${name}" from folder "${folderName}", project "${currentUser}"`);
             saveAndSync();
             renderPieces();
         }
@@ -1120,7 +1266,7 @@ function renderPieces() {
         const div = document.createElement('div');
         div.className = 'piece-item';
         div.style.position = 'relative';
-        div.draggable = false;
+        div.draggable = true;
         div.dataset.index = index;
         div.innerHTML = `
             <button onclick="deletePiece(event, ${index})" class="delete-btn" title="Delete">×</button>
@@ -1184,7 +1330,10 @@ function movePiece(event, index) {
     }
     
     const piece = appData[currentUser].folders[currentFolder].pieces.splice(index, 1)[0];
+    const fromFolderName = appData[currentUser].folders[currentFolder].name;
+    const toFolderName = appData[currentUser].folders[targetIndex].name;
     appData[currentUser].folders[targetIndex].pieces.push(piece);
+    logActivity('info', `Moved piece "${piece.name}" from folder "${fromFolderName}" to "${toFolderName}", project "${currentUser}"`);
     saveAndSync();
     renderPieces();
 }
@@ -1196,6 +1345,8 @@ function duplicatePiece(event, index) {
     copy.name = original.name + ' (Copy)';
     copy.lastModified = new Date().toLocaleDateString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
+    const folderName = appData[currentUser].folders[currentFolder].name;
+    logActivity('info', `Duplicated piece "${original.name}" in folder "${folderName}", project "${currentUser}"`);
     saveAndSync();
     renderPieces();
 }
@@ -1206,6 +1357,8 @@ function renamePiece(event, index) {
     const newName = prompt("Rename piece to:", oldName);
     if (newName && newName !== oldName) {
         appData[currentUser].folders[currentFolder].pieces[index].name = newName;
+        const folderName = appData[currentUser].folders[currentFolder].name;
+        logActivity('info', `Renamed piece "${oldName}" to "${newName}" in folder "${folderName}", project "${currentUser}"`);
         saveAndSync();
         renderPieces();
     }
@@ -1214,17 +1367,11 @@ function renamePiece(event, index) {
 // Update your existing startStudio or processText function to save progress!
 function saveWorkToPiece() {
     if (currentUser && currentFolder !== null && currentPiece !== null) {
-        // 1. Save the raw text (for the 'Edit Text' mode)
         const rawText = document.getElementById('bulk-input').value;
-        
-        // 2. Save the entire visual layout (The Grid)
         const studioHTML = document.getElementById('workspace-container').innerHTML;
-        
-        // Update the database
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = rawText;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].visualData = studioHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toLocaleDateString();
-        
         saveAndSync();
     }
 }
@@ -1238,6 +1385,64 @@ function saveWorkToPiece() {
             e.target.classList.contains('zema-base')) {
             lastClickedSlot = e.target;
         }
+    });
+
+    // Track miliket deletions via keyboard
+    let lastMiliketSnapshot = {};
+
+    function snapshotSlot(slot) {
+        return Array.from(slot.querySelectorAll('.m-word')).map(w => w.innerText.trim()).join(',');
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if ((e.key === 'Backspace' || e.key === 'Delete') && lastClickedSlot) {
+            lastMiliketSnapshot[lastClickedSlot] = snapshotSlot(lastClickedSlot);
+        }
+    });
+
+    document.addEventListener('input', (e) => {
+        if (!lastClickedSlot) return;
+        const target = e.target;
+        if (!target.classList.contains('stack-slot') && 
+            !target.classList.contains('miliket-tray') && 
+            !target.classList.contains('zema-base')) return;
+
+        const before = lastMiliketSnapshot[lastClickedSlot] || '';
+        const after = snapshotSlot(target);
+
+        const beforeArr = before ? before.split(',') : [];
+        const afterArr = after ? after.split(',') : [];
+
+        const removed = beforeArr.filter(w => !afterArr.includes(w));
+
+        removed.forEach(sym => {
+            if (!sym) return;
+            if (currentUser && currentFolder !== null && currentPiece !== null) {
+                const pieceName = appData[currentUser].folders[currentFolder].pieces[currentPiece].name;
+                const folderName = appData[currentUser].folders[currentFolder].name;
+                const charStack = target.closest('.char-stack');
+                let baseLabel = 'empty';
+                if (charStack) {
+                    const base = charStack.querySelector('.zema-base');
+                    if (base && base.innerText.trim() !== '') {
+                        baseLabel = base.innerText.trim();
+                    } else {
+                        let next = charStack.nextElementSibling;
+                        while (next) {
+                            const nextBase = next.querySelector('.zema-base');
+                            if (nextBase && nextBase.innerText.trim() !== '') {
+                                baseLabel = 'empty_' + nextBase.innerText.trim();
+                                break;
+                            }
+                            next = next.nextElementSibling;
+                        }
+                    }
+                }
+                logActivity('symbol', `Removed "${sym}" on ${baseLabel} in "${pieceName}", folder "${folderName}", project "${currentUser}"`, currentUser, currentFolder, currentPiece);
+            }
+        });
+
+        lastMiliketSnapshot[lastClickedSlot] = snapshotSlot(target);
     });
 
     function toggleColor() {
@@ -1317,9 +1522,32 @@ function applyOverline() {
         span.innerText = text;
 
         lastClickedSlot.appendChild(span);
-        lastClickedSlot.appendChild(createGapSpan()); // clickable gap after every miliket
+        lastClickedSlot.appendChild(createGapSpan());
         lastClickedSlot.style.justifyContent = 'flex-start';
         lastClickedSlot.focus();
+        if (currentUser && currentFolder !== null && currentPiece !== null) {
+            const pieceName = appData[currentUser].folders[currentFolder].pieces[currentPiece].name;
+            const folderName = appData[currentUser].folders[currentFolder].name;
+            const charStack = lastClickedSlot.closest('.char-stack');
+            let baseLabel = 'empty';
+            if (charStack) {
+                const base = charStack.querySelector('.zema-base');
+                if (base && base.innerText.trim() !== '') {
+                    baseLabel = base.innerText.trim();
+                } else {
+                    let next = charStack.nextElementSibling;
+                    while (next) {
+                        const nextBase = next.querySelector('.zema-base');
+                        if (nextBase && nextBase.innerText.trim() !== '') {
+                            baseLabel = 'empty_' + nextBase.innerText.trim();
+                            break;
+                        }
+                        next = next.nextElementSibling;
+                    }
+                }
+            }
+            logActivity('symbol', `Added "${text}" on ${baseLabel} in "${pieceName}", folder "${folderName}", project "${currentUser}"`, currentUser, currentFolder, currentPiece);
+        }
     }
 
 
@@ -1342,7 +1570,38 @@ function applyOverline() {
     }
 
 
-    function clearActiveArea() { if(lastClickedSlot) lastClickedSlot.innerHTML = ''; }
+    function clearActiveArea() {
+        if (!lastClickedSlot) return;
+        if (currentUser && currentFolder !== null && currentPiece !== null) {
+            const removed = Array.from(lastClickedSlot.querySelectorAll('.m-word')).map(w => w.innerText.trim()).filter(Boolean);
+            if (removed.length > 0) {
+                const pieceName = appData[currentUser].folders[currentFolder].pieces[currentPiece].name;
+                const folderName = appData[currentUser].folders[currentFolder].name;
+                const charStack = lastClickedSlot.closest('.char-stack');
+                let baseLabel = 'empty';
+                if (charStack) {
+                    const base = charStack.querySelector('.zema-base');
+                    if (base && base.innerText.trim() !== '') {
+                        baseLabel = base.innerText.trim();
+                    } else {
+                        let next = charStack.nextElementSibling;
+                        while (next) {
+                            const nextBase = next.querySelector('.zema-base');
+                            if (nextBase && nextBase.innerText.trim() !== '') {
+                                baseLabel = 'empty_' + nextBase.innerText.trim();
+                                break;
+                            }
+                            next = next.nextElementSibling;
+                        }
+                    }
+                }
+                removed.forEach(sym => {
+                    logActivity('symbol', `Removed "${sym}" on ${baseLabel} in "${pieceName}", folder "${folderName}", project "${currentUser}"`, currentUser, currentFolder, currentPiece);
+                });
+            }
+        }
+        lastClickedSlot.innerHTML = '';
+    }
 
     function startEditor() {
         const text = document.getElementById('bulk-input').value || "";
@@ -2071,15 +2330,15 @@ function confirmEditText(index) {
     );
 }
 
-// Auto-save every 4 seconds (local), sync to Gist every 30 seconds
+// Auto-save every 4 seconds (local), sync to Gist every 30 seconds — only if something changed
 setInterval(() => {
-    if (document.getElementById('step-2').style.display === 'grid') {
+    if (dataDirty && document.getElementById('step-2').style.display === 'grid') {
         saveWorkToPiece();
     }
 }, 4000);
 
 setInterval(() => {
-    if (document.getElementById('step-2').style.display === 'grid') {
+    if (dataDirty && document.getElementById('step-2').style.display === 'grid') {
         saveAndSync();
     }
 }, 30000);
