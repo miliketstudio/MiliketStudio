@@ -1252,8 +1252,8 @@ function loadPiece(index) {
         document.getElementById('workspace-container').innerHTML = pieceData.visualData;
         showPage('step-2');
     } else {
-        // If it's a brand new piece, process the text for the first time
-        processText();
+        // If it's a brand new piece, go to text input first
+        showPage('step-1');
     }
 }
 
@@ -1771,7 +1771,7 @@ function renderQueue() {
         const piece = folder.pieces[item.pieceIndex];
         const div = document.createElement('div');
         div.className = 'queue-item' + (selectedQueueIndex === idx ? ' selected-piece' : '');
-        div.draggable = false;
+        div.draggable = true;
         div.dataset.index = idx;
         div.innerHTML = `
             <div style="font-size:11px; color:#999; padding-right:6px; cursor:grab;">⠿</div>
