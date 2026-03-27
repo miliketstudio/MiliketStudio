@@ -517,6 +517,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     
     <div id="sidebar">
         <button id="color-toggle" class="tool-btn" style="background: black; color: white; width: 100%; margin-bottom:10px;" onclick="toggleColor()">Color: BLACK</button>
+        <button class="tool-btn" style="width:100%; margin-bottom:10px; background:#e74c3c; color:white; border:none;" onclick="clearActiveArea()">Clear Selected</button>
         
         <div class="section-label">Smart Stack Tools</div>
         <div class="m-grid">
@@ -637,7 +638,6 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             <button class="m-btn" onmousedown="insertIsland('፲', false)">፲</button>
         </div>
         
-        <button class="tool-btn" style="width:100%; margin-top:20px; background:#e74c3c; color:white; border:none;" onclick="clearActiveArea()">Clear Selected</button>
     </div>
 
     <div style="display:flex; flex-direction:column; overflow:hidden;">
@@ -651,6 +651,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         <button class="tool-btn" style="background:#9b59b6; color:white;" onclick="toggleCleanMode()">✨ View Mode</button>
         <button class="tool-btn" style="background:#2ecc71; color:white;" onclick="exportProject('image')">Export Image</button>
         <button class="tool-btn" style="background:#e67e22; color:white;" onclick="exportProject('pdf')">Export PDF (16:9)</button>
+        <button class="tool-btn" style="background:#27ae60; color:white;" onclick="saveAndSync()">☁ Sync</button>
     </div>
 
     <div id="workspace-container">
@@ -766,8 +767,9 @@ function getGistToken() { return localStorage.getItem('miliket_gist_token') || '
 
 async function pushToGist() {
     try {
-        // Snapshot backup before every push
         localStorage.setItem('zema_studio_backup', JSON.stringify(appData));
+        const dataWithTimestamp = { ...appData, _lastSaved: Date.now() };
+        localStorage.setItem('zema_last_saved', dataWithTimestamp._lastSaved);
         await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
             headers: {
@@ -775,7 +777,7 @@ async function pushToGist() {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                files: { [GIST_FILENAME]: { content: JSON.stringify(appData) } }
+                files: { [GIST_FILENAME]: { content: JSON.stringify(dataWithTimestamp) } }
             })
         });
         showSyncStatus('saved');
@@ -795,13 +797,24 @@ async function pullFromGist() {
         const data = await res.json();
         const content = data.files[GIST_FILENAME]?.content;
         if (content) {
-            const parsed = JSON.parse(content);
-            if (Object.keys(parsed).length > 0) {
-                appData = parsed;
+            const cloudData = JSON.parse(content);
+            const cloudTimestamp = cloudData._lastSaved || 0;
+            const localTimestamp = parseInt(localStorage.getItem('zema_last_saved') || '0');
+
+            if (cloudTimestamp >= localTimestamp) {
+                // Cloud is newer or equal — trust it
+                appData = cloudData;
+                delete appData._lastSaved;
                 localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+                localStorage.setItem('zema_last_saved', cloudTimestamp);
+                if (status) { status.innerText = '✓ Synced from cloud'; status.style.color = '#27ae60'; }
+            } else {
+                // Local is newer — keep it and warn
+                if (status) { status.innerText = '✓ Local copy is newer — kept local'; status.style.color = '#e6a817'; }
             }
+        } else {
+            if (status) { status.innerText = '✓ Synced'; status.style.color = '#27ae60'; }
         }
-        if (status) { status.innerText = '✓ Synced'; status.style.color = '#27ae60'; }
     } catch (err) {
         console.error('Gist pull failed:', err);
         if (status) { status.innerText = '✗ Offline — using local data'; status.style.color = '#e74c3c'; }
@@ -813,20 +826,13 @@ function saveData() {
     localStorage.setItem('zema_studio_data', JSON.stringify(appData));
 }
 
-// Debounce timer for Gist pushes
-let syncDebounceTimer = null;
 let dataDirty = false;
 
-// Save + push to Gist (debounced — waits 5 seconds of inactivity before pushing)
 function saveAndSync() {
     saveData();
     dataDirty = true;
     showSyncStatus('pending');
-    clearTimeout(syncDebounceTimer);
-    syncDebounceTimer = setTimeout(() => {
-        pushToGist();
-        dataDirty = false;
-    }, 5000);
+    pushToGist().then(() => { dataDirty = false; });
 }
 
 // Create indicator on first call
@@ -1024,7 +1030,7 @@ function renderProjects() {
             keys.splice(toIdx, 0, fromName);
             keys.forEach(k => reordered[k] = appData[k]);
             appData = reordered;
-            saveAndSync();
+            saveData();
             renderProjects();
         });
 
@@ -1038,7 +1044,7 @@ function createProject() {
     if (appData[name]) return alert("A project with that name already exists.");
     appData[name] = { folders: [] };
     logActivity('info', `Created project "${name}"`, name);
-    saveAndSync();
+    saveData();
     renderProjects();
 }
 
@@ -1063,7 +1069,7 @@ function renameProject(event, oldName) {
             delete appData[oldName];
             if (currentUser === oldName) currentUser = newName;
             logActivity('info', `Renamed project "${oldName}" to "${newName}"`);
-            saveAndSync();
+            saveData();
             renderProjects();
         }
     );
@@ -1079,7 +1085,7 @@ function deleteProject(event, name) {
         () => {
             delete appData[name];
             logActivity('info', `Deleted project "${name}"`);
-            saveAndSync();
+            saveData();
             renderProjects();
         }
     );
@@ -1095,7 +1101,7 @@ function createFolder() {
     if (!name) return;
     appData[currentUser].folders.push({ name: name, pieces: [] });
     logActivity('info', `Created folder "${name}" in project "${currentUser}"`);
-    saveAndSync();
+    saveData();
     renderDashboard();
 }
 
@@ -1160,7 +1166,7 @@ div.addEventListener('drop', (e) => {
     const moved = folders.splice(fromIndex, 1)[0];
     folders.splice(toIndex, 0, moved);
 
-    saveAndSync();
+    saveData();
     renderDashboard();
 });
         container.appendChild(div);
@@ -1178,7 +1184,7 @@ function deleteFolder(event, index) {
         () => {
             appData[currentUser].folders.splice(index, 1);
             logActivity('info', `Deleted folder "${name}" from project "${currentUser}"`);
-            saveAndSync();
+            saveData();
             renderDashboard();
         }
     );
@@ -1191,7 +1197,7 @@ function renameFolder(event, index) {
     if (newName && newName !== oldName) {
         appData[currentUser].folders[index].name = newName;
         logActivity('info', `Renamed folder "${oldName}" to "${newName}" in project "${currentUser}"`);
-        saveAndSync();
+        saveData();
         renderDashboard();
     }
 }
@@ -1215,7 +1221,7 @@ function createPiece() {
     });
     const newIndex = appData[currentUser].folders[currentFolder].pieces.length - 1;
     logActivity('info', `Created piece "${name}" in folder "${folderName}", project "${currentUser}"`);
-    saveAndSync();
+    saveData();
     renderPieces();
 }
 
@@ -1231,7 +1237,7 @@ function deletePiece(event, index) {
         () => {
             appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
             logActivity('info', `Deleted piece "${name}" from folder "${folderName}", project "${currentUser}"`);
-            saveAndSync();
+            saveData();
             renderPieces();
         }
     );
@@ -1303,7 +1309,7 @@ function renderPieces() {
             const pieces = appData[currentUser].folders[currentFolder].pieces;
             const moved = pieces.splice(fromIndex, 1)[0];
             pieces.splice(toIndex, 0, moved);
-            saveAndSync();
+            saveData();
             renderPieces();
         });
 
@@ -1334,7 +1340,7 @@ function movePiece(event, index) {
     const toFolderName = appData[currentUser].folders[targetIndex].name;
     appData[currentUser].folders[targetIndex].pieces.push(piece);
     logActivity('info', `Moved piece "${piece.name}" from folder "${fromFolderName}" to "${toFolderName}", project "${currentUser}"`);
-    saveAndSync();
+    saveData();
     renderPieces();
 }
 
@@ -1347,7 +1353,7 @@ function duplicatePiece(event, index) {
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
     const folderName = appData[currentUser].folders[currentFolder].name;
     logActivity('info', `Duplicated piece "${original.name}" in folder "${folderName}", project "${currentUser}"`);
-    saveAndSync();
+    saveData();
     renderPieces();
 }
 
@@ -1359,7 +1365,7 @@ function renamePiece(event, index) {
         appData[currentUser].folders[currentFolder].pieces[index].name = newName;
         const folderName = appData[currentUser].folders[currentFolder].name;
         logActivity('info', `Renamed piece "${oldName}" to "${newName}" in folder "${folderName}", project "${currentUser}"`);
-        saveAndSync();
+        saveData();
         renderPieces();
     }
 }
@@ -1368,11 +1374,11 @@ function renamePiece(event, index) {
 function saveWorkToPiece() {
     if (currentUser && currentFolder !== null && currentPiece !== null) {
         const rawText = document.getElementById('bulk-input').value;
-        const studioHTML = document.getElementById('workspace-container').innerHTML;
+        const studioHTML = document.getElementById('main-line').innerHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = rawText;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].visualData = studioHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toLocaleDateString();
-        saveAndSync();
+        saveData(); // local only, silent
     }
 }
     let lastClickedSlot = null;
@@ -1460,11 +1466,25 @@ function saveWorkToPiece() {
     
 function applyOverline() {
     const selection = window.getSelection();
-    if (selection.rangeCount > 0) {
-        const selectedElement = selection.anchorNode.parentElement;
-        if (selectedElement.classList.contains('m-word')) {
-            selectedElement.classList.toggle('with-line');
-        }
+    if (!selection.rangeCount) return;
+
+    const node = selection.anchorNode;
+    const el = node.nodeType === 3 ? node.parentElement : node;
+
+    // If it's already a .m-word, toggle overline on it directly
+    const mWord = el.closest('.m-word');
+    if (mWord) {
+        mWord.classList.toggle('with-line');
+        return;
+    }
+
+    // Otherwise wrap the selected text in a new span
+    const range = selection.getRangeAt(0);
+    if (!range.collapsed) {
+        const span = document.createElement('span');
+        span.className = 'm-word horizontal with-line ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+        range.surroundContents(span);
+        selection.removeAllRanges();
     }
 }
     
@@ -2324,24 +2344,23 @@ function confirmEditText(index) {
         name,
         'Open',
         () => {
+            saveWorkToPiece();
             currentPiece = index;
             showPage('step-1');
         }
     );
 }
 
-// Auto-save every 4 seconds (local), sync to Gist every 30 seconds — only if something changed
+// Auto-save locally every 4 seconds
 setInterval(() => {
-    if (dataDirty && document.getElementById('step-2').style.display === 'grid') {
+    if (document.getElementById('step-2').style.display === 'grid') {
         saveWorkToPiece();
     }
 }, 4000);
 
-setInterval(() => {
-    if (dataDirty && document.getElementById('step-2').style.display === 'grid') {
-        saveAndSync();
-    }
-}, 30000);
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') saveAndSync();
+});
 </script>
 </body>
 </html>
