@@ -409,10 +409,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
     width: 36px; height: 36px; cursor: pointer; border-radius: 50%;
     font-size: 14px; display: flex; align-items: center; justify-content: center;
     z-index: 10000; box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-    transition: right 0.2s;
 }
-#outline-drawer.open ~ #outline-tab,
-#outline-drawer.open + * #outline-tab { right: 228px; }
 #outline-drawer h3 {
     color: var(--gold); margin: 0; padding: 10px 12px; font-size: 10px;
     text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid #ddd;
@@ -1940,9 +1937,137 @@ function toggleOutlineDrawer() {
     const drawer = document.getElementById('outline-drawer');
     const tab = document.getElementById('outline-tab');
     const isOpen = drawer.classList.toggle('open');
-    tab.innerText = isOpen ? '▶' : '◀';
-    tab.style.right = isOpen ? '228px' : '16px';
+
+    if (isOpen) {
+        // Reset drawer fully to default position
+        drawer.style.transition = 'opacity 0.2s, transform 0.2s';
+        drawer.style.left = '';
+        drawer.style.right = '16px';
+        drawer.style.top = '50%';
+        drawer.style.transform = 'translateY(-50%) scale(1)';
+
+        // Reset tab fully to default position
+        tab.style.left = '';
+        tab.style.right = '228px';
+        tab.style.top = '50%';
+        tab.style.transform = 'translateY(-50%)';
+        tab.innerText = '▶';
+    } else {
+        // Reset drawer
+        drawer.style.transition = 'opacity 0.2s, transform 0.2s';
+        drawer.style.left = '';
+        drawer.style.right = '16px';
+        drawer.style.top = '50%';
+        drawer.style.transform = 'translateY(-50%) scale(0.95)';
+
+        // Reset tab fully back to closed default
+        tab.style.left = '';
+        tab.style.right = '16px';
+        tab.style.top = '50%';
+        tab.style.transform = 'translateY(-50%)';
+        tab.innerText = '◀';
+    }
 }
+
+(function() {
+    let dragging = false;
+    let startX, startY, startLeft, startTop;
+
+    function getDragHandle() {
+        return document.querySelector('#outline-drawer h3');
+    }
+
+    function getDrawer() {
+        return document.getElementById('outline-drawer');
+    }
+
+    function getTab() {
+        return document.getElementById('outline-tab');
+    }
+
+    function startDrag(clientX, clientY) {
+        const drawer = getDrawer();
+        if (!drawer.classList.contains('open')) return;
+
+        dragging = true;
+        const rect = drawer.getBoundingClientRect();
+
+        startX = clientX - rect.left;
+        startY = clientY - rect.top;
+        startLeft = rect.left;
+        startTop = rect.top;
+
+        drawer.style.transition = 'none';
+        drawer.style.transform = 'none';
+        drawer.style.right = 'auto';
+        drawer.style.left = rect.left + 'px';
+        drawer.style.top = rect.top + 'px';
+
+        getDragHandle().style.cursor = 'grabbing';
+    }
+
+    function moveDrag(clientX, clientY) {
+        if (!dragging) return;
+        const drawer = getDrawer();
+        const tab = getTab();
+
+        const newLeft = clientX - startX;
+        const newTop = clientY - startY;
+
+        drawer.style.left = newLeft + 'px';
+        drawer.style.top = newTop + 'px';
+
+        // Keep tab glued to right edge of drawer
+        const drawerRect = drawer.getBoundingClientRect();
+        tab.style.left = (drawerRect.right + 8) + 'px';
+        tab.style.right = 'auto';
+        tab.style.top = (drawerRect.top + drawerRect.height / 2) + 'px';
+        tab.style.transform = 'translateY(-50%)';
+    }
+
+    function endDrag() {
+        if (!dragging) return;
+        dragging = false;
+        getDragHandle().style.cursor = 'grab';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const handle = getDragHandle();
+        if (!handle) return;
+
+        handle.style.cursor = 'grab';
+
+        // Mouse events (desktop)
+        handle.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startDrag(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            moveDrag(e.clientX, e.clientY);
+        });
+
+        document.addEventListener('mouseup', () => {
+            endDrag();
+        });
+
+        // Touch events (iPad)
+        handle.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            startDrag(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            if (!dragging) return;
+            const touch = e.touches[0];
+            moveDrag(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        document.addEventListener('touchend', () => {
+            endDrag();
+        });
+    });
+})();
 
 async function exportQueue(format) {
     if (serviceQueue.length === 0) return alert("Your queue is empty!");
