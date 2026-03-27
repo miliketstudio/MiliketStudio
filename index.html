@@ -1374,7 +1374,7 @@ function renamePiece(event, index) {
 function saveWorkToPiece() {
     if (currentUser && currentFolder !== null && currentPiece !== null) {
         const rawText = document.getElementById('bulk-input').value;
-        const studioHTML = document.getElementById('main-line').innerHTML;
+        const studioHTML = document.getElementById('workspace-container').innerHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = rawText;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].visualData = studioHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toLocaleDateString();
