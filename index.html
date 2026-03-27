@@ -649,6 +649,8 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         </button>
         <button class="tool-btn" onclick="addMiliketRow()">+ Add Layer</button>
         <button class="tool-btn" onclick="removeMiliketRow()">- Remove Layer</button>
+        <button class="tool-btn" style="background:#555; color:white;" onclick="undoAction()">↩ Undo</button>
+        <button class="tool-btn" style="background:#555; color:white;" onclick="redoAction()">↪ Redo</button>
         <button class="tool-btn" style="background:#9b59b6; color:white;" onclick="toggleCleanMode()">✨ View Mode</button>
         <button class="tool-btn" style="background:#2ecc71; color:white;" onclick="exportProject('image')">Export Image</button>
         <button class="tool-btn" style="background:#e67e22; color:white;" onclick="exportProject('pdf')">Export PDF (16:9)</button>
@@ -1385,6 +1387,8 @@ function saveWorkToPiece() {
     let lastClickedSlot = null;
     let currentColor = 'black';
     let miliketRows = 1;
+    let undoHistory = [];
+    let redoHistory = [];
 
     document.addEventListener('mousedown', (e) => {
         if (e.target.classList.contains('stack-slot') || 
@@ -1490,6 +1494,7 @@ function applyOverline() {
 }
     
     function insertStackTemplate(levels) {
+        saveUndoSnapshot();
         if (!lastClickedSlot) return;
         const targetTray = lastClickedSlot.classList.contains('miliket-tray') ? lastClickedSlot : lastClickedSlot.closest('.miliket-tray');
         const container = document.createElement('div');
@@ -1504,6 +1509,7 @@ function applyOverline() {
     }
 
     function insertEmptyStack() {
+        saveUndoSnapshot();
     if (!lastClickedSlot) return;
     const targetTray = lastClickedSlot.classList.contains('miliket-tray') ? lastClickedSlot : lastClickedSlot.closest('.miliket-tray');
     const slot = document.createElement('div');
@@ -1533,6 +1539,7 @@ function applyOverline() {
     }
 
     function insertIsland(text, useLine) {
+        saveUndoSnapshot();
         event.preventDefault();
         if (!lastClickedSlot) return;
         lastClickedSlot.classList.remove('stamp-red', 'stamp-black');
@@ -1573,6 +1580,7 @@ function applyOverline() {
 
 
     function insertSeq(symbols) {
+        saveUndoSnapshot();
         event.preventDefault();
         if (!lastClickedSlot) return;
 
@@ -1592,6 +1600,7 @@ function applyOverline() {
 
 
     function clearActiveArea() {
+        saveUndoSnapshot();
         if (!lastClickedSlot) return;
         if (currentUser && currentFolder !== null && currentPiece !== null) {
             const removed = Array.from(lastClickedSlot.querySelectorAll('.m-word')).map(w => w.innerText.trim()).filter(Boolean);
@@ -1656,10 +1665,13 @@ function applyOverline() {
         return tray; 
     }
 
-    function addMiliketRow() { miliketRows++; document.querySelectorAll('.char-stack').forEach(stack => stack.insertBefore(createTray(), stack.firstChild)); }
-    function removeMiliketRow() { if (miliketRows <= 1) return; miliketRows--; document.querySelectorAll('.char-stack').forEach(stack => { if (stack.firstChild.className.includes('miliket-tray')) stack.removeChild(stack.firstChild); }); }
+    function addMiliketRow() { saveUndoSnapshot(); miliketRows++; document.querySelectorAll('.char-stack').forEach(stack => stack.insertBefore(createTray(), stack.firstChild)); }
+    
+    function removeMiliketRow() { saveUndoSnapshot(); if (miliketRows <= 1) return; miliketRows--; document.querySelectorAll('.char-stack').forEach(stack => { if (stack.firstChild.className.includes('miliket-tray')) stack.removeChild(stack.firstChild); }); }
+    
     function toggleCleanMode() { document.getElementById('main-body').classList.toggle('clean-view'); }
-function toggleQuickSwitch() {
+
+    function toggleQuickSwitch() {
     const sidebar = document.getElementById('studio-sidebar');
     sidebar.classList.toggle('active');
     if (sidebar.classList.contains('active')) {
@@ -1861,6 +1873,31 @@ function clearQueue() {
     renderQueue();
     renderPresentDisplay();
     renderOutline();
+}
+
+function saveUndoSnapshot() {
+    const html = document.getElementById('workspace-container').innerHTML;
+    undoHistory.push(html);
+    if (undoHistory.length > 10) undoHistory.shift();
+    redoHistory = []; // clear redo whenever a new action happens
+}
+
+function undoAction() {
+    if (undoHistory.length === 0) return;
+    const current = document.getElementById('workspace-container').innerHTML;
+    redoHistory.push(current);
+    if (redoHistory.length > 10) redoHistory.shift();
+    const previous = undoHistory.pop();
+    document.getElementById('workspace-container').innerHTML = previous;
+}
+
+function redoAction() {
+    if (redoHistory.length === 0) return;
+    const current = document.getElementById('workspace-container').innerHTML;
+    undoHistory.push(current);
+    if (undoHistory.length > 10) undoHistory.shift();
+    const next = redoHistory.pop();
+    document.getElementById('workspace-container').innerHTML = next;
 }
 
 function renderPresentDisplay() {
