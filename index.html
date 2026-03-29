@@ -770,6 +770,20 @@ function getGistToken() { return localStorage.getItem('miliket_gist_token') || '
 
 async function pushToGist() {
     try {
+        // Hard block: never push empty data
+        const projects = Object.keys(appData).filter(k => k !== '_lastSaved');
+        let totalPieces = 0;
+        projects.forEach(p => {
+            (appData[p].folders || []).forEach(f => {
+                totalPieces += (f.pieces || []).length;
+            });
+        });
+        if (projects.length === 0 || totalPieces === 0) {
+            showSyncStatus('failed');
+            alert('⚠️ Push blocked: your data appears empty. Sync cancelled to protect your cloud backup.');
+            return;
+        }
+
         localStorage.setItem('zema_studio_backup', JSON.stringify(appData));
         const dataWithTimestamp = { ...appData, _lastSaved: Date.now() };
         localStorage.setItem('zema_last_saved', dataWithTimestamp._lastSaved);
@@ -797,27 +811,160 @@ async function pullFromGist() {
         const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             headers: { 'Authorization': `token ${getGistToken()}` }
         });
-        const data = await res.json();
-        const content = data.files[GIST_FILENAME]?.content;
-        if (content) {
-            const cloudData = JSON.parse(content);
-            const cloudTimestamp = cloudData._lastSaved || 0;
-            const localTimestamp = parseInt(localStorage.getItem('zema_last_saved') || '0');
+        const gistMeta = await res.json();
+        const history = (gistMeta.history || []).slice(0, 3);
 
-            if (cloudTimestamp >= localTimestamp) {
-                // Cloud is newer or equal — trust it
-                appData = cloudData;
-                delete appData._lastSaved;
-                localStorage.setItem('zema_studio_data', JSON.stringify(appData));
-                localStorage.setItem('zema_last_saved', cloudTimestamp);
-                if (status) { status.innerText = '✓ Synced from cloud'; status.style.color = '#27ae60'; }
-            } else {
-                // Local is newer — keep it and warn
-                if (status) { status.innerText = '✓ Local copy is newer — kept local'; status.style.color = '#e6a817'; }
-            }
-        } else {
-            if (status) { status.innerText = '✓ Synced'; status.style.color = '#27ae60'; }
+        async function fetchVersion(url) {
+            const r = await fetch(url, { headers: { 'Authorization': `token ${getGistToken()}` } });
+            const d = await r.json();
+            const content = d.files[GIST_FILENAME]?.content;
+            return content ? JSON.parse(content) : null;
         }
+
+        const cloudVersions = [];
+        for (let i = 0; i < history.length; i++) {
+            const data = await fetchVersion(history[i].url);
+            if (data) cloudVersions.push({ data, pushedAt: history[i].committed_at });
+        }
+
+        if (cloudVersions.length === 0) {
+            if (status) { status.innerText = '✗ No cloud data found'; status.style.color = '#e74c3c'; }
+            return;
+        }
+
+        function summarize(d, ts) {
+            const projects = Object.keys(d).filter(k => k !== '_lastSaved');
+            let folderCount = 0, pieceCount = 0, recentPieces = [];
+            projects.forEach(p => {
+                (d[p].folders || []).forEach(f => {
+                    folderCount++;
+                    (f.pieces || []).forEach(piece => {
+                        pieceCount++;
+                        recentPieces.push({
+                            name: piece.name,
+                            date: piece.lastModified || '',
+                            folder: f.name
+                        });
+                    });
+                });
+            });
+            recentPieces.sort((a, b) => {
+    const toMs = str => {
+        if (!str) return 0;
+        const d = new Date(str);
+        return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+    return toMs(b.date) - toMs(a.date);
+});
+            recentPieces = recentPieces.slice(0, 3);
+            return {
+                projects,
+                folderCount,
+                pieceCount,
+                date: ts ? new Date(ts).toLocaleString() : 'Unknown',
+                recentPieces
+            };
+        }
+
+        const localRaw = JSON.parse(localStorage.getItem('zema_studio_data') || '{}');
+        const localTs = parseInt(localStorage.getItem('zema_last_saved') || '0');
+        const localSummary = summarize(localRaw, localTs);
+        const cloudSummaries = cloudVersions.map(v => summarize(v.data, new Date(v.pushedAt).getTime()));
+
+        function buildColumn(label, color, summary, choiceWord) {
+            const recentHTML = summary.recentPieces.length > 0
+                ? summary.recentPieces.map(p => `
+                    <div style="font-size:11px;color:#555;margin-top:4px;">
+                        📜 <b>${p.name}</b> <span style="color:#999;">(${p.folder})</span><br>
+                        <span style="color:#aaa;font-size:10px;">${p.date ? (() => { const d = new Date(p.date); return isNaN(d.getTime()) ? p.date : d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) + ', ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); })() : 'Unknown'}</span>
+                    </div>`).join('')
+                : '<div style="font-size:11px;color:#aaa;">No recent pieces</div>';
+
+            return `
+                <div style="border:2px solid ${color};border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:180px;">
+                    <div style="font-weight:bold;color:${color};margin-bottom:6px;">${label}</div>
+                    <div style="font-size:12px;line-height:2;color:#333;">
+                        <b>Projects:</b> ${summary.projects.join(', ') || 'none'}<br>
+                        <b>Folders:</b> ${summary.folderCount} &nbsp; <b>Pieces:</b> ${summary.pieceCount}<br>
+                        <b>Saved:</b> ${summary.date}
+                    </div>
+                    <div style="margin-top:8px;border-top:1px solid #eee;padding-top:8px;">
+                        <div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:4px;">Last 3 edited</div>
+                        ${recentHTML}
+                    </div>
+                    <div style="margin-top:10px;text-align:center;font-size:11px;color:#999;">Type <b style="color:#333;">${choiceWord}</b> to select</div>
+                </div>
+            `;
+        }
+
+        const choiceWords = ['CLOUD1', 'CLOUD2', 'CLOUD3'];
+        const columnColors = ['#3a9ad1', '#7b68ee', '#9b59b6'];
+        const columnLabels = ['☁ Cloud (Latest)', '☁ Cloud (Previous)', '☁ Cloud (Older)'];
+
+        let columnsHTML = '';
+        cloudSummaries.forEach((summary, i) => {
+            columnsHTML += buildColumn(columnLabels[i], columnColors[i], summary, choiceWords[i]);
+        });
+        columnsHTML += buildColumn('💾 Local', '#27ae60', localSummary, 'LOCAL');
+
+        const gridCols = cloudSummaries.length + 1;
+
+        await new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;overflow:auto;padding:20px;box-sizing:border-box;';
+
+            overlay.innerHTML = `
+                <div style="background:white;border-radius:12px;padding:30px;width:100%;max-width:${gridCols * 240 + 60}px;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+                    <h3 style="margin:0 0 6px;font-size:17px;color:#1a1a1a;">☁ Choose a Version to Load</h3>
+                    <p style="margin:0 0 20px;font-size:12px;color:#999;">This appears every time you open the app. Pick which version to work from.</p>
+                    <div style="display:grid;grid-template-columns:repeat(${gridCols}, 1fr);gap:14px;margin-bottom:20px;overflow-x:auto;">
+                        ${columnsHTML}
+                    </div>
+                    <p style="font-size:13px;margin-bottom:8px;color:#333;">Type your choice to confirm:</p>
+                    <input id="sync-choice-input" type="text" placeholder="${choiceWords.slice(0, cloudSummaries.length).join(' / ')} / LOCAL" autocomplete="off"
+                        style="width:100%;padding:10px;border:2px solid #ddd;border-radius:5px;font-size:14px;box-sizing:border-box;outline:none;">
+                    <div id="sync-choice-error" style="color:#e74c3c;font-size:12px;margin-top:5px;display:none;">Please type a valid choice exactly.</div>
+                    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                        <button id="sync-choice-btn" style="background:#b8860b;color:white;border:none;border-radius:5px;padding:10px 24px;font-weight:bold;cursor:pointer;font-size:14px;">Confirm</button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+            const input = document.getElementById('sync-choice-input');
+            const btn = document.getElementById('sync-choice-btn');
+            const err = document.getElementById('sync-choice-error');
+            input.focus();
+
+            const validChoices = [...choiceWords.slice(0, cloudSummaries.length), 'LOCAL'];
+
+            function confirm() {
+                const val = input.value.trim().toUpperCase();
+                if (!validChoices.includes(val)) {
+                    err.style.display = 'block';
+                    input.style.borderColor = '#e74c3c';
+                    return;
+                }
+                document.body.removeChild(overlay);
+                if (val === 'LOCAL') {
+                    if (status) { status.innerText = '✓ Kept local copy'; status.style.color = '#27ae60'; }
+                } else {
+                    const versionIndex = choiceWords.indexOf(val);
+                    const chosen = cloudVersions[versionIndex].data;
+                    const chosenTs = new Date(cloudVersions[versionIndex].pushedAt).getTime();
+                    appData = chosen;
+                    delete appData._lastSaved;
+                    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+                    localStorage.setItem('zema_last_saved', chosenTs);
+                    if (status) { status.innerText = `✓ Loaded ${columnLabels[versionIndex]}`; status.style.color = '#27ae60'; }
+                }
+                resolve();
+            }
+
+            btn.addEventListener('click', confirm);
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirm(); });
+        });
+
     } catch (err) {
         console.error('Gist pull failed:', err);
         if (status) { status.innerText = '✗ Offline — using local data'; status.style.color = '#e74c3c'; }
@@ -1220,7 +1367,7 @@ function createPiece() {
     appData[currentUser].folders[currentFolder].pieces.push({ 
         name: name, 
         content: "", 
-        lastModified: new Date().toLocaleDateString() 
+        lastModified: new Date().toISOString() 
     });
     const newIndex = appData[currentUser].folders[currentFolder].pieces.length - 1;
     logActivity('info', `Created piece "${name}" in folder "${folderName}", project "${currentUser}"`);
@@ -1285,7 +1432,7 @@ function renderPieces() {
             <div style="font-size:40px; margin-top:10px;">📜</div>
             <div style="font-weight:bold;">${piece.name}</div>
             <button onclick="event.stopPropagation(); confirmEditText(${index});" style="margin-top:10px; font-size:10px; cursor:pointer; background:none; border:1px solid #ccc; border-radius:3px;">Edit Text?</button>
-            <div style="font-size:10px; color:#999; margin-top:5px;">Last Edit: ${piece.lastModified}</div>
+            <div style="font-size:10px; color:#999; margin-top:5px;">Last Edit: ${piece.lastModified ? new Date(piece.lastModified).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) + ', ' + new Date(piece.lastModified).toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit' }) : 'Unknown'}</div>
         `;
         div.onclick = () => loadPiece(index);
 
@@ -1352,7 +1499,7 @@ function duplicatePiece(event, index) {
     const original = appData[currentUser].folders[currentFolder].pieces[index];
     const copy = JSON.parse(JSON.stringify(original));
     copy.name = original.name + ' (Copy)';
-    copy.lastModified = new Date().toLocaleDateString();
+    copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
     const folderName = appData[currentUser].folders[currentFolder].name;
     logActivity('info', `Duplicated piece "${original.name}" in folder "${folderName}", project "${currentUser}"`);
@@ -1380,7 +1527,7 @@ function saveWorkToPiece() {
         const studioHTML = document.getElementById('workspace-container').innerHTML;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = rawText;
         appData[currentUser].folders[currentFolder].pieces[currentPiece].visualData = studioHTML;
-        appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toLocaleDateString();
+        appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified = new Date().toISOString();
         saveData(); // local only, silent
     }
 }
