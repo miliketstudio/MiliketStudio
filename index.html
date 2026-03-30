@@ -93,13 +93,13 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         /* FIXED STACK ALIGNMENT */
         .stack-container { 
             display: inline-flex; 
-            flex-direction: column-reverse; /* Stacks bottom-up */
+            flex-direction: column-reverse;
             align-items: center; 
             border: 1px dashed var(--gold); 
             padding: 0; 
             margin: 0 2px; 
             position: relative;
-            bottom: -5px; /* Pulls the stack closer to the letter without pushing the tray */
+            bottom: -5px;
         }
         .stack-slot { 
             min-width: 38px; 
@@ -110,7 +110,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             align-items: center; 
             justify-content: center; 
             outline: none; 
-            font-size: 22px;
+            font-size: 17.6px;
             overflow: visible;
         }
         
@@ -623,6 +623,8 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             <button class="m-btn" onmousedown="insertSeq(['᎔', '᎑', '᎑'])"><span class="vertical-stack"><span>᎔</span><span>᎑</span><span>᎑</span></span></button>
             <button class="m-btn" onmousedown="insertSeq(['᎔', '᎑', '᎔'])"><span class="vertical-stack"><span>᎔</span><span>᎑</span><span>᎔</span></span></button>
             <button class="m-btn" onmousedown="insertSeq(['᎔', '᎔', '᎔'])"><span class="vertical-stack"><span>᎔</span><span>᎔</span><span>᎔</span></span></button>
+            <button class="m-btn" onmousedown="insertRaisedMiliket('᎖', '᎑')"><span style="font-size:22px; display:inline-flex; align-items:flex-end;"><span>᎖</span><span style="font-size:14px; position:relative; top:-12px; left:-3px;">᎑</span></span></button>
+            <button class="m-btn" onmousedown="insertRaisedMiliket('᎖', '᎔')"><span style="font-size:22px; display:inline-flex; align-items:flex-end;"><span>᎖</span><span style="font-size:14px; position:relative; top:-12px; left:-3px;">᎔</span></span></button>
         </div>
         
         <div class="section-label">Ge'ez Numbers</div>
@@ -1725,6 +1727,44 @@ function applyOverline() {
         }
     }
 
+function insertRaisedMiliket(base, raised) {
+    saveUndoSnapshot();
+    event.preventDefault();
+    if (!lastClickedSlot) return;
+    lastClickedSlot.classList.remove('stamp-red', 'stamp-black');
+    lastClickedSlot.classList.add(currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+
+    const span = document.createElement('span');
+    span.className = 'm-word horizontal ' + (currentColor === 'red' ? 'stamp-red' : 'stamp-black');
+    span.style.display = 'inline-block';
+    span.style.position = 'relative';
+    span.style.whiteSpace = 'nowrap';
+
+    const baseSpan = document.createElement('span');
+    baseSpan.innerText = base;
+    baseSpan.style.fontSize = '30px';
+    baseSpan.style.display = 'inline-block';
+
+    const raisedSpan = document.createElement('span');
+    raisedSpan.innerText = raised;
+    raisedSpan.style.fontSize = '18px';
+    raisedSpan.style.position = 'absolute';
+    raisedSpan.style.top = '0px';
+    raisedSpan.style.left = '10px';
+
+    span.style.paddingRight = '0px';
+    span.style.marginRight = '0px';
+    span.style.width = '20px';
+    span.style.overflow = 'visible';
+
+    span.appendChild(baseSpan);
+    span.appendChild(raisedSpan);
+
+    lastClickedSlot.appendChild(span);
+    lastClickedSlot.appendChild(createGapSpan());
+    lastClickedSlot.style.justifyContent = 'flex-start';
+    lastClickedSlot.focus();
+}
 
     function insertSeq(symbols) {
         saveUndoSnapshot();
