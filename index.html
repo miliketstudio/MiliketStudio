@@ -841,6 +841,9 @@ async function pushToGist() {
             content: JSON.stringify(index)
         };
 
+        // Delete the old monolithic backup file if it exists
+        gistFiles['miliket_backup.json'] = null;
+
         await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
             headers: {
@@ -873,13 +876,30 @@ async function pullFromGist() {
         async function fetchFile(filename) {
             const fileEntry = gistFiles[filename];
             if (!fileEntry) return null;
-            // If truncated, fetch raw url
-            const url = fileEntry.truncated ? fileEntry.raw_url : null;
-            if (url) {
-                const r = await fetch(url, { headers: { 'Authorization': `token ${getGistToken()}` } });
-                return JSON.parse(await r.text());
+            if (!fileEntry.truncated) {
+                // Content is inline and complete — use it directly
+                const text = fileEntry.content;
+                if (!text || text.trim() === '') return null;
+                return JSON.parse(text);
             }
-            return JSON.parse(fileEntry.content);
+            // File is truncated — fetch it via a dedicated API call for just this gist
+            // but request with ?per_page=1 trick to get a fresh non-truncated response
+            // Actually: fetch the gist with no caching to get fresh inline content
+            const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                headers: { 
+                    'Authorization': `token ${getGistToken()}`
+                }
+            });
+            const fresh = await r.json();
+            const freshFile = fresh.files[filename];
+            if (!freshFile) return null;
+            if (freshFile.truncated) {
+                // Still truncated — file is genuinely over GitHub's inline limit (1MB per file)
+                // This means one of our folder files is too large even after cleaning
+                console.warn(`File ${filename} is still truncated after fresh fetch (${freshFile.size} bytes). This folder may need splitting further.`);
+                return null;
+            }
+            return JSON.parse(freshFile.content);
         }
 
         if (hasIndex) {
@@ -1472,9 +1492,19 @@ function loadPiece(index) {
     // 2. Load the visual layout (Stacks, Colors, Symbols)
     if (pieceData.visualData && pieceData.visualData.trim() !== "") {
         document.getElementById('workspace-container').innerHTML = pieceData.visualData;
+
+        // 3. Resync miliketRows to match the actual DOM
+        const firstStack = document.querySelector('.char-stack');
+        if (firstStack) {
+            miliketRows = firstStack.querySelectorAll('.miliket-tray').length;
+        } else {
+            miliketRows = 1;
+        }
+
         showPage('step-2');
     } else {
         // If it's a brand new piece, go to text input first
+        miliketRows = 1;
         showPage('step-1');
     }
 }
