@@ -898,7 +898,12 @@ async function pullFromGist() {
 
         if (hasIndex) {
             // NEW FORMAT: split by folder
-            const index = await fetchFile('miliket_index.json');
+            // Fetch index directly via raw_url (inline content unreliable for this file)
+            const indexEntry = gistFiles['miliket_index.json'];
+            const indexRes = await fetch(indexEntry.raw_url, {
+                headers: { 'Authorization': `token ${getGistToken()}` }
+            });
+            const index = await indexRes.json();
             if (!index) throw new Error('Index file missing');
 
             const cloudTs = index.lastSaved || 0;
