@@ -771,23 +771,6 @@ const GIST_ID = 'ab4704ff54867605993a5720e2a61c14';
 const GIST_FILENAME = 'miliket_backup.json';
 function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
 
-function cleanVisualData(html) {
-    if (!html) return html;
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    
-    // Remove all miliket-gap spans
-    doc.querySelectorAll('.miliket-gap').forEach(el => el.remove());
-    
-    // Remove contenteditable from everything
-    doc.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
-    
-    // Remove inline styles from editor elements only
-    doc.querySelectorAll('.miliket-tray, .zema-base, .stack-slot').forEach(el => el.removeAttribute('style'));
-    
-    return doc.body.innerHTML;
-}
-
 async function pushToGist() {
     try {
         const projects = Object.keys(appData).filter(k => k !== '_lastSaved');
@@ -821,7 +804,7 @@ async function pushToGist() {
 
                 const cleanedPieces = (folder.pieces || []).map(piece => ({
                     ...piece,
-                    visualData: cleanVisualData(piece.visualData || '')
+                    visualData: piece.visualData
                 }));
 
                 const CHUNK_SIZE = 50;
@@ -1677,6 +1660,21 @@ function saveWorkToPiece() {
             lastClickedSlot = e.target;
         }
     });
+    
+    document.addEventListener("keydown", function(e) {
+        if (e.ctrlKey && e.shiftKey) {
+            const selection = window.getSelection();
+
+            if (!selection.rangeCount) return;
+
+            const range = selection.getRangeAt(0);
+
+            // Delete selected content
+            range.deleteContents();
+
+            selection.removeAllRanges();
+        }
+    });
 
     // Track miliket deletions via keyboard
     let lastMiliketSnapshot = {};
@@ -1897,6 +1895,7 @@ function insertRaisedMiliket(base, raised) {
     lastClickedSlot.style.justifyContent = 'flex-start';
     lastClickedSlot.focus();
 }
+
 
     function insertSeq(symbols) {
         saveUndoSnapshot();
