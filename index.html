@@ -841,8 +841,8 @@ async function pushToGist() {
             content: JSON.stringify(index)
         };
 
-        // Delete the old monolithic backup file if it exists
-        gistFiles['miliket_backup.json'] = null;
+        // Delete the old monolithic backup file if it exists (only needed once)
+        // Check removed — GitHub returns 422 if file doesn't exist, so we skip this
 
         await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
