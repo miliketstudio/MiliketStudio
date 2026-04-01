@@ -819,20 +819,25 @@ async function pushToGist() {
                 const safeFolder = folder.name.replace(/[^a-zA-Z0-9]/g, '_');
                 const filename = `miliket_f_${safeProject}_${safeFolder}_${fi}.json`;
 
-                index.projects[projectName].folders.push({
-                    name: folder.name,
-                    file: filename
-                });
-
-                // Clean pieces before pushing
                 const cleanedPieces = (folder.pieces || []).map(piece => ({
                     ...piece,
                     visualData: cleanVisualData(piece.visualData || '')
                 }));
 
-                gistFiles[filename] = {
-                    content: JSON.stringify({ pieces: cleanedPieces })
-                };
+                const CHUNK_SIZE = 50;
+                const chunkFiles = [];
+
+                for (let i = 0; i < cleanedPieces.length; i += CHUNK_SIZE) {
+                    const chunk = cleanedPieces.slice(i, i + CHUNK_SIZE);
+                    const chunkFilename = `${filename.replace('.json','')}_chunk_${Math.floor(i / CHUNK_SIZE)}.json`;
+                    gistFiles[chunkFilename] = { content: JSON.stringify({ pieces: chunk }) };
+                    chunkFiles.push(chunkFilename);
+                }
+
+                index.projects[projectName].folders.push({
+                    name: folder.name,
+                    files: chunkFiles
+                });
             });
         });
 
@@ -929,15 +934,25 @@ async function fetchFile(filename) {
                 rebuilt[projectName] = { folders: [] };
                 const folderEntries = index.projects[projectName].folders || [];
                 await Promise.all(folderEntries.map(async (folderEntry, fi) => {
-                    const folderData = await fetchFile(folderEntry.file);
-                    
-                    if (!folderData) {
-                        console.warn(`Skipping broken folder: ${folderEntry.name}`);
-                        return; // ⛔ skip it completely
+                    let allPieces = [];
+                    if (folderEntry.files) {
+                        // 🔥 NEW CHUNK SYSTEM
+                        for (const file of folderEntry.files) {
+                            const data = await fetchFile(file);
+                            if (data && data.pieces) {
+                                allPieces = allPieces.concat(data.pieces);
+                            }
+                        }
+                    } else {
+                        // fallback (old format)
+                        const folderData = await fetchFile(folderEntry.file);
+                        if (folderData && folderData.pieces) {
+                            allPieces = folderData.pieces;
+                        }
                     }
                     rebuilt[projectName].folders[fi] = {
                         name: folderEntry.name,
-                        pieces: folderData.pieces || []
+                        pieces: allPieces
                     };
                 }));
             }));
@@ -1508,6 +1523,11 @@ function loadPiece(index) {
     // 2. Load the visual layout (Stacks, Colors, Symbols)
     if (pieceData.visualData && pieceData.visualData.trim() !== "") {
         document.getElementById('workspace-container').innerHTML = pieceData.visualData;
+
+        // Re-apply contenteditable in case it was stripped by old cleaner
+        document.querySelectorAll('.miliket-tray, .zema-base, .stack-slot').forEach(el => {
+            el.contentEditable = 'true';
+        });
 
         // 3. Resync miliketRows to match the actual DOM
         const firstStack = document.querySelector('.char-stack');
