@@ -767,7 +767,7 @@ function logActivity(type, description, projectName, folderIndex, pieceIndex, pi
 }
 
 // ===== GITHUB GIST SYNC =====
-const GIST_ID = 'c394b7c2ccc44cb2b79931e8633bb5af';
+const GIST_ID = 'ab4704ff54867605993a5720e2a61c14';
 const GIST_FILENAME = 'miliket_backup.json';
 function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
 
@@ -876,27 +876,21 @@ async function pullFromGist() {
         async function fetchFile(filename) {
             const fileEntry = gistFiles[filename];
             if (!fileEntry) return null;
-            if (!fileEntry.truncated) {
-                // Content is inline and complete — use it directly
-                const text = fileEntry.content;
-                if (!text || text.trim() === '') return null;
-                return JSON.parse(text);
+            // Always use inline content if present and non-empty
+            // regardless of truncated flag — GitHub misreports truncated=true
+            // on small files when the overall Gist response is large
+            if (fileEntry.content && fileEntry.content.trim() !== '') {
+                return JSON.parse(fileEntry.content);
             }
-            // File is truncated — fetch it via a dedicated API call for just this gist
-            // but request with ?per_page=1 trick to get a fresh non-truncated response
-            // Actually: fetch the gist with no caching to get fresh inline content
+            // Content is genuinely missing — file is too large for inline
+            // Make a second API call to get it fresh
             const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                headers: { 
-                    'Authorization': `token ${getGistToken()}`
-                }
+                headers: { 'Authorization': `token ${getGistToken()}` }
             });
             const fresh = await r.json();
             const freshFile = fresh.files[filename];
-            if (!freshFile) return null;
-            if (freshFile.truncated) {
-                // Still truncated — file is genuinely over GitHub's inline limit (1MB per file)
-                // This means one of our folder files is too large even after cleaning
-                console.warn(`File ${filename} is still truncated after fresh fetch (${freshFile.size} bytes). This folder may need splitting further.`);
+            if (!freshFile || !freshFile.content || freshFile.content.trim() === '') {
+                console.warn(`File ${filename} could not be fetched (${freshFile?.size} bytes).`);
                 return null;
             }
             return JSON.parse(freshFile.content);
