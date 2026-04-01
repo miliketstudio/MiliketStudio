@@ -877,7 +877,7 @@ async function fetchFile(filename) {
     const fileEntry = gistFiles[filename];
     if (!fileEntry) return null;
 
-    // ✅ Try inline first
+    // ✅ 1. Try inline content safely
     if (fileEntry.content && fileEntry.content.trim() !== '') {
         try {
             return JSON.parse(fileEntry.content);
@@ -886,28 +886,32 @@ async function fetchFile(filename) {
         }
     }
 
-    // ✅ Fallback: raw_url
+    // ✅ 2. Fallback to raw_url safely
     try {
-            const r = await fetch(fileEntry.raw_url);
-            const text = await r.text();
+        const r = await fetch(fileEntry.raw_url);
+        const text = await r.text();
 
-            if (!text || text.trim() === '') {
-                console.warn(`File ${filename} empty (${fileEntry.size} bytes).`);
-                return null;
-            }
-
-            try {
-                return JSON.parse(text);
-            } catch (e) {
-                console.warn(`JSON parse failed for ${filename} — likely     truncated`);
-                return null; // 🔥 IMPORTANT: don't crash app
-            }
-
-        } catch (e) {
-            console.warn(`Fetch failed for ${filename}`, e);
+        if (!text || text.trim() === '') {
+            console.warn(`File ${filename} empty (${fileEntry.size} bytes).`);
             return null;
         }
+
+        // 🔥 THIS is what you were missing
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (e) {
+            console.warn(`JSON parse failed for ${filename} (truncated file)`);
+            return null; // ⛔ prevent crash
+        }
+
+        return parsed;
+
+    } catch (e) {
+        console.warn(`Fetch failed for ${filename}`, e);
+        return null;
     }
+}
 
         if (hasIndex) {
             // NEW FORMAT: split by folder
