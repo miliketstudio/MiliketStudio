@@ -873,31 +873,41 @@ async function pullFromGist() {
         // Check if new split format exists
         const hasIndex = !!gistFiles['miliket_index.json'];
 
-        async function fetchFile(filename) {
+async function fetchFile(filename) {
     const fileEntry = gistFiles[filename];
     if (!fileEntry) return null;
 
-    // ✅ Use inline content if available
+    // ✅ Try inline first
     if (fileEntry.content && fileEntry.content.trim() !== '') {
-        return JSON.parse(fileEntry.content);
+        try {
+            return JSON.parse(fileEntry.content);
+        } catch (e) {
+            console.warn(`Inline JSON broken for ${filename}`);
+        }
     }
 
-    // ✅ Fallback: raw_url WITHOUT auth header
+    // ✅ Fallback: raw_url
     try {
-        const r = await fetch(fileEntry.raw_url);
-        const text = await r.text();
+            const r = await fetch(fileEntry.raw_url);
+            const text = await r.text();
 
-        if (!text || text.trim() === '') {
-            console.warn(`File ${filename} could not be fetched (${fileEntry.size} bytes).`);
+            if (!text || text.trim() === '') {
+                console.warn(`File ${filename} empty (${fileEntry.size} bytes).`);
+                return null;
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                console.warn(`JSON parse failed for ${filename} — likely     truncated`);
+                return null; // 🔥 IMPORTANT: don't crash app
+            }
+
+        } catch (e) {
+            console.warn(`Fetch failed for ${filename}`, e);
             return null;
         }
-
-        return JSON.parse(text);
-    } catch (e) {
-        console.warn(`File ${filename} raw_url fetch failed:`, e);
-        return null;
     }
-}
 
         if (hasIndex) {
             // NEW FORMAT: split by folder
