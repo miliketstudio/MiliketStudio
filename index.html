@@ -750,7 +750,7 @@ let currentPiece = null;
 let appData = JSON.parse(localStorage.getItem('zema_studio_data')) || {};
 let activityLog = JSON.parse(localStorage.getItem('zema_activity_log')) || [];
 
-function logActivity(type, description, projectName, folderIndex, pieceIndex) {
+function logActivity(type, description, projectName, folderIndex, pieceIndex, pieceId) {
     const now = new Date();
     const timestamp = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' + now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
     activityLog.unshift({
@@ -759,7 +759,8 @@ function logActivity(type, description, projectName, folderIndex, pieceIndex) {
         timestamp,
         projectName: projectName || null,
         folderIndex: folderIndex !== undefined ? folderIndex : null,
-        pieceIndex: pieceIndex !== undefined ? pieceIndex : null
+        pieceIndex: pieceIndex !== undefined ? pieceIndex : null,
+        pieceId: pieceId || null
     });
     if (activityLog.length > 30) activityLog.pop();
     localStorage.setItem('zema_activity_log', JSON.stringify(activityLog));
@@ -770,9 +771,25 @@ const GIST_ID = 'c394b7c2ccc44cb2b79931e8633bb5af';
 const GIST_FILENAME = 'miliket_backup.json';
 function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
 
+function cleanVisualData(html) {
+    if (!html) return html;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    
+    // Remove all miliket-gap spans
+    doc.querySelectorAll('.miliket-gap').forEach(el => el.remove());
+    
+    // Remove contenteditable from everything
+    doc.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+    
+    // Remove inline styles from editor elements only
+    doc.querySelectorAll('.miliket-tray, .zema-base, .stack-slot').forEach(el => el.removeAttribute('style'));
+    
+    return doc.body.innerHTML;
+}
+
 async function pushToGist() {
     try {
-        // Hard block: never push empty data
         const projects = Object.keys(appData).filter(k => k !== '_lastSaved');
         let totalPieces = 0;
         projects.forEach(p => {
@@ -787,18 +804,52 @@ async function pushToGist() {
         }
 
         localStorage.setItem('zema_studio_backup', JSON.stringify(appData));
-        const dataWithTimestamp = { ...appData, _lastSaved: Date.now() };
-        localStorage.setItem('zema_last_saved', dataWithTimestamp._lastSaved);
+        const lastSaved = Date.now();
+        localStorage.setItem('zema_last_saved', lastSaved);
+
+        // Build index file
+        const index = { projects: {}, lastSaved };
+        const gistFiles = {};
+
+        projects.forEach(projectName => {
+            index.projects[projectName] = { folders: [] };
+            (appData[projectName].folders || []).forEach((folder, fi) => {
+                // Safe filename: strip non-alphanumeric
+                const safeProject = projectName.replace(/[^a-zA-Z0-9]/g, '_');
+                const safeFolder = folder.name.replace(/[^a-zA-Z0-9]/g, '_');
+                const filename = `miliket_f_${safeProject}_${safeFolder}_${fi}.json`;
+
+                index.projects[projectName].folders.push({
+                    name: folder.name,
+                    file: filename
+                });
+
+                // Clean pieces before pushing
+                const cleanedPieces = (folder.pieces || []).map(piece => ({
+                    ...piece,
+                    visualData: cleanVisualData(piece.visualData || '')
+                }));
+
+                gistFiles[filename] = {
+                    content: JSON.stringify({ pieces: cleanedPieces })
+                };
+            });
+        });
+
+        // Add index file
+        gistFiles['miliket_index.json'] = {
+            content: JSON.stringify(index)
+        };
+
         await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
             headers: {
                 'Authorization': `token ${getGistToken()}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                files: { [GIST_FILENAME]: { content: JSON.stringify(dataWithTimestamp) } }
-            })
+            body: JSON.stringify({ files: gistFiles })
         });
+
         showSyncStatus('saved');
     } catch (err) {
         console.error('Gist sync failed:', err);
@@ -814,158 +865,160 @@ async function pullFromGist() {
             headers: { 'Authorization': `token ${getGistToken()}` }
         });
         const gistMeta = await res.json();
-        const history = (gistMeta.history || []).slice(0, 3);
+        const gistFiles = gistMeta.files || {};
 
-        async function fetchVersion(url) {
-            const r = await fetch(url, { headers: { 'Authorization': `token ${getGistToken()}` } });
-            const d = await r.json();
-            const content = d.files[GIST_FILENAME]?.content;
-            return content ? JSON.parse(content) : null;
+        // Check if new split format exists
+        const hasIndex = !!gistFiles['miliket_index.json'];
+
+        async function fetchFile(filename) {
+            const fileEntry = gistFiles[filename];
+            if (!fileEntry) return null;
+            // If truncated, fetch raw url
+            const url = fileEntry.truncated ? fileEntry.raw_url : null;
+            if (url) {
+                const r = await fetch(url, { headers: { 'Authorization': `token ${getGistToken()}` } });
+                return JSON.parse(await r.text());
+            }
+            return JSON.parse(fileEntry.content);
         }
 
-        const cloudVersions = [];
-        for (let i = 0; i < history.length; i++) {
-            const data = await fetchVersion(history[i].url);
-            if (data) cloudVersions.push({ data, pushedAt: history[i].committed_at });
-        }
+        if (hasIndex) {
+            // NEW FORMAT: split by folder
+            const index = await fetchFile('miliket_index.json');
+            if (!index) throw new Error('Index file missing');
 
-        if (cloudVersions.length === 0) {
-            if (status) { status.innerText = '✗ No cloud data found'; status.style.color = '#e74c3c'; }
-            return;
-        }
+            const cloudTs = index.lastSaved || 0;
+            const localTs = parseInt(localStorage.getItem('zema_last_saved') || '0');
 
-        function summarize(d, ts) {
-            const projects = Object.keys(d).filter(k => k !== '_lastSaved');
-            let folderCount = 0, pieceCount = 0, recentPieces = [];
-            projects.forEach(p => {
-                (d[p].folders || []).forEach(f => {
-                    folderCount++;
-                    (f.pieces || []).forEach(piece => {
-                        pieceCount++;
-                        recentPieces.push({
-                            name: piece.name,
-                            date: piece.lastModified || '',
-                            folder: f.name
+            // Fetch all folder files in parallel
+            const projectNames = Object.keys(index.projects);
+            const rebuilt = {};
+
+            await Promise.all(projectNames.map(async (projectName) => {
+                rebuilt[projectName] = { folders: [] };
+                const folderEntries = index.projects[projectName].folders || [];
+                await Promise.all(folderEntries.map(async (folderEntry, fi) => {
+                    const folderData = await fetchFile(folderEntry.file);
+                    rebuilt[projectName].folders[fi] = {
+                        name: folderEntry.name,
+                        pieces: folderData ? folderData.pieces : []
+                    };
+                }));
+            }));
+
+            const localRaw = JSON.parse(localStorage.getItem('zema_studio_data') || '{}');
+            const localTs2 = parseInt(localStorage.getItem('zema_last_saved') || '0');
+
+            // Show simple picker: CLOUD or LOCAL
+            function summarize(d, ts) {
+                const projects = Object.keys(d).filter(k => k !== '_lastSaved');
+                let folderCount = 0, pieceCount = 0, recentPieces = [];
+                projects.forEach(p => {
+                    (d[p].folders || []).forEach(f => {
+                        folderCount++;
+                        (f.pieces || []).forEach(piece => {
+                            pieceCount++;
+                            recentPieces.push({ name: piece.name, date: piece.lastModified || '', folder: f.name });
                         });
                     });
                 });
-            });
-            recentPieces.sort((a, b) => {
-    const toMs = str => {
-        if (!str) return 0;
-        const d = new Date(str);
-        return isNaN(d.getTime()) ? 0 : d.getTime();
-    };
-    return toMs(b.date) - toMs(a.date);
-});
-            recentPieces = recentPieces.slice(0, 3);
-            return {
-                projects,
-                folderCount,
-                pieceCount,
-                date: ts ? new Date(ts).toLocaleString() : 'Unknown',
-                recentPieces
-            };
-        }
-
-        const localRaw = JSON.parse(localStorage.getItem('zema_studio_data') || '{}');
-        const localTs = parseInt(localStorage.getItem('zema_last_saved') || '0');
-        const localSummary = summarize(localRaw, localTs);
-        const cloudSummaries = cloudVersions.map(v => summarize(v.data, new Date(v.pushedAt).getTime()));
-
-        function buildColumn(label, color, summary, choiceWord) {
-            const recentHTML = summary.recentPieces.length > 0
-                ? summary.recentPieces.map(p => `
-                    <div style="font-size:11px;color:#555;margin-top:4px;">
-                        📜 <b>${p.name}</b> <span style="color:#999;">(${p.folder})</span><br>
-                        <span style="color:#aaa;font-size:10px;">${p.date ? (() => { const d = new Date(p.date); return isNaN(d.getTime()) ? p.date : d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) + ', ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); })() : 'Unknown'}</span>
-                    </div>`).join('')
-                : '<div style="font-size:11px;color:#aaa;">No recent pieces</div>';
-
-            return `
-                <div style="border:2px solid ${color};border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:180px;">
-                    <div style="font-weight:bold;color:${color};margin-bottom:6px;">${label}</div>
-                    <div style="font-size:12px;line-height:2;color:#333;">
-                        <b>Projects:</b> ${summary.projects.join(', ') || 'none'}<br>
-                        <b>Folders:</b> ${summary.folderCount} &nbsp; <b>Pieces:</b> ${summary.pieceCount}<br>
-                        <b>Saved:</b> ${summary.date}
-                    </div>
-                    <div style="margin-top:8px;border-top:1px solid #eee;padding-top:8px;">
-                        <div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:4px;">Last 3 edited</div>
-                        ${recentHTML}
-                    </div>
-                    <div style="margin-top:10px;text-align:center;font-size:11px;color:#999;">Type <b style="color:#333;">${choiceWord}</b> to select</div>
-                </div>
-            `;
-        }
-
-        const choiceWords = ['CLOUD1', 'CLOUD2', 'CLOUD3'];
-        const columnColors = ['#3a9ad1', '#7b68ee', '#9b59b6'];
-        const columnLabels = ['☁ Cloud (Latest)', '☁ Cloud (Previous)', '☁ Cloud (Older)'];
-
-        let columnsHTML = '';
-        cloudSummaries.forEach((summary, i) => {
-            columnsHTML += buildColumn(columnLabels[i], columnColors[i], summary, choiceWords[i]);
-        });
-        columnsHTML += buildColumn('💾 Local', '#27ae60', localSummary, 'LOCAL');
-
-        const gridCols = cloudSummaries.length + 1;
-
-        await new Promise((resolve) => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;overflow:auto;padding:20px;box-sizing:border-box;';
-
-            overlay.innerHTML = `
-                <div style="background:white;border-radius:12px;padding:30px;width:100%;max-width:${gridCols * 240 + 60}px;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.4);">
-                    <h3 style="margin:0 0 6px;font-size:17px;color:#1a1a1a;">☁ Choose a Version to Load</h3>
-                    <p style="margin:0 0 20px;font-size:12px;color:#999;">This appears every time you open the app. Pick which version to work from.</p>
-                    <div style="display:grid;grid-template-columns:repeat(${gridCols}, 1fr);gap:14px;margin-bottom:20px;overflow-x:auto;">
-                        ${columnsHTML}
-                    </div>
-                    <p style="font-size:13px;margin-bottom:8px;color:#333;">Type your choice to confirm:</p>
-                    <input id="sync-choice-input" type="text" placeholder="${choiceWords.slice(0, cloudSummaries.length).join(' / ')} / LOCAL" autocomplete="off"
-                        style="width:100%;padding:10px;border:2px solid #ddd;border-radius:5px;font-size:14px;box-sizing:border-box;outline:none;">
-                    <div id="sync-choice-error" style="color:#e74c3c;font-size:12px;margin-top:5px;display:none;">Please type a valid choice exactly.</div>
-                    <div style="display:flex;justify-content:flex-end;margin-top:16px;">
-                        <button id="sync-choice-btn" style="background:#b8860b;color:white;border:none;border-radius:5px;padding:10px 24px;font-weight:bold;cursor:pointer;font-size:14px;">Confirm</button>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(overlay);
-            const input = document.getElementById('sync-choice-input');
-            const btn = document.getElementById('sync-choice-btn');
-            const err = document.getElementById('sync-choice-error');
-            input.focus();
-
-            const validChoices = [...choiceWords.slice(0, cloudSummaries.length), 'LOCAL'];
-
-            function confirm() {
-                const val = input.value.trim().toUpperCase();
-                if (!validChoices.includes(val)) {
-                    err.style.display = 'block';
-                    input.style.borderColor = '#e74c3c';
-                    return;
-                }
-                document.body.removeChild(overlay);
-                if (val === 'LOCAL') {
-                    if (status) { status.innerText = '✓ Kept local copy'; status.style.color = '#27ae60'; }
-                } else {
-                    const versionIndex = choiceWords.indexOf(val);
-                    const chosen = cloudVersions[versionIndex].data;
-                    const chosenTs = new Date(cloudVersions[versionIndex].pushedAt).getTime();
-                    appData = chosen;
-                    delete appData._lastSaved;
-                    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
-                    localStorage.setItem('zema_last_saved', chosenTs);
-                    if (status) { status.innerText = `✓ Loaded ${columnLabels[versionIndex]}`; status.style.color = '#27ae60'; }
-                }
-                resolve();
+                recentPieces.sort((a, b) => new Date(b.date) - new Date(a.date));
+                recentPieces = recentPieces.slice(0, 3);
+                return { projects, folderCount, pieceCount, date: ts ? new Date(ts).toLocaleString() : 'Unknown', recentPieces };
             }
 
-            btn.addEventListener('click', confirm);
-            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirm(); });
-        });
+            function buildColumn(label, color, summary, choiceWord) {
+                const recentHTML = summary.recentPieces.length > 0
+                    ? summary.recentPieces.map(p => `
+                        <div style="font-size:11px;color:#555;margin-top:4px;">
+                            📜 <b>${p.name}</b> <span style="color:#999;">(${p.folder})</span><br>
+                            <span style="color:#aaa;font-size:10px;">${p.date ? (() => { const d = new Date(p.date); return isNaN(d.getTime()) ? p.date : d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) + ', ' + d.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'}); })() : 'Unknown'}</span>
+                        </div>`).join('')
+                    : '<div style="font-size:11px;color:#aaa;">No recent pieces</div>';
+                return `
+                    <div style="border:2px solid ${color};border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:4px;min-width:180px;">
+                        <div style="font-weight:bold;color:${color};margin-bottom:6px;">${label}</div>
+                        <div style="font-size:12px;line-height:2;color:#333;">
+                            <b>Projects:</b> ${summary.projects.join(', ') || 'none'}<br>
+                            <b>Folders:</b> ${summary.folderCount} &nbsp; <b>Pieces:</b> ${summary.pieceCount}<br>
+                            <b>Saved:</b> ${summary.date}
+                        </div>
+                        <div style="margin-top:8px;border-top:1px solid #eee;padding-top:8px;">
+                            <div style="font-size:10px;color:#999;text-transform:uppercase;margin-bottom:4px;">Last 3 edited</div>
+                            ${recentHTML}
+                        </div>
+                        <div style="margin-top:10px;text-align:center;font-size:11px;color:#999;">Type <b style="color:#333;">${choiceWord}</b> to select</div>
+                    </div>`;
+            }
+
+            const cloudSummary = summarize(rebuilt, cloudTs);
+            const localSummary = summarize(localRaw, localTs2);
+
+            await new Promise((resolve) => {
+                const overlay = document.createElement('div');
+                overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;overflow:auto;padding:20px;box-sizing:border-box;';
+                overlay.innerHTML = `
+                    <div style="background:white;border-radius:12px;padding:30px;width:100%;max-width:560px;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+                        <h3 style="margin:0 0 6px;font-size:17px;color:#1a1a1a;">☁ Choose a Version to Load</h3>
+                        <p style="margin:0 0 20px;font-size:12px;color:#999;">Pick which version to work from.</p>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+                            ${buildColumn('☁ Cloud', '#3a9ad1', cloudSummary, 'CLOUD')}
+                            ${buildColumn('💾 Local', '#27ae60', localSummary, 'LOCAL')}
+                        </div>
+                        <p style="font-size:13px;margin-bottom:8px;color:#333;">Type your choice to confirm:</p>
+                        <input id="sync-choice-input" type="text" placeholder="CLOUD / LOCAL" autocomplete="off"
+                            style="width:100%;padding:10px;border:2px solid #ddd;border-radius:5px;font-size:14px;box-sizing:border-box;outline:none;">
+                        <div id="sync-choice-error" style="color:#e74c3c;font-size:12px;margin-top:5px;display:none;">Please type CLOUD or LOCAL exactly.</div>
+                        <div style="display:flex;justify-content:flex-end;margin-top:16px;">
+                            <button id="sync-choice-btn" style="background:#b8860b;color:white;border:none;border-radius:5px;padding:10px 24px;font-weight:bold;cursor:pointer;font-size:14px;">Confirm</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                const input = document.getElementById('sync-choice-input');
+                const btn = document.getElementById('sync-choice-btn');
+                const err = document.getElementById('sync-choice-error');
+                input.focus();
+
+                function confirm() {
+                    const val = input.value.trim().toUpperCase();
+                    if (val !== 'CLOUD' && val !== 'LOCAL') {
+                        err.style.display = 'block';
+                        input.style.borderColor = '#e74c3c';
+                        return;
+                    }
+                    document.body.removeChild(overlay);
+                    if (val === 'CLOUD') {
+                        appData = rebuilt;
+                        localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+                        localStorage.setItem('zema_last_saved', cloudTs);
+                        if (status) { status.innerText = '✓ Loaded from cloud'; status.style.color = '#27ae60'; }
+                    } else {
+                        if (status) { status.innerText = '✓ Kept local copy'; status.style.color = '#27ae60'; }
+                    }
+                    resolve();
+                }
+
+                btn.addEventListener('click', confirm);
+                input.addEventListener('keydown', (e) => { if (e.key === 'Enter') confirm(); });
+            });
+
+        } else {
+            // LEGACY FORMAT: old single-file backup
+            const legacyFile = gistFiles[GIST_FILENAME];
+            if (!legacyFile) {
+                if (status) { status.innerText = '✗ No cloud data found'; status.style.color = '#e74c3c'; }
+                return;
+            }
+            const content = legacyFile.truncated
+                ? await fetch(legacyFile.raw_url, { headers: { 'Authorization': `token ${getGistToken()}` } }).then(r => r.text())
+                : legacyFile.content;
+            const legacy = JSON.parse(content);
+            delete legacy._lastSaved;
+            appData = legacy;
+            localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+            if (status) { status.innerText = '✓ Loaded legacy backup'; status.style.color = '#27ae60'; }
+        }
 
     } catch (err) {
         console.error('Gist pull failed:', err);
@@ -1120,14 +1173,24 @@ function renderActivityLog() {
         div.appendChild(text);
         div.appendChild(time);
 
-        if (entry.type === 'symbol' && entry.projectName && entry.folderIndex !== null && entry.pieceIndex !== null) {
+        if (entry.type === 'symbol' && entry.projectName && entry.folderIndex !== null) {
             div.style.cursor = 'pointer';
             div.style.borderLeft = '4px solid var(--gold)';
             div.title = 'Click to open this piece';
             div.onclick = () => {
                 currentUser = entry.projectName;
                 currentFolder = entry.folderIndex;
-                loadPiece(entry.pieceIndex);
+                const folder = appData[entry.projectName]?.folders?.[entry.folderIndex];
+                if (!folder) return alert('That folder no longer exists.');
+                // Try to find by stable ID first, fall back to old index
+                let targetIndex = entry.pieceId
+                    ? folder.pieces.findIndex(p => p.id === entry.pieceId)
+                    : entry.pieceIndex;
+                if (targetIndex === -1) targetIndex = entry.pieceIndex; // ID not found, try old index
+                if (targetIndex === null || targetIndex === undefined || !folder.pieces[targetIndex]) {
+                    return alert('That piece no longer exists.');
+                }
+                loadPiece(targetIndex);
             };
         }
 
@@ -1367,6 +1430,7 @@ function createPiece() {
     if (!name) return;
     const folderName = appData[currentUser].folders[currentFolder].name;
     appData[currentUser].folders[currentFolder].pieces.push({ 
+        id: 'piece_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
         name: name, 
         content: "", 
         lastModified: new Date().toISOString() 
@@ -1500,6 +1564,7 @@ function duplicatePiece(event, index) {
     event.stopPropagation();
     const original = appData[currentUser].folders[currentFolder].pieces[index];
     const copy = JSON.parse(JSON.stringify(original));
+    copy.id = 'piece_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
     copy.name = original.name + ' (Copy)';
     copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
@@ -1723,7 +1788,8 @@ function applyOverline() {
                     }
                 }
             }
-            logActivity('symbol', `Added "${text}" on ${baseLabel} in "${pieceName}", folder "${folderName}", project "${currentUser}"`, currentUser, currentFolder, currentPiece);
+            const pieceId = appData[currentUser].folders[currentFolder].pieces[currentPiece].id || null;
+                logActivity('symbol', `Added "${text}" on ${baseLabel} in "${pieceName}", folder "${folderName}", project "${currentUser}"`, currentUser, currentFolder, currentPiece, pieceId);
         }
     }
 
@@ -2717,3 +2783,4 @@ document.addEventListener('visibilitychange', () => {
 </script>
 </body>
 </html>
+
