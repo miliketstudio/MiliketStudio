@@ -874,27 +874,30 @@ async function pullFromGist() {
         const hasIndex = !!gistFiles['miliket_index.json'];
 
         async function fetchFile(filename) {
-            const fileEntry = gistFiles[filename];
-            if (!fileEntry) return null;
-            if (fileEntry.content && fileEntry.content.trim() !== '') {
-                return JSON.parse(fileEntry.content);
-            }
-            // Content missing inline — fetch via raw_url (works from GitHub Pages with auth)
-            try {
-                const r = await fetch(fileEntry.raw_url, {
-                    headers: { 'Authorization': `token ${getGistToken()}` }
-                });
-                const text = await r.text();
-                if (!text || text.trim() === '') {
-                    console.warn(`File ${filename} could not be fetched (${fileEntry.size} bytes).`);
-                    return null;
-                }
-                return JSON.parse(text);
-            } catch(e) {
-                console.warn(`File ${filename} raw_url fetch failed:`, e);
-                return null;
-            }
+    const fileEntry = gistFiles[filename];
+    if (!fileEntry) return null;
+
+    // ✅ Use inline content if available
+    if (fileEntry.content && fileEntry.content.trim() !== '') {
+        return JSON.parse(fileEntry.content);
+    }
+
+    // ✅ Fallback: raw_url WITHOUT auth header
+    try {
+        const r = await fetch(fileEntry.raw_url);
+        const text = await r.text();
+
+        if (!text || text.trim() === '') {
+            console.warn(`File ${filename} could not be fetched (${fileEntry.size} bytes).`);
+            return null;
         }
+
+        return JSON.parse(text);
+    } catch (e) {
+        console.warn(`File ${filename} raw_url fetch failed:`, e);
+        return null;
+    }
+}
 
         if (hasIndex) {
             // NEW FORMAT: split by folder
