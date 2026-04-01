@@ -930,9 +930,14 @@ async function fetchFile(filename) {
                 const folderEntries = index.projects[projectName].folders || [];
                 await Promise.all(folderEntries.map(async (folderEntry, fi) => {
                     const folderData = await fetchFile(folderEntry.file);
+                    
+                    if (!folderData) {
+                        console.warn(`Skipping broken folder: ${folderEntry.name}`);
+                        return; // ⛔ skip it completely
+                    }
                     rebuilt[projectName].folders[fi] = {
                         name: folderEntry.name,
-                        pieces: folderData ? folderData.pieces : []
+                        pieces: folderData.pieces || []
                     };
                 }));
             }));
