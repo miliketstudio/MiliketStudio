@@ -876,24 +876,24 @@ async function pullFromGist() {
         async function fetchFile(filename) {
             const fileEntry = gistFiles[filename];
             if (!fileEntry) return null;
-            // Always use inline content if present and non-empty
-            // regardless of truncated flag — GitHub misreports truncated=true
-            // on small files when the overall Gist response is large
             if (fileEntry.content && fileEntry.content.trim() !== '') {
                 return JSON.parse(fileEntry.content);
             }
-            // Content is genuinely missing — file is too large for inline
-            // Make a second API call to get it fresh
-            const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-                headers: { 'Authorization': `token ${getGistToken()}` }
-            });
-            const fresh = await r.json();
-            const freshFile = fresh.files[filename];
-            if (!freshFile || !freshFile.content || freshFile.content.trim() === '') {
-                console.warn(`File ${filename} could not be fetched (${freshFile?.size} bytes).`);
+            // Content missing inline — fetch via raw_url (works from GitHub Pages with auth)
+            try {
+                const r = await fetch(fileEntry.raw_url, {
+                    headers: { 'Authorization': `token ${getGistToken()}` }
+                });
+                const text = await r.text();
+                if (!text || text.trim() === '') {
+                    console.warn(`File ${filename} could not be fetched (${fileEntry.size} bytes).`);
+                    return null;
+                }
+                return JSON.parse(text);
+            } catch(e) {
+                console.warn(`File ${filename} raw_url fetch failed:`, e);
                 return null;
             }
-            return JSON.parse(freshFile.content);
         }
 
         if (hasIndex) {
