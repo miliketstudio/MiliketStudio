@@ -478,6 +478,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         <p style="color: #666; font-size: 12px; margin-bottom: 10px;">Transfer Your Work</p>
         <button onclick="exportAllData()" class="tool-btn" style="background: #27ae60; color: white; margin-right: 10px;">💾 Export Data</button>
         <button onclick="importAllData()" class="tool-btn" style="background: #e67e22; color: white;">📁 Import Data</button>
+        <button id="restore-backup-btn" onclick="restorePrePullBackup()" style="display:none; background:#9b59b6; color:white;" class="tool-btn">♻ Restore Pre-Sync Backup</button>
     </div>
 </div>
 
@@ -920,12 +921,15 @@ async function fetchFile(filename) {
                     let allPieces = [];
                     if (folderEntry.files) {
                         // 🔥 NEW CHUNK SYSTEM
-                        for (const file of folderEntry.files) {
-                            const data = await fetchFile(file);
-                            if (data && data.pieces) {
-                                allPieces = allPieces.concat(data.pieces);
-                            }
-                        }
+                        const results = await Promise.all(
+    folderEntry.files.map(file => fetchFile(file))
+);
+
+results.forEach(data => {
+    if (data && data.pieces) {
+        allPieces = allPieces.concat(data.pieces);
+    }
+});
                     } else {
                         // fallback (old format)
                         const folderData = await fetchFile(folderEntry.file);
@@ -1023,11 +1027,22 @@ async function fetchFile(filename) {
                     }
                     document.body.removeChild(overlay);
                     if (val === 'CLOUD') {
-                        appData = rebuilt;
-                        localStorage.setItem('zema_studio_data', JSON.stringify(appData));
-                        localStorage.setItem('zema_last_saved', cloudTs);
-                        if (status) { status.innerText = '✓ Loaded from cloud'; status.style.color = '#27ae60'; }
-                    } else {
+    // ✅ STEP 1: backup current local data
+    const currentData = localStorage.getItem('zema_studio_data');
+    if (currentData) {
+        localStorage.setItem('zema_pre_pull_backup', currentData);
+    }
+
+    // ✅ STEP 2: load cloud data
+    appData = rebuilt;
+    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+    localStorage.setItem('zema_last_saved', cloudTs);
+
+    if (status) {
+        status.innerText = '✓ Loaded from cloud';
+        status.style.color = '#27ae60';
+    }
+} else {
                         if (status) { status.innerText = '✓ Kept local copy'; status.style.color = '#27ae60'; }
                     }
                     resolve();
@@ -1116,6 +1131,23 @@ window.addEventListener('DOMContentLoaded', () => {
     getSyncIndicator();
     showSyncStatus('saved');
 });
+
+function checkForBackup() {
+    const backup = localStorage.getItem('zema_pre_pull_backup');
+    if (!backup) return;
+    const btn = document.getElementById('restore-backup-btn');
+    if (btn) btn.style.display = 'inline-block';
+}
+
+function restorePrePullBackup() {
+    const backup = localStorage.getItem('zema_pre_pull_backup');
+    if (!backup) return alert('No backup found.');
+    if (!confirm('This will replace your current data with the pre-sync backup. Are you sure?')) return;
+    localStorage.setItem('zema_studio_data', backup);
+    appData = JSON.parse(backup);
+    alert('Restored! Refreshing...');
+    location.reload();
+}
 
 function exportAllData() {
     const data = localStorage.getItem('zema_studio_data');
@@ -1220,7 +1252,6 @@ function renderActivityLog() {
                 let targetIndex = entry.pieceId
                     ? folder.pieces.findIndex(p => p.id === entry.pieceId)
                     : entry.pieceIndex;
-                if (targetIndex === -1) targetIndex = entry.pieceIndex; // ID not found, try old index
                 if (targetIndex === null || targetIndex === undefined || !folder.pieces[targetIndex]) {
                     return alert('That piece no longer exists.');
                 }
@@ -1362,6 +1393,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
     await pullFromGist();
     renderProjects();
+    checkForBackup();
 });
 
 function renderDashboard() {
@@ -2845,7 +2877,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') saveAndSync();
 });
+
 </script>
 </body>
 </html>
-
