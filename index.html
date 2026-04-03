@@ -113,6 +113,12 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             font-size: 17.6px;
             overflow: visible;
         }
+        .stack-slot .m-word {
+            font-size: 25px;
+        }
+        .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .m-word {
+            font-size: 20px;
+        }
         
         .m-word { display: inline-flex; flex-direction: column; align-items: center; position: relative; white-space: nowrap; }
         .horizontal { font-size: 31px; }
@@ -742,7 +748,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
 </div>
 
 <script>
-    // --- CENTRAL DATA SYSTEM ---
+let failedFiles = [];
 let confirmCallback = null;
 let confirmAnswer = '';
 let currentUser = null;
@@ -864,7 +870,7 @@ async function pullFromGist() {
 
 async function fetchFile(filename) {
     const fileEntry = gistFiles[filename];
-    if (!fileEntry) return null;
+    if (!fileEntry) { failedFiles.push(filename); return null; }
 
     // ✅ 1. Try inline content safely
     if (fileEntry.content && fileEntry.content.trim() !== '') {
@@ -882,6 +888,7 @@ async function fetchFile(filename) {
 
         if (!text || text.trim() === '') {
             console.warn(`File ${filename} empty (${fileEntry.size} bytes).`);
+            failedFiles.push(filename);
             return null;
         }
 
@@ -891,13 +898,15 @@ async function fetchFile(filename) {
             parsed = JSON.parse(text);
         } catch (e) {
             console.warn(`JSON parse failed for ${filename} (truncated file)`);
-            return null; // ⛔ prevent crash
+            failedFiles.push(filename);
+            return null;
         }
 
         return parsed;
 
     } catch (e) {
         console.warn(`Fetch failed for ${filename}`, e);
+        failedFiles.push(filename);
         return null;
     }
 }
@@ -1073,6 +1082,9 @@ results.forEach(data => {
         console.error('Gist pull failed:', err);
         if (status) { status.innerText = '✗ Offline — using local data'; status.style.color = '#e74c3c'; }
     }
+    if (failedFiles.length > 0) {
+        alert('⚠️ Some files failed to load:\n' + failedFiles.join('\n'));
+    }
 }
 
 // Save all changes to the computer
@@ -1101,12 +1113,14 @@ function getSyncIndicator() {
     return indicator;
 }
 
-function showSyncStatus(state) {
+function showSyncStatus(state, message = '') {
     const indicator = getSyncIndicator();
+
     if (state === 'saved') {
         indicator.style.background = '#27ae60';
         indicator.innerText = '✓';
         indicator.title = 'Synced';
+
     } else if (state === 'pending') {
         indicator.style.background = '#e6a817';
         indicator.style.width = 'auto';
@@ -1114,15 +1128,17 @@ function showSyncStatus(state) {
         indicator.style.borderRadius = '6px';
         indicator.innerText = '✓ Saving...';
         indicator.title = 'Saving...';
+
     } else if (state === 'failed') {
         indicator.style.background = '#e74c3c';
-        indicator.innerText = '✕';
-        indicator.title = 'Sync failed';
-        // Add text label only on failure
         indicator.style.width = 'auto';
         indicator.style.padding = '6px 12px';
         indicator.style.borderRadius = '6px';
-        indicator.innerText = '✕ Sync failed — export your data!';
+        indicator.innerText = '✕ Sync failed';
+        indicator.title = 'Sync failed';
+
+        // 🔥 NEW: visible alert
+        alert(message || 'Sync failed. Your data is safe locally, but not saved to cloud.');
     }
 }
 
@@ -1130,6 +1146,10 @@ function showSyncStatus(state) {
 window.addEventListener('DOMContentLoaded', () => {
     getSyncIndicator();
     showSyncStatus('saved');
+});
+
+window.addEventListener('beforeunload', () => {
+    saveData();
 });
 
 function checkForBackup() {
