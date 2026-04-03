@@ -114,10 +114,12 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             overflow: visible;
         }
         .stack-slot .m-word {
-            font-size: 25px;
+            font-size: 31px;
         }
         .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .m-word {
-            font-size: 20px;
+            font-size: 24px;
+        }
+        .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .vertical-stack span { font-size: 25px; }
         }
         
         .m-word { display: inline-flex; flex-direction: column; align-items: center; position: relative; white-space: nowrap; }
@@ -127,6 +129,7 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
         .zema-base { font-weight: bold !important;}
 
         .vertical-stack span { display: block; line-height: 0.45; font-size: 36px; text-align: center; }
+        .stack-slot .vertical-stack span { font-size: 30px; }
         .with-line {
             text-decoration: overline !important;
             text-decoration-thickness: 1.5px !important;
