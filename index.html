@@ -102,22 +102,30 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
             bottom: -5px;
         }
         .stack-slot { 
-            min-width: 38px; 
-            min-height: 24px; 
+            min-width: 20px; 
+            min-height: 16px; 
             border: 1px dotted #999; 
             margin: -2px 0; 
-            display: flex; 
+            display: inline-flex; 
             align-items: center; 
             justify-content: center; 
             outline: none; 
             font-size: 17.6px;
             overflow: visible;
+            padding: 0;
         }
+        .tray-spacer { pointer-events: none; }
         .stack-slot .m-word {
             font-size: 31px;
         }
         .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .m-word {
             font-size: 24px;
+        }
+        .stack-slot .m-word.with-line {
+            font-size: 29px;
+        }
+        .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .m-word.with-line {
+            font-size: 23px;
         }
         .stack-container:has(.stack-slot:nth-child(3)) .stack-slot .vertical-stack span { font-size: 25px; }
         }
@@ -752,12 +760,50 @@ body, html { margin: 0; padding: 0; font-family: 'Abyssinica SIL', serif; backgr
 
 <script>
 let failedFiles = [];
+
+// ===== INDEXEDDB SETUP =====
+const DB_NAME = 'MiliketStudio';
+const DB_STORE = 'appData';
+let db = null;
+
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = (e) => {
+            e.target.result.createObjectStore(DB_STORE);
+        };
+        req.onsuccess = (e) => {
+            db = e.target.result;
+            resolve(db);
+        };
+        req.onerror = (e) => reject(e.target.error);
+    });
+}
+
+async function idbGet(key) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readonly');
+        const req = tx.objectStore(DB_STORE).get(key);
+        req.onsuccess = () => resolve(req.result ?? null);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+async function idbSet(key, value) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(DB_STORE, 'readwrite');
+        const req = tx.objectStore(DB_STORE).put(value, key);
+        req.onsuccess = () => resolve();
+        req.onerror = () => reject(req.error);
+    });
+}
+
 let confirmCallback = null;
 let confirmAnswer = '';
 let currentUser = null;
 let currentFolder = null;
 let currentPiece = null;
-let appData = JSON.parse(localStorage.getItem('zema_studio_data')) || {};
+let appData = {};
 let activityLog = JSON.parse(localStorage.getItem('zema_activity_log')) || [];
 
 function logActivity(type, description, projectName, folderIndex, pieceIndex, pieceId) {
@@ -796,7 +842,6 @@ async function pushToGist() {
             return;
         }
 
-        localStorage.setItem('zema_studio_backup', JSON.stringify(appData));
         const lastSaved = Date.now();
         localStorage.setItem('zema_last_saved', lastSaved);
 
@@ -956,7 +1001,7 @@ results.forEach(data => {
                 }));
             }));
 
-            const localRaw = JSON.parse(localStorage.getItem('zema_studio_data') || '{}');
+            const localRaw = appData;
             const localTs2 = parseInt(localStorage.getItem('zema_last_saved') || '0');
 
             // Show simple picker: CLOUD or LOCAL
@@ -1039,15 +1084,8 @@ results.forEach(data => {
                     }
                     document.body.removeChild(overlay);
                     if (val === 'CLOUD') {
-    // ✅ STEP 1: backup current local data
-    const currentData = localStorage.getItem('zema_studio_data');
-    if (currentData) {
-        localStorage.setItem('zema_pre_pull_backup', currentData);
-    }
-
-    // ✅ STEP 2: load cloud data
     appData = rebuilt;
-    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+    idbSet('zema_studio_data', appData);
     localStorage.setItem('zema_last_saved', cloudTs);
 
     if (status) {
@@ -1077,7 +1115,7 @@ results.forEach(data => {
             const legacy = JSON.parse(content);
             delete legacy._lastSaved;
             appData = legacy;
-            localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+            idbSet('zema_studio_data', appData);
             if (status) { status.innerText = '✓ Loaded legacy backup'; status.style.color = '#27ae60'; }
         }
 
@@ -1092,9 +1130,11 @@ results.forEach(data => {
 
 // Save all changes to the computer
 function saveData() {
-    localStorage.setItem('zema_studio_data', JSON.stringify(appData));
+    if (!db) return;
+    idbSet('zema_studio_data', appData).catch(err => {
+        console.error('IndexedDB save failed:', err);
+    });
 }
-
 let dataDirty = false;
 
 function saveAndSync() {
@@ -1173,12 +1213,11 @@ function restorePrePullBackup() {
 }
 
 function exportAllData() {
-    const data = localStorage.getItem('zema_studio_data');
-    if (!data) {
+    if (!appData || Object.keys(appData).length === 0) {
         alert("No data to export! Create some work first.");
         return;
     }
-    const blob = new Blob([data], {type: 'application/json'});
+    const blob = new Blob([JSON.stringify(appData)], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1198,9 +1237,7 @@ function importAllData() {
         reader.onload = event => {
             try {
                 appData = JSON.parse(event.target.result);
-                localStorage.setItem('zema_studio_data', event.target.result);
-                localStorage.setItem('zema_studio_backup', event.target.result);
-                pushToGist().then(() => {
+                idbSet('zema_studio_data', appData).then(() => pushToGist()).then(() => {
                     alert('Backup loaded and synced to cloud! Refreshing...');
                     location.reload();
                 }).catch(() => {
@@ -1410,13 +1447,28 @@ function createFolder() {
 
 // Render projects on load
 window.addEventListener('DOMContentLoaded', async () => {
+    db = await openDB();
+
+    // Migrate from localStorage if old data exists there
+    const legacy = localStorage.getItem('zema_studio_data');
+    if (legacy) {
+        try {
+            appData = JSON.parse(legacy);
+            await idbSet('zema_studio_data', appData);
+            localStorage.removeItem('zema_studio_data');
+        } catch(e) {
+            console.warn('Migration from localStorage failed:', e);
+        }
+    } else {
+        appData = (await idbGet('zema_studio_data')) || {};
+    }
+
     if (!localStorage.getItem('miliket_gist_token')) {
         const token = prompt('Enter your GitHub token to enable cloud sync:');
         if (token) localStorage.setItem('miliket_gist_token', token.trim());
     }
     await pullFromGist();
     renderProjects();
-    checkForBackup();
 });
 
 function renderDashboard() {
