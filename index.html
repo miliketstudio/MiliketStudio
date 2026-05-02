@@ -17,9 +17,9 @@
            ORIGINAL IDEFISSEHA CSS — NOT TOUCHED
         ============================================================ */
         * { box-sizing: border-box; margin: 0; }
-        body { background: #f8f9fa; }
+        body { background: #ffffff; }
         .bigtxt { font-size: 1.5rem; }
-        nav.navbar { position: sticky; top: 0; z-index: 9999; }
+        nav.navbar { position: relative; z-index: 9999; }
         .page { display: none; }
         .page.active { display: block; }
         .main-page { max-width:100%!important; height:100%; margin-top:1rem; display:flex; border:1px solid #ccc; }
@@ -30,9 +30,10 @@
             width:32%; height:100vh; overflow:auto; resize:both;
         }
         #container {
-            border:1px solid #ccc!important; width:100%;
-            resize:both; overflow:auto; box-sizing:border-box;
-            padding:2rem!important; max-width:100%; min-height:300px;
+        border:1px solid #ccc!important; width:100%;
+        resize:both; overflow:auto; box-sizing:border-box;
+        padding:2rem!important; max-width:100%; min-height:300px;
+        background: #ffffff !important;
         }
         .letter-container { display:inline-block; }
         .letter { display:flex; z-index:1000; align-items:flex-end; font-size:2.5rem; height:5rem; }
@@ -669,6 +670,7 @@
                         <select class="form-select w-auto" id="rowCount"></select>
                         <button type="submit" class="btn" style="background:#c0392b; color:white; border:1px solid #e74c3c;">Remove</button>
                     </form>
+                    <button id="undoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa;">↩ Undo</button>
                     <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa;">Copy HTML</button>
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa;">Paste HTML</button>
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745;">💾 Save</button>
@@ -681,9 +683,10 @@
 
 <div id="page-present" class="page">
 
-    <div id="present-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#1a2a3a;border-bottom:3px solid #b8860b;position:sticky;top:0;z-index:200;">
+    <div id="present-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#1a2a3a;border-bottom:3px solid #b8860b;position:relative;z-index:200;flex-wrap:nowrap;min-width:0;">
         <p style="margin:0;font-size:0.8rem;color:#7eb8f7;">Click a piece to add to queue, then Print Queue.</p>
-        <div style="display:flex;align-items:center;gap:12px;">
+        <button onclick="togglePresentFullscreen()" style="margin-left:auto;background:#3a5a82;border:none;color:white;border-radius:6px;padding:7px 12px;font-size:0.85rem;font-weight:bold;cursor:pointer;">⛶ Fullscreen</button>
+        <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
             <div style="display:flex;align-items:center;gap:6px;background:#243040;border-radius:8px;padding:6px 10px;border:1px solid #3a5a82;">
                 <button id="chrono-mode-btn" onclick="toggleChronoMode()" style="background:none;border:none;color:#f0c040;font-size:11px;font-weight:bold;cursor:pointer;padding:0 4px;">SW</button>
                 <span id="chrono-display" style="font-family:monospace;font-size:1.3rem;font-weight:bold;color:white;min-width:80px;text-align:center;">00:00</span>
@@ -691,7 +694,6 @@
                 <button onclick="chronoReset()" style="background:#c0392b;border:none;color:white;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Reset</button>
                 <input id="timer-set-input" type="text" placeholder="mm:ss" maxlength="5" style="display:none;width:56px;padding:3px 5px;font-size:12px;border:1px solid #3a5a82;border-radius:4px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;">
             </div>
-            <button id="fullscreen-btn" onclick="togglePresentFullscreen()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:7px 12px;font-size:0.85rem;font-weight:bold;cursor:pointer;">⛶ Fullscreen</button>
         </div>
     </div>
 
@@ -918,6 +920,7 @@ function init() {
     });
 
     $('.milikititem').off('click.mi').on('click.mi', function(e){
+        triggerAutoSave();
         var $sp = $(this).find('span');
         var content = $sp.text();
         var classes = $sp.attr('class').split(' ');
@@ -957,6 +960,10 @@ function init() {
         var $s = $('#' + selectedSpanId);
         if ($s.length) { var $next = $s.parent().next(); if ($next.is('br')) $next.remove(); }
         e.stopImmediatePropagation();
+    });
+
+    $('#undoBtn').off('click.un').on('click.un', function(){
+        document.execCommand('undo');
     });
 
     $('#copyButton').off('click.cp').on('click.cp', function(){
@@ -1653,6 +1660,20 @@ function toggleTheme() {
     localStorage.setItem('miliket_theme', isDark ? 'dark' : 'light');
 }
 
+// --- Debounced Auto-save ---
+let autoSaveTimer = null;
+
+function triggerAutoSave() {
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer = setTimeout(async () => {
+        savePieceNow();      // visual data → appData
+        saveData();          // appData → IndexedDB
+        await pushToGist();  // appData → GitHub Gist
+        showSyncStatus('saved');
+    }, 10000);
+    showSyncStatus('pending');
+}
+
 // --- Init ---
 window.addEventListener('DOMContentLoaded', async () => {
     // Theme
@@ -1691,39 +1712,95 @@ var isFullscreen = false;
 function togglePresentFullscreen() {
     isFullscreen = !isFullscreen;
     var result = document.getElementById('result');
-    var btn = document.getElementById('fullscreen-btn');
     var topbar = document.getElementById('present-topbar');
     var navbar = document.getElementById('main-navbar');
+    var footer = document.getElementById('main-footer');
+    // The two-column row (notes + queue) — sits just above #result inside section
+    var notesQueueRow = document.querySelector('#page-present .row.mb-5');
+    // The subtitle paragraph container
+    var subtitle = document.querySelector('#page-present .container.mb-3');
     if (isFullscreen) {
-        // Hide all banners
         topbar.style.display = 'none';
         if (navbar) navbar.style.display = 'none';
-        // Fullscreen the result
+        if (footer) footer.style.display = 'none';
+        if (subtitle) subtitle.style.display = 'none';
+        if (notesQueueRow) notesQueueRow.closest('.container').style.display = 'none';
         result.style.cssText = 'position:fixed;inset:0;background:white;z-index:3000;overflow-y:auto;padding:4rem 3rem 6rem;margin:0;min-height:unset;';
-        // Floating exit + timer
-        var hud = document.createElement('div');
+        const hud = document.createElement('div');
         hud.id = 'fs-hud';
-        hud.style.cssText = 'position:fixed;top:14px;right:16px;z-index:4000;display:flex;align-items:center;gap:8px;';
+        hud.style.cssText = 'position:fixed;top:14px;right:16px;z-index:4000;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;';
+        var isTmr = (chronoMode === 'timer');
+        var timerInputHtml = isTmr
+            ? '<input id="fs-timer-input" type="text" placeholder="mm:ss" maxlength="5" style="width:56px;padding:4px 5px;font-size:12px;border:1px solid #888;border-radius:4px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;">'
+            : '';
         hud.innerHTML =
+            '<button onclick="fsModeToggle()" id="fs-mode-btn" style="background:rgba(0,0,0,0.5);border:1px solid #888;color:#f0c040;font-size:11px;font-weight:bold;cursor:pointer;padding:4px 8px;border-radius:4px;">' + (isTmr ? 'TMR' : 'SW') + '</button>' +
+            timerInputHtml +
             '<span id="fs-chrono" style="font-family:monospace;font-size:1.2rem;font-weight:bold;color:#fff;background:rgba(0,0,0,0.45);padding:5px 12px;border-radius:6px;min-width:70px;text-align:center;">00:00</span>' +
-            '<button onclick="togglePresentFullscreen()" style="background:#c0392b;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;">✕ Exit</button>';
+            '<button id="fs-start-btn" onclick="fsStartStop()" style="background:#27ae60;border:none;color:white;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Start</button>' +
+            '<button onclick="chronoReset(); fsSyncDisplay();" style="background:#c0392b;border:none;color:white;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:bold;cursor:pointer;">Reset</button>' +
+            '<button onclick="togglePresentFullscreen()" style="background:rgba(80,0,0,0.75);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 12px;font-size:0.85rem;font-weight:bold;cursor:pointer;">✕ Exit</button>';
         document.body.appendChild(hud);
-        // Keep HUD chrono in sync
-        window._fsChronoSync = setInterval(function() {
-            var main = document.getElementById('chrono-display');
-            var fs = document.getElementById('fs-chrono');
-            if (main && fs) fs.textContent = main.textContent;
-        }, 100);
+        fsSyncDisplay();
+        window._fsChronoSync = setInterval(fsSyncDisplay, 100);
     } else {
-        // Restore banners
         topbar.style.display = '';
         if (navbar) navbar.style.display = '';
+        if (footer) footer.style.display = '';
+        if (subtitle) subtitle.style.display = '';
+        if (notesQueueRow) notesQueueRow.closest('.container').style.display = '';
         result.style.cssText = '';
-        // Remove HUD
-        var hud = document.getElementById('fs-hud');
-        if (hud) hud.remove();
+        const existingHud = document.getElementById('fs-hud');
+        if (existingHud) existingHud.remove();
         clearInterval(window._fsChronoSync);
     }
+}
+function fsSyncDisplay() {
+    var main = document.getElementById('chrono-display');
+    var fs = document.getElementById('fs-chrono');
+    if (main && fs) fs.textContent = main.textContent;
+    // Sync start button label/color
+    var fsBtn = document.getElementById('fs-start-btn');
+    var mainBtn = document.getElementById('chrono-start-btn');
+    if (fsBtn && mainBtn) {
+        fsBtn.textContent = mainBtn.textContent;
+        fsBtn.style.background = mainBtn.style.background || (chronoRunning ? '#e67e22' : '#27ae60');
+    }
+}
+
+function fsModeToggle() {
+    toggleChronoMode();
+    var isTmr = (chronoMode === 'timer');
+    var modeBtn = document.getElementById('fs-mode-btn');
+    if (modeBtn) modeBtn.textContent = isTmr ? 'TMR' : 'SW';
+    // Add/remove timer input in HUD
+    var hud = document.getElementById('fs-hud');
+    if (!hud) return;
+    var existing = document.getElementById('fs-timer-input');
+    if (isTmr && !existing) {
+        var inp = document.createElement('input');
+        inp.id = 'fs-timer-input';
+        inp.type = 'text';
+        inp.placeholder = 'mm:ss';
+        inp.maxLength = 5;
+        inp.style.cssText = 'width:56px;padding:4px 5px;font-size:12px;border:1px solid #888;border-radius:4px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;';
+        modeBtn.insertAdjacentElement('afterend', inp);
+    } else if (!isTmr && existing) {
+        existing.remove();
+    }
+}
+
+function fsStartStop() {
+    // If timer mode and a value is typed in FS input, push it to the main input first
+    if (chronoMode === 'timer' && !chronoRunning) {
+        var fsInput = document.getElementById('fs-timer-input');
+        var mainInput = document.getElementById('timer-set-input');
+        if (fsInput && mainInput && fsInput.value.trim()) {
+            mainInput.value = fsInput.value.trim();
+        }
+    }
+    chronoStartStop();
+    fsSyncDisplay();
 }
 
 // ============================================================
