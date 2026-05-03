@@ -1710,8 +1710,6 @@ function triggerAutoSave() {
 // ============================================================
 // GEMINI API TRANSLATION
 // ============================================================
-const GEMINI_API_KEY = "AIzaSyBYRUPH24xzSuFto3N3xpDCnRSsaUedhXc";
-
 async function translatePiece(index) {
     const pieceDiv = document.getElementById('piece-' + index);
     if (!pieceDiv) return;
@@ -1733,39 +1731,15 @@ async function translatePiece(index) {
 
     rawText = rawText.replace(/\s+/g, ' ').trim(); // Clean up spacing
 
-    // 2. Open Modal & Show Loading State
-    document.getElementById('geez-text').innerText = rawText;
-    document.getElementById('english-text').innerHTML = '<span style="color:#7eb8f7;"><i class="fas fa-circle-notch fa-spin"></i> Translating pure text via Gemini...</span>';
+    // 2. Copy prompt to clipboard then open Gemini
+    const prompt = "Translate the following Ge'ez liturgical text into simple, clear English suitable for church congregation slides. Keep the meaning faithful and reverent but use language everyday people can understand. Preserve every ። and ፣ punctuation mark exactly where it appears in the original. Return only the translation, nothing else:\n\n" + rawText;
     
-    const transModal = new bootstrap.Modal(document.getElementById('translationModal'));
-    transModal.show();
-
-    // 3. Make the API Call
-    try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: "Translate the following Ge'ez text to English. It is critical that you preserve the exact punctuation marks (። and ፣) exactly where they appear in the original text, placing them in the English translation so I can map the lines up perfectly. Do not include any conversational filler. Here is the text:\n\n" + rawText
-                    }]
-                }]
-            })
-        });
-
-        const data = await response.json();
-        
-        if (data && data.candidates && data.candidates.length > 0) {
-            const translation = data.candidates[0].content.parts[0].text;
-            document.getElementById('english-text').innerText = translation;
-        } else {
-            document.getElementById('english-text').innerHTML = '<span style="color:#e74c3c;">Translation failed. Please try again.</span>';
-        }
-    } catch (error) {
-        console.error("Translation Error: ", error);
-        document.getElementById('english-text').innerHTML = '<span style="color:#e74c3c;">Network error. Check console for details.</span>';
-    }
+    navigator.clipboard.writeText(prompt).then(() => {
+        alert("✓ Prompt copied!\n\nGemini is opening — paste with Ctrl+V and hit Enter.");
+        window.open('https://gemini.google.com/app', '_blank');
+    }).catch(() => {
+        window.open('https://gemini.google.com/app', '_blank');
+    });
 }
 
 // --- Init ---
