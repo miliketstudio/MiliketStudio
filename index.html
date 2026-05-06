@@ -504,7 +504,11 @@
         }
         .pft-add-btn:hover { background: #a07608; }
 
-        /* Edit text button on piece card */
+        /* Drag-and-drop reordering */
+        .studio-card.drag-over { outline: 2px solid #3a9ad1; background: rgba(58,154,209,0.07); }
+        .studio-card.dragging  { opacity: 0.45; outline: 2px solid #3a9ad1; cursor: grabbing; }
+
+/* Edit text button on piece card */
         .edit-text-link {
             display: inline-block;
             margin-top: 8px;
@@ -659,21 +663,21 @@
         </div>
         <div class="container-border">
             <div class="file-form pb-2">
-                <div class="d-flex flex-wrap gap-2 align-items-center w-100 justify-content-start mt-2">
-                    <button id="addStackBtn" class="btn" style="background:#3a5a82; color:white; border:1px solid #5a7aaa;">Add row</button>
-                    <button id="toggleButton" class="btn" style="background:#4a6a96; color:white; border:1px solid #5a7aaa;">Hide grid</button>
-                    <button id="togglecolor" class="btn" style="background:#1a2a3a; color:white; border:1px solid #3a5a82;">Red milikit</button>
-                    <button id="newline" class="btn" style="background:#2980b9; color:white; border:1px solid #3a90c9;"><i class="fas fa-arrow-turn-down"></i> New Line</button>
-                    <button id="removeline" class="btn" style="background:#8e6a00; color:white; border:1px solid #b8860b;"><i class="fas fa-arrow-left"></i> DelLn</button>
+                <div class="d-flex flex-wrap gap-2 align-items-center w-100 justify-content-start mt-2" style="font-size:0.9rem;">
+                    <button id="togglecolor" class="btn" style="background:#1a2a3a; color:white; border:1px solid #3a5a82; font-size:0.9rem;">Red milikit</button>
+                    <button id="addStackBtn" class="btn" style="background:#3a5a82; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Add row</button>
                     <form id="rowromveform" class="d-flex align-items-center gap-2">
-                        <label for="rowCount" class="mb-0">Remove row:</label>
-                        <select class="form-select w-auto" id="rowCount"></select>
-                        <button type="submit" class="btn" style="background:#c0392b; color:white; border:1px solid #e74c3c;">Remove</button>
+                        <select class="form-select w-auto" id="rowCount" style="font-size:0.9rem;"></select>
+                        <button type="submit" class="btn" style="background:#c0392b; color:white; border:1px solid #e74c3c; font-size:0.9rem;">Remove</button>
                     </form>
-                    <button id="undoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa;">↩ Undo</button>
-                    <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa;">Copy HTML</button>
-                    <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa;">Paste HTML</button>
-                    <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745;">💾 Save</button>
+                    <button id="newline" class="btn" style="background:#2980b9; color:white; border:1px solid #3a90c9; font-size:0.9rem;"><i class="fas fa-arrow-turn-down"></i> New Line</button>
+                    <button id="removeline" class="btn" style="background:#8e6a00; color:white; border:1px solid #b8860b; font-size:0.9rem;"><i class="fas fa-arrow-left"></i> DelLn</button>
+                    <button id="undoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa; font-size:0.9rem;">↩ Undo</button>
+                    <button id="redoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa; font-size:0.9rem;">↪ Redo</button>
+                    <button id="toggleButton" class="btn" style="background:#4a6a96; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Hide grid</button>
+                    <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Copy HTML</button>
+                    <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
+                    <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
@@ -705,7 +709,7 @@
             <div class="row mb-5">
                 <div class="col-md-6">
                     <h2>Your saved notes</h2>
-                    <div id="savednoteslist"><div id="notesList"></div></div>
+                    <div id="savednoteslist" style="height:25rem;overflow-y:auto;border:1px solid #ccc;padding:10px;"><div id="notesList"></div></div>
                 </div>
                 <div class="col-md-6">
                     <h2>Queue</h2>
@@ -779,6 +783,39 @@ let idcount = 0, mcount = 0, cusstaid = 0, loadednotelength = 0;
 let highlightedspan = "", selectedSpanId = "";
 let redtext = false, numOfRows = 1;
 let text = "";
+
+// Undo/redo history (snapshot-based, max 10 steps)
+const MAX_HISTORY = 10;
+let _undoStack = [];
+let _redoStack = [];
+
+function snapshotForUndo() {
+    _undoStack.push($('#container').html());
+    if (_undoStack.length > MAX_HISTORY) _undoStack.shift();
+    _redoStack = []; // clear redo on new action
+    updateUndoRedoBtns();
+}
+
+function updateUndoRedoBtns() {
+    $('#undoBtn').prop('disabled', _undoStack.length === 0).css('opacity', _undoStack.length ? 1 : 0.4);
+    $('#redoBtn').prop('disabled', _redoStack.length === 0).css('opacity', _redoStack.length ? 1 : 0.4);
+}
+
+function doUndo() {
+    if (!_undoStack.length) return;
+    _redoStack.push($('#container').html());
+    if (_redoStack.length > MAX_HISTORY) _redoStack.shift();
+    $('#container').html(_undoStack.pop());
+    rebindCussta(); bindLetterClicks(); updaterowcount(); updateUndoRedoBtns();
+}
+
+function doRedo() {
+    if (!_redoStack.length) return;
+    _undoStack.push($('#container').html());
+    if (_undoStack.length > MAX_HISTORY) _undoStack.shift();
+    $('#container').html(_redoStack.pop());
+    rebindCussta(); bindLetterClicks(); updaterowcount(); updateUndoRedoBtns();
+}
 
 const basics   = ["᎐","᎓","᎒","᎑","᎔","᎖","᎗","᎘","᎙","l","᎕"];
 const ihita    = ["ቡበ","ፔር","ዓይ","ዕለ","ጸጋ","ነድ","ቡር","ገጾ","ኃዘ","ሌ"];
@@ -919,31 +956,36 @@ function init() {
         e.stopImmediatePropagation();
     });
 
-    $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎔',1)+bs('᎔',1))); e.stopImmediatePropagation(); });
-    $('#tripleup').off('click.sb').on('click.sb',     function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎑',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#tripleupdown').off('click.sb').on('click.sb', function(e){ applyToSelected(colorStack(bs('_')+bs('᎔',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#doubledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎔',1))); e.stopImmediatePropagation(); });
-    $('#doubleup').off('click.sb').on('click.sb',     function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#updown').off('click.sb').on('click.sb',       function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#downup').off('click.sb').on('click.sb',       function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎔',1))); e.stopImmediatePropagation(); });
+    $('#tripledown').off('click.sb').on('click.sb',   function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎔',1)+bs('᎔',1))); e.stopImmediatePropagation(); });
+    $('#tripleup').off('click.sb').on('click.sb',     function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎑',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#tripleupdown').off('click.sb').on('click.sb', function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('_')+bs('᎔',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#doubledown').off('click.sb').on('click.sb',   function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎔',1))); e.stopImmediatePropagation(); });
+    $('#doubleup').off('click.sb').on('click.sb',     function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#updown').off('click.sb').on('click.sb',       function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#downup').off('click.sb').on('click.sb',       function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎔',1))); e.stopImmediatePropagation(); });
     $('#flickup').off('click.sb').on('click.sb', function(e){
+        snapshotForUndo();
         applyToSelected('<span style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span style="margin-left:0.5rem;" class="basics">᎑</span><span style="margin-top:-3.7rem;" class="basics">᎖</span></span>&hairsp;');
         e.stopImmediatePropagation();
     });
     $('#customstack').off('click.sb').on('click.sb', function(e){
+        snapshotForUndo();
         applyToSelected('<span style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span id="cussta'+cusstaid+'" class="basics cussta">&hairsp;</span><span style="margin-top:-3.5rem;" id="cussta'+(cusstaid+1)+'" class="basics cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=2; rebindCussta(); e.stopImmediatePropagation();
     });
     $('#widestack').off('click.sb').on('click.sb', function(e){
+        snapshotForUndo();
         applyToSelected('<span class="widestack" style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span style="font-size:2rem!important;margin-bottom:-0.5rem;" id="cussta'+cusstaid+'" class="cussta">&hairsp;</span><span style="font-size:2rem!important;margin-bottom:-0.5rem;" id="cussta'+(cusstaid+1)+'" class="cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=2; rebindCussta(); e.stopImmediatePropagation();
     });
     $('#customsere').off('click.sb').on('click.sb', function(e){
+        snapshotForUndo();
         applyToSelected('<span style="text-decoration-line:underline;text-underline-offset:-0.9em;color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span id="cussta'+cusstaid+'" class="basics cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=1; rebindCussta(); e.stopImmediatePropagation();
     });
 
     $('.milikititem').off('click.mi').on('click.mi', function(e){
+        snapshotForUndo();
         triggerAutoSave();
         var $sp = $(this).find('span');
         var content = $sp.text();
@@ -975,20 +1017,21 @@ function init() {
     });
 
     $('#newline').off('click.nl').on('click.nl', function(e){
+        snapshotForUndo();
         var $s = $('#' + selectedSpanId);
         if ($s.length) $s.parent().after('<br>');
         e.stopImmediatePropagation();
     });
 
     $('#removeline').off('click.rl').on('click.rl', function(e){
+        snapshotForUndo();
         var $s = $('#' + selectedSpanId);
         if ($s.length) { var $next = $s.parent().next(); if ($next.is('br')) $next.remove(); }
         e.stopImmediatePropagation();
     });
 
-    $('#undoBtn').off('click.un').on('click.un', function(){
-        document.execCommand('undo');
-    });
+    $('#undoBtn').off('click.un').on('click.un', function(){ doUndo(); });
+    $('#redoBtn').off('click.un').on('click.un', function(){ doRedo(); });
 
     $('#copyButton').off('click.cp').on('click.cp', function(){
         navigator.clipboard.writeText($('#container').html()).then(() => {
@@ -1432,6 +1475,8 @@ function renderFolders() {
     folders.forEach((folder, index) => {
         const div = document.createElement('div');
         div.className = 'studio-card';
+        div.draggable = true;
+        div.dataset.index = index;
         const pieceCount = (folder.pieces || []).length;
         div.innerHTML = `
             <div class="card-actions">
@@ -1442,6 +1487,7 @@ function renderFolders() {
             <div class="card-name">${folder.name}</div>
             <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>`;
         div.onclick = () => openFolder(index);
+        attachDragHandlers(div, 'folder');
         grid.appendChild(div);
     });
 }
@@ -1495,6 +1541,8 @@ function renderPieces() {
     pieces.forEach((piece, index) => {
         const div = document.createElement('div');
         div.className = 'studio-card';
+        div.draggable = true;
+        div.dataset.index = index;
         const date = piece.lastModified ? new Date(piece.lastModified).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : 'Never';
         div.innerHTML = `
             <div class="card-actions">
@@ -1508,6 +1556,7 @@ function renderPieces() {
             <div class="card-meta">${date}</div>
             <div class="edit-text-link" onclick="event.stopPropagation(); editPieceText(${index})">Edit text</div>`;
         div.onclick = () => loadPieceIntoEditor(index);
+        attachDragHandlers(div, 'piece');
         grid.appendChild(div);
     });
 }
@@ -1740,6 +1789,77 @@ async function translatePiece(index) {
     }).catch(() => {
         window.open('https://gemini.google.com/app', '_blank');
     });
+}
+
+// --- Drag-to-reorder ---
+let _dragSrcIndex = null;
+let _dragType = null;
+let _dragMoved = false;
+
+function attachDragHandlers(div, type) {
+    div.addEventListener('dragstart', e => {
+        _dragSrcIndex = parseInt(div.dataset.index);
+        _dragType = type;
+        _dragMoved = false;
+        div.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        // Use a minimal transparent image so ghost doesn't interfere
+        const ghost = document.createElement('div');
+        ghost.style.cssText = 'position:fixed;top:-999px;opacity:0;';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+        setTimeout(() => document.body.removeChild(ghost), 0);
+    });
+
+    div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+        document.querySelectorAll('.studio-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+        _dragSrcIndex = null;
+        _dragType = null;
+    });
+
+    div.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        const targetIndex = parseInt(div.dataset.index);
+        if (_dragSrcIndex !== null && targetIndex !== _dragSrcIndex) {
+            document.querySelectorAll('.studio-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+            div.classList.add('drag-over');
+        }
+    });
+
+    div.addEventListener('dragleave', () => {
+        div.classList.remove('drag-over');
+    });
+
+    div.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        div.classList.remove('drag-over');
+        const targetIndex = parseInt(div.dataset.index);
+        if (_dragSrcIndex === null || targetIndex === _dragSrcIndex || _dragType !== type) return;
+        _dragMoved = true;
+
+        if (type === 'folder') {
+            const arr = appData[currentUser].folders;
+            const [moved] = arr.splice(_dragSrcIndex, 1);
+            arr.splice(targetIndex, 0, moved);
+            saveData();
+            renderFolders();
+        } else if (type === 'piece') {
+            const arr = appData[currentUser].folders[currentFolder].pieces;
+            const [moved] = arr.splice(_dragSrcIndex, 1);
+            arr.splice(targetIndex, 0, moved);
+            saveData();
+            renderPieces();
+        }
+    });
+
+    // Prevent click from firing after a drag
+    div.addEventListener('mousedown', () => { _dragMoved = false; });
+    div.addEventListener('click', e => {
+        if (_dragMoved) { e.stopImmediatePropagation(); _dragMoved = false; }
+    }, true);
 }
 
 // --- Init ---
