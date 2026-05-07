@@ -678,6 +678,7 @@
                     <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Copy HTML</button>
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
+                    <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
@@ -1046,6 +1047,12 @@ function init() {
         }).catch(()=>alert('Clipboard access denied.'));
     });
 
+    $('#pushToPresent').off('click.ptp').on('click.ptp', function(){
+        savePieceNow();
+        saveData();
+        var $b = $(this); $b.text('✓ Pushed!'); setTimeout(()=>$b.text('📡 Push to Present'),1400);
+    });
+
     $('#saveform').off('click.sf').on('click.sf', function(e){
         e.preventDefault();
         var name = (currentUser !== null && currentFolder !== null && currentPiece !== null)
@@ -1215,6 +1222,19 @@ $('#submitBtn').on('click', function(){
 // NEW STUDIO SYSTEM
 // ============================================================
 
+// --- BroadcastChannel (real-time tab sync) ---
+const studioChannel = new BroadcastChannel('miliket_studio');
+studioChannel.onmessage = (e) => {
+    if (e.data.type === 'data_updated') {
+        idbGet('miliket_data').then(saved => {
+            if (saved) {
+                appData = saved;
+                loadNotesList();
+            }
+        });
+    }
+};
+
 // --- State ---
 let appData = {};
 let currentUser = null;
@@ -1257,7 +1277,9 @@ async function idbSet(key, value) {
 }
 function saveData() {
     if (!db) return;
-    idbSet('miliket_data', appData).catch(e => console.error('IDB save failed', e));
+    idbSet('miliket_data', appData)
+        .then(() => studioChannel.postMessage({ type: 'data_updated' }))
+        .catch(e => console.error('IDB save failed', e));
 }
 
 // --- Sync status ---
