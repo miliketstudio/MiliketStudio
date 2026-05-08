@@ -155,7 +155,7 @@
         /* Grid of cards */
         .studio-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
             gap: 20px;
             margin-top: 24px;
         }
@@ -521,6 +521,106 @@
             background: rgba(184,134,11,0.05);
         }
         .edit-text-link:hover { background: rgba(184,134,11,0.15); }
+
+        .translate-link {
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 0.72rem;
+            color: #3a5a82;
+            border: 1px solid rgba(58,90,130,0.3);
+            border-radius: 4px;
+            padding: 2px 8px;
+            cursor: pointer;
+            background: rgba(58,90,130,0.05);
+        }
+        .translate-link:hover { background: rgba(58,90,130,0.15); }
+
+/* ---- slides line-grid cards ---- */
+        #line-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            padding: 0 40px;
+        }
+        .line-card {
+            background: white;
+            border: 2px solid #b8d4ee;
+            border-radius: 10px;
+            padding: 12px;
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            text-align: center;
+            transition: 0.12s;
+        }
+        .line-card:hover { border-color: var(--gold); }
+        .line-card.selected {
+            border-color: #b8860b;
+            background: #fff9e6;
+            box-shadow: 0 0 0 3px rgba(184,134,11,0.2);
+        }
+        .line-card .piece-badge {
+            font-size: 0.65rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3a5a82;
+            background: #eef3ff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            display: inline-block;
+        }
+        .line-card .line-num {
+            font-size: 0.7rem;
+            color: #b8860b;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+        .line-card .line-preview {
+            font-family: 'Abyssinica SIL', serif;
+            font-size: 1.5rem;
+            color: #1a2a3a;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .line-card .check-icon {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            font-size: 1.2rem;
+            color: #b8860b;
+            display: none;
+        }
+        .line-card.selected .check-icon { display: block; }
+
+    /* ---- Slideshow wrap fix: keep milikets stacked, fill width ---- */
+#ss-geez-inner .letter-container {
+    display: inline-flex !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    vertical-align: top !important;
+    white-space: normal !important;
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+}
+
+#ss-geez-inner .letter {
+    display: flex !important;        /* stays block‑flex inside column */
+    width: auto !important;
+    max-width: none !important;
+    min-width: 0 !important;
+    white-space: normal !important;
+}
+
+#ss-geez-inner .baseletter {
+    display: inline !important;
+    white-space: nowrap !important;
+    line-height: normal !important;
+}
     </style>
 </head>
 <body id="main-body">
@@ -588,6 +688,19 @@
             <button class="action-trio-btn action-present" onclick="goToPresent()">▶ Present</button>
         </div>
     </div>
+</div>
+
+<!-- PAGE: SLIDES -->
+<div id="page-slides" class="page" style="background:#f5f9ff;min-height:100vh;font-family:'Abyssinica SIL',serif;">
+    <div style="background:#1a2a3a;border-bottom:3px solid #b8860b;padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;">
+        <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Back</button>
+        <span style="color:#f0c040;font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
+        <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
+        <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
+        <button id="next-slide-btn" onclick="saveAndNextSlide()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:12px;">Next Slide →</button>
+        <button id="finish-present-btn" onclick="finishAndPresent()" style="background:#b8860b;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:6px;display:none;">Finish &amp; ▶ Present</button>
+    </div>
+    <div id="slides-container" style="padding:24px 0;max-width:100%;margin:0 auto;"></div>
 </div>
 
 <!-- ============================================================
@@ -723,6 +836,7 @@
                         <div>
                             <button id="print-btn" class="btn btn-primary">Print Queue</button>
                             <button id="savePdfBtn" class="btn btn-info" style="display:none;">Save as PDF</button>
+                            <button id="goToSlidesBtn" class="btn btn-secondary" style="display:none;background:#1a2a3a;color:#f0c040;border:1px solid #b8860b;">🎞 Go to Slides</button>
                         </div>
                     </div>
                 </div>
@@ -734,31 +848,41 @@
 
 <footer class="bg-dark text-white text-center p-3" id="main-footer" style="display:none;">© ምልክት Studio</footer>
 
+<!-- Slideshow Presentation Overlay -->
+<div id="slideshow-overlay" style="display:none;position:fixed;inset:0;background:#fffdf8;z-index:99000;flex-direction:column;border-top:3px solid #b8860b;">
+    <!-- Top HUD -->
+    <div id="ss-hud" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(0,0,0,0.5);opacity:1;transition:opacity 0.3s;z-index:20;">
+    <span id="ss-counter" style="color:#1a2a3a;font-size:13px;font-weight:bold;font-family:sans-serif;background:rgba(255,255,255,0.8);padding:3px 10px;border-radius:4px;"></span>
+    <div style="display:flex;gap:8px;">
+        <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
+        <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
+    </div>
+</div>
+    <!-- Full-width Ge'ez, translation floats as overlay on right -->
+    <div style="flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div id="ss-geez" style="flex:1;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;min-height:0;"></div>
+    <div id="ss-translation" style="flex:0 0 18%;background:#eef3ff;border-top:2px solid #b8d4ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;"></div>
+</div>
+    <!-- Nav buttons -->
+    <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
+    <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
+</div>
+
 <!-- Shared UI -->
 <button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
 <div id="sync-indicator">✓ Synced</div>
 
+
 <!-- Translation Modal -->
-<div class="modal fade" id="translationModal" tabindex="-1" aria-hidden="true" style="z-index: 105000;">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header" style="background-color: #1a2a3a; border-bottom: 3px solid #b8860b;">
-                <h5 class="modal-title" style="color: #f0c040;"><i class="fas fa-sparkles"></i> AI Translation</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close" onclick="this.blur()"></button>
-            </div>
-            <div class="modal-body" style="background-color: #f5f9ff;">
-                <div class="row">
-                    <div class="col-6" style="border-right: 2px solid #b8d4ee; padding-right: 20px;">
-                        <h5 class="text-muted mb-3" style="font-weight: bold;">Ge'ez Base Text</h5>
-                        <div id="geez-text" style="font-size: 1.4rem; line-height: 1.8; color: #1a2a3a;"></div>
-                    </div>
-                    <div class="col-6" style="padding-left: 20px;">
-                        <h5 class="text-muted mb-3" style="font-weight: bold;">English</h5>
-                        <div id="english-text" style="font-size: 1.4rem; line-height: 1.8; color: #1a2a3a;"></div>
-                    </div>
-                </div>
-            </div>
+<div id="translation-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:28px;width:540px;max-width:92%;border-top:4px solid #3a5a82;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <h3 id="tm-title" style="margin:0;font-size:15px;color:#1a2a3a;">Translation</h3>
+            <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
         </div>
+        <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied + Gemini opened. Paste the translation below, then click ✕ to save.</p>
+        <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
+        <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
     </div>
 </div>
 
@@ -1158,6 +1282,7 @@ $('#clear-btn').on('click', function(){ $('#que').empty(); });
 
 $('#print-btn').on('click', function(){
     $('#savePdfBtn').show();
+    $('#goToSlidesBtn').show();
     var notes = {};
     if (currentUser && appData[currentUser]) {
         appData[currentUser].folders.forEach(folder => {
@@ -1172,9 +1297,6 @@ $('#print-btn').on('click', function(){
         if (notes[n]) {
             // Wrap the piece in a container and add the Translate button at the top right
             var pieceHtml = '<div class="printed-piece" id="piece-' + index + '" style="position: relative; margin-top: 2rem;">' +
-                            '<div style="position: absolute; top: -30px; right: 0; z-index: 10;">' +
-                            '<button class="btn btn-sm" style="background:#3a5a82; color:white; border: 1px solid #f0c040; border-radius: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);" onclick="translatePiece(' + index + ')"><i class="fas fa-sparkles" style="color:#f0c040;"></i> Translate</button>' +
-                            '</div>' +
                             '<div class="piece-content">' + notes[n] + '</div>' +
                             '</div>';
             contents.push(pieceHtml);
@@ -1186,6 +1308,10 @@ $('#print-btn').on('click', function(){
     $('#result *').contents().filter(function(){ return this.nodeType === 3; }).each(function(){
         $(this).replaceWith(this.nodeValue.replace(/፤|።|፠|፨/ug, m => '<span class="red">'+m+'</span>'));
     });
+});
+
+$('#goToSlidesBtn').on('click', function(){
+    goToSlides();
 });
 
 $('#savePdfBtn').on('click', function(){
@@ -1576,7 +1702,8 @@ function renderPieces() {
             <div class="card-icon">📜</div>
             <div class="card-name">${piece.name}</div>
             <div class="card-meta">${date}</div>
-            <div class="edit-text-link" onclick="event.stopPropagation(); editPieceText(${index})">Edit text</div>`;
+            <div class="edit-text-link" onclick="event.stopPropagation(); editPieceText(${index})">Edit text</div>
+            <div class="translate-link" onclick="event.stopPropagation(); openTranslationModal(${index})">✦ Translation</div>`;
         div.onclick = () => loadPieceIntoEditor(index);
         attachDragHandlers(div, 'piece');
         grid.appendChild(div);
@@ -1723,6 +1850,58 @@ function importAllData() {
     input.click();
 }
 
+// --- Translation modal ---
+let _translatingIndex = null;
+
+function openTranslationModal(index) {
+    _translatingIndex = index;
+    const piece = appData[currentUser].folders[currentFolder].pieces[index];
+    document.getElementById('tm-title').textContent = 'Translation — ' + piece.name;
+    document.getElementById('tm-input').value = piece.translation || '';
+
+    // Extract raw text from visualData using the same DOM method as the old translatePiece
+    let rawText = '';
+    if (piece.visualData && piece.visualData.trim()) {
+        const temp = document.createElement('div');
+        temp.innerHTML = piece.visualData;
+        temp.querySelectorAll('.baseletter').forEach(function(el) {
+            const txt = el.innerText || el.textContent || '';
+            if (el.classList.contains('whitespace') || txt.trim() === '0') {
+                rawText += ' ';
+            } else {
+                rawText += txt.replace(/[\u200A\u200B\u200C\u200D]/g, '');
+            }
+        });
+        rawText = rawText.replace(/\s+/g, ' ').trim();
+    }
+
+    // Fall back to piece.content if visualData extraction yields nothing
+    if (!rawText) rawText = (piece.content || '').trim();
+
+    if (!rawText) {
+        alert('No text found. Open the piece in the editor and save it first.');
+        return;
+    }
+
+    const geminiPrompt = "Translate the following Ge'ez liturgical text into simple, clear English suitable for church congregation slides. Keep the meaning faithful and reverent but use language everyday people can understand. Preserve every ። ፤ ፡ ፠ ፨ punctuation mark exactly where it appears in the original. Return only the translation, nothing else:\n\n" + rawText;
+    navigator.clipboard.writeText(geminiPrompt).catch(() => {});
+    window.open('https://gemini.google.com/app', '_blank');
+
+    const modal = document.getElementById('translation-modal');
+    modal.style.display = 'flex';
+    setTimeout(() => document.getElementById('tm-input').focus(), 80);
+}
+
+function closeTranslationModal() {
+    if (_translatingIndex === null) return;
+    const val = document.getElementById('tm-input').value;
+    appData[currentUser].folders[currentFolder].pieces[_translatingIndex].translation = val;
+    saveData();
+    saveAndSync();
+    document.getElementById('translation-modal').style.display = 'none';
+    _translatingIndex = null;
+}
+
 // --- Confirm modal ---
 function openConfirm(title, desc, answer, cb) {
     confirmAnswer = answer;
@@ -1811,6 +1990,397 @@ async function translatePiece(index) {
     }).catch(() => {
         window.open('https://gemini.google.com/app', '_blank');
     });
+}
+
+// ============================================================
+// SLIDES PAGE – Sequential Slide Builder
+// ============================================================
+const SLIDE_PUNCT = /[።፤፡፠፨፣]/;
+
+function extractFirstTwoWords(segmentHtml) {
+    const temp = document.createElement('div');
+    temp.innerHTML = segmentHtml;
+    const baseLetters = temp.querySelectorAll('.baseletter');
+    let raw = '';
+    baseLetters.forEach(el => {
+        const t = el.textContent || '';
+        if (el.classList.contains('whitespace') || t.trim() === '0') {
+            raw += ' ';
+        } else {
+            raw += t.replace(/[\u200A\u200B\u200C\u200D\uFEFF]/g, '');
+        }
+    });
+    const words = raw.replace(/\s+/g, ' ').trim().split(/\s+/);
+    return words.slice(0, 2).join(' ');
+}
+
+function splitByPunctuation(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    const allContainers = Array.from(temp.querySelectorAll('.letter-container'));
+    const segments = [];
+    let current = [];
+    allContainers.forEach(lc => {
+        const bl = lc.querySelector('.baseletter');
+        const char = bl ? bl.textContent.replace(/[\u200A\u200B\u200C\u200D\uFEFF\s]/g, '') : '';
+        current.push(lc.outerHTML);
+        if (SLIDE_PUNCT.test(char)) {
+            segments.push(current.join(''));
+            current = [];
+        }
+    });
+    if (current.length) segments.push(current.join(''));
+    return segments.map(s => s.replace(/<br\s*\/?>/gi, '')).filter(s => s.trim());
+}
+
+function splitTranslation(translation) {
+    if (!translation || !translation.trim()) return [];
+    const parts = translation.split(/([።፤፡፠፨])/);
+    const segments = [];
+    let current = '';
+    for (let i = 0; i < parts.length; i++) {
+        current += parts[i];
+        if (SLIDE_PUNCT.test(parts[i])) {
+            segments.push(current.trim());
+            current = '';
+        }
+    }
+    if (current.trim()) segments.push(current.trim());
+    return segments.map(s => s.replace(/<br\s*\/?>/gi, '')).filter(s => s.trim());
+}
+
+let _allLines = [];
+let _builtSlides = [];
+let _currentSlideIndices = [];
+
+function goToSlides() {
+    const notes = {};
+    if (currentUser && appData[currentUser]) {
+        appData[currentUser].folders.forEach(folder => {
+            folder.pieces.forEach(piece => {
+                if (piece.visualData) notes[piece.name] = piece;
+            });
+        });
+    }
+
+    const pieceSegments = [];
+    $('#que .list-group-item').each(function() {
+        const name = $(this).data('notename');
+        const piece = notes[name];
+        if (!piece || !piece.visualData) return;
+        pieceSegments.push({
+            pieceName: piece.name,
+            segments: splitByPunctuation(piece.visualData),
+            transSegs: splitTranslation(piece.translation || '')
+        });
+    });
+
+    if (!pieceSegments.length) {
+        alert('Print the queue first, then click Go to Slides.');
+        return;
+    }
+
+    _allLines = [];
+    pieceSegments.forEach(pc => {
+        pc.segments.forEach((segHtml, segIdx) => {
+            _allLines.push({
+                pieceName: pc.pieceName,
+                segIndex: segIdx,
+                segmentHtml: segHtml,
+                translation: (pc.transSegs[segIdx] || '')
+            });
+        });
+    });
+
+    _builtSlides = [];
+    _currentSlideIndices = [];
+
+    $('.page').removeClass('active');
+    document.getElementById('main-navbar').style.display = 'none';
+    document.getElementById('main-footer').style.display = 'none';
+    $('#page-slides').addClass('active');
+    document.getElementById('theme-toggle').style.display = 'none';
+    document.getElementById('sync-indicator').style.display = 'none';
+
+    document.getElementById('next-slide-btn').style.display = '';
+    document.getElementById('finish-present-btn').style.display = 'none';
+
+    renderSlideBuilder();
+}
+
+function renderSlideBuilder() {
+    const container = document.getElementById('slides-container');
+    container.innerHTML = '';
+
+    const assignedIndices = new Set();
+    _builtSlides.forEach(slideArr => slideArr.forEach(i => assignedIndices.add(i)));
+
+    const unassignedLines = _allLines
+        .map((line, idx) => ({ ...line, originalIndex: idx }))
+        .filter(l => !assignedIndices.has(l.originalIndex));
+
+    if (unassignedLines.length === 0) {
+        container.innerHTML = '<p style="text-align:center;padding:40px;font-size:1.2rem;color:#3a5a82;">All lines assigned! Click <b>Finish &amp; ▶ Present</b> to start.</p>';
+        document.getElementById('next-slide-btn').style.display = 'none';
+        document.getElementById('finish-present-btn').style.display = '';
+        updateSelectionCount();
+        return;
+    }
+
+    const grid = document.createElement('div');
+    grid.id = 'line-grid';
+
+    unassignedLines.forEach((line) => {
+        const idx = line.originalIndex;
+        const isChecked = _currentSlideIndices.includes(idx);
+        const card = document.createElement('div');
+        card.className = 'line-card' + (isChecked ? ' selected' : '');
+        card.dataset.index = idx;
+        card.onclick = () => {
+            if (assignedIndices.has(idx)) return;
+            const pos = _currentSlideIndices.indexOf(idx);
+            if (pos === -1) {
+                _currentSlideIndices.push(idx);
+            } else {
+                _currentSlideIndices.splice(pos, 1);
+            }
+            card.classList.toggle('selected');
+            updateSelectionCount();
+        };
+        const firstTwo = extractFirstTwoWords(line.segmentHtml);
+        card.innerHTML =
+            '<div class="check-icon">✔</div>' +
+            '<div class="piece-badge">' + line.pieceName + '</div>' +
+            '<div class="line-num">Line ' + (idx + 1) + '</div>' +
+            '<div class="line-preview">' + (firstTwo || '—') + '</div>';
+        grid.appendChild(card);
+    });
+
+    container.appendChild(grid);
+    updateSelectionCount();
+}
+
+function saveAndNextSlide() {
+    if (_currentSlideIndices.length === 0) {
+        alert('Select at least one line for this slide.');
+        return;
+    }
+    _builtSlides.push([..._currentSlideIndices]);
+    _currentSlideIndices = [];
+    renderSlideBuilder();
+}
+
+function finishAndPresent() {
+    if (_currentSlideIndices.length > 0) {
+        _builtSlides.push([..._currentSlideIndices]);
+        _currentSlideIndices = [];
+    }
+    if (_builtSlides.length === 0) { alert('No slides built.'); return; }
+
+    _ssSlides = _builtSlides.map(indices => {
+        const chunks = indices.map(i => _allLines[i]);
+        const geezHtml = chunks.map(c => c.segmentHtml)
+            .join('')
+            .replace(/<br\s*\/?>/gi, '')
+            .replace(/>\s+</g, '><')
+            .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
+        const translation = chunks.map(c => c.translation).filter(Boolean).join(' / ');
+        return { geezHtml, translation };
+    });
+
+    _ssIndex = 0;
+    _ssHudHidden = false;
+    document.getElementById('slideshow-overlay').style.display = 'flex';
+    renderSlideshowSlide();
+    showSsHud();
+    document.addEventListener('keydown', ssKeyHandler);
+}
+
+function updateSelectionCount() {
+    const selected = _currentSlideIndices.length;
+    const assignedTotal = _builtSlides.reduce((sum, slide) => sum + slide.length, 0) + selected;
+    const total = _allLines.length;
+    document.getElementById('selection-count').textContent =
+        'Slide ' + (_builtSlides.length + 1) + ': ' + selected + ' selected  (' + assignedTotal + '/' + total + ' assigned)';
+    document.getElementById('slides-count').textContent = _builtSlides.length + ' slides built';
+}
+// ============================================================
+// SLIDESHOW PRESENTATION MODE
+// ============================================================
+let _ssSlides = [];
+let _ssIndex = 0;
+let _ssHudTimer = null;
+let _ssHudHidden = false;
+
+function buildSlideshowFlat() {
+    // Flatten all pieceSegments + their slideStarts into a single ordered array of slides
+    const pieceSegments = window._slidesPieceSegments;
+    if (!pieceSegments) return [];
+    const flat = [];
+    pieceSegments.forEach(pc => {
+        const starts = pc.slideStarts || [0];
+        const total = pc.segments.length;
+        starts.forEach((startIdx, si) => {
+            const endIdx = starts[si + 1] !== undefined ? starts[si + 1] : total;
+            const chunk = pc.segments.slice(startIdx, endIdx);
+            const transChunk = pc.transSegs.slice(startIdx, endIdx);
+            flat.push({
+                geezHtml: chunk.map(seg => seg
+    .replace(/<br\s*\/?>/gi, '')
+    .replace(/>\s+</g, '><')
+    .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"')
+).join(''),
+                translation: transChunk.filter(Boolean).join(' / ')
+            });
+        });
+    });
+    return flat;
+}
+
+function startSlideshow() {
+    // Entry point is now finishAndPresent()
+}
+
+function renderSlideshowSlide() {
+    const slide = _ssSlides[_ssIndex];
+    const geezEl = document.getElementById('ss-geez');
+    const transEl = document.getElementById('ss-translation');
+    const counter = document.getElementById('ss-counter');
+    showSsHud();
+
+    // Scale the Ge'ez content to fit the available area
+    // Strip any inline width/max-width from letter-containers so they reflow freely
+    const cleanedHtml = slide.geezHtml.replace(/style="([^"]*)"/g, (match, styles) => {
+        const cleaned = styles
+            .replace(/width\s*:\s*[^;]+;?/gi, '')
+            .replace(/max-width\s*:\s*[^;]+;?/gi, '')
+            .replace(/min-width\s*:\s*[^;]+;?/gi, '');
+        return 'style="' + cleaned + '"';
+    });
+    const brStripped = cleanedHtml.replace(/<br\s*\/?>/gi, '');
+    geezEl.innerHTML = '<div id="ss-geez-inner" style="display:block;width:100%;text-align:left;font-size:0;">' + brStripped + '</div>';
+    counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
+
+    // Auto-scale: anchor top-left; visual width = availW always; binary search for max scale that fits height
+    requestAnimationFrame(() => {
+        const inner = document.getElementById('ss-geez-inner');
+        if (!inner) return;
+
+        inner.querySelectorAll('br').forEach(br => br.remove());
+
+        const availW = geezEl.clientWidth - 120;
+        const availH = geezEl.clientHeight - 20;
+        if (availW <= 0 || availH <= 0) return;
+
+        // Pin inner to top-left so transform-origin:top-left math is exact — no centering offset
+        geezEl.style.justifyContent = 'flex-start';
+        geezEl.style.alignItems     = 'flex-start';
+
+        inner.querySelectorAll('.letter-container').forEach(lc => {
+            lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
+        });
+
+        Object.assign(inner.style, {
+            display:         'flex',
+            flexWrap:        'wrap',
+            justifyContent:  'flex-start',
+            alignContent:    'flex-start',
+            alignItems:      'flex-end',
+            whiteSpace:      'normal',
+            maxWidth:        'none',
+            minWidth:        '0',
+            transform:       'none',
+            transformOrigin: 'top left',
+            boxSizing:       'border-box',
+            height:          'auto',
+            margin:          '0',
+        });
+
+        // At scale s: layout width = availW/s → visual width after scale(s) = availW exactly
+        let lo = 0.05, hi = 8.0;
+        for (let i = 0; i < 24; i++) {
+            const mid = (lo + hi) / 2;
+            inner.style.width = Math.max(60, Math.round(availW / mid)) + 'px';
+            void inner.offsetHeight;
+            (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
+        }
+
+        const finalScale = lo * 0.98;
+        inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
+
+        // Fix last row: a flex:auto spacer absorbs leftover space so last row packs left
+        let spacer = inner.querySelector('.ss-last-row-fix');
+        if (!spacer) {
+            spacer = document.createElement('span');
+            spacer.className = 'ss-last-row-fix';
+            spacer.style.cssText = 'flex:auto;height:0;pointer-events:none;visibility:hidden;';
+            inner.appendChild(spacer);
+        }
+        void inner.offsetHeight;
+
+        const scaledH = Math.round(inner.scrollHeight * finalScale);
+        inner.style.transform       = 'scale(' + finalScale + ')';
+        inner.style.transformOrigin = 'top left';
+        inner.style.height          = scaledH + 'px';
+
+        if (slide.translation && slide.translation.trim()) {
+            const colH     = transEl.clientHeight;
+            const colW     = transEl.clientWidth - 32;
+            const avgCharW = 10;
+            const lineCount = Math.max(1, Math.ceil((slide.translation.length * avgCharW) / colW));
+            const fontSize  = Math.max(18, Math.min(40, Math.floor(colH / (lineCount * 1.5))));
+            transEl.innerHTML = '<p style="margin:0;font-size:' + fontSize + 'px;color:#1a2a3a;font-style:italic;font-family:Georgia,serif;text-align:center;line-height:1.45;font-weight:700;">' + slide.translation + '</p>';
+        } else {
+            transEl.innerHTML = '<p style="margin:0;font-size:1rem;color:#b8d4ee;font-family:sans-serif;text-align:center;">—</p>';
+        }
+    });
+
+    // Update prev/next button visibility
+    document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
+    document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+}
+
+function slideshowNav(dir) {
+    const next = _ssIndex + dir;
+    if (next < 0 || next >= _ssSlides.length) return;
+    _ssIndex = next;
+    renderSlideshowSlide();
+    showSsHud();
+}
+
+function ssKeyHandler(e) {
+    if (document.getElementById('slideshow-overlay').style.display === 'none') return;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); slideshowNav(1); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); slideshowNav(-1); }
+    if (e.key === 'Escape') exitSlideshow();
+}
+
+function showSsHud() {
+    if (_ssHudHidden) return;
+    const hud = document.getElementById('ss-hud');
+    hud.style.opacity = '1';
+}
+
+function hideHudPermanently() {
+    _ssHudHidden = true;
+    document.getElementById('ss-hud').style.opacity = '0';
+}
+
+function exitSlideshow() {
+    document.getElementById('slideshow-overlay').style.display = 'none';
+    document.removeEventListener('keydown', ssKeyHandler);
+    clearTimeout(_ssHudTimer);
+    const g = document.getElementById('ss-geez');
+    if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
+}
+
+function exitSlides() {
+    $('#page-slides').removeClass('active');
+    document.getElementById('main-navbar').style.display = '';
+    document.getElementById('main-footer').style.display = '';
+    document.getElementById('theme-toggle').style.display = '';
+    document.getElementById('sync-indicator').style.display = '';
+    $('#page-present').addClass('active');
 }
 
 // --- Drag-to-reorder ---
