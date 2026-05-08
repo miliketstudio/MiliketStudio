@@ -693,7 +693,8 @@
 <!-- PAGE: SLIDES -->
 <div id="page-slides" class="page" style="background:#f5f9ff;min-height:100vh;font-family:'Abyssinica SIL',serif;">
     <div style="background:#1a2a3a;border-bottom:3px solid #b8860b;padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;">
-        <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Back</button>
+        <button onclick="undoLastSlide()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Undo Slide</button>
+    <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">✕ Exit</button>
         <span style="color:#f0c040;font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
         <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
         <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
@@ -2203,6 +2204,19 @@ function updateSelectionCount() {
     document.getElementById('selection-count').textContent =
         'Slide ' + (_builtSlides.length + 1) + ': ' + selected + ' selected  (' + assignedTotal + '/' + total + ' assigned)';
     document.getElementById('slides-count').textContent = _builtSlides.length + ' slides built';
+}
+
+function undoLastSlide() {
+    if (_builtSlides.length === 0) {
+        exitSlides();
+        return;
+    }
+    // Pop the last built slide and restore those indices as the current selection
+    const lastSlide = _builtSlides.pop();
+    _currentSlideIndices = [...lastSlide];
+    document.getElementById('next-slide-btn').style.display = '';
+    document.getElementById('finish-present-btn').style.display = 'none';
+    renderSlideBuilder();
 }
 // ============================================================
 // SLIDESHOW PRESENTATION MODE
