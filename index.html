@@ -16,7 +16,8 @@
         /* ============================================================
            ORIGINAL IDEFISSEHA CSS — NOT TOUCHED
         ============================================================ */
-        * { box-sizing: border-box; margin: 0; }
+        * { box-sizing: border-box; margin: 0; scrollbar-width: none; }
+        *::-webkit-scrollbar { display: none; }
         body { background: #ffffff; }
         .bigtxt { font-size: 1.5rem; }
         nav.navbar { position: relative; z-index: 9999; }
@@ -61,7 +62,7 @@
         .delete-button { color:white; background-color:rgb(150,30,30); border:1px solid white; border-radius:0.3rem; cursor:pointer; padding:2px 6px; }
         li>h5 { cursor:pointer; padding:0 0.5rem; margin:0; font-size:0.95rem; }
         .x-btn { color:red; cursor:pointer; font-weight:bold; }
-        #result { margin:0 3rem; min-height:200px; }
+        #result { margin:0 0.5rem; min-height:200px; }
         .list-group-item { cursor:pointer; }
         #savednoteslist>ul,#que { height:25rem; overflow-y:auto; border:1px solid #ccc; padding:10px; }
         #savednoteslist ul { list-style:none; padding:0; margin:0; }
@@ -273,36 +274,37 @@
         .breadcrumb-bar span { color: var(--gold); font-weight: bold; }
 
         /* Sync status indicator */
-        #sync-indicator {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            z-index: 9999;
-            padding: 6px 14px;
-            border-radius: 20px;
+        #sync-indicator,
+        #sync-indicator-folders,
+        #sync-indicator-pieces {
+            padding: 5px 12px;
+            border-radius: 6px;
             font-size: 12px;
             font-weight: bold;
             color: white;
             background: #27ae60;
-            transition: 0.3s;
+            transition: background 0.3s;
             pointer-events: none;
+            flex-shrink: 0;
         }
 
         /* Theme toggle */
-        #theme-toggle {
-            position: fixed;
-            bottom: 60px;
-            right: 20px;
-            z-index: 9999;
-            background: var(--dark);
-            color: var(--gold-light);
-            border: 1px solid var(--gold);
-            border-radius: 20px;
-            padding: 6px 14px;
+        #theme-toggle,
+        #theme-toggle-folders,
+        #theme-toggle-pieces {
+            background: var(--gold);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 5px 14px;
             font-size: 12px;
             font-weight: bold;
             cursor: pointer;
+            transition: background 0.2s, opacity 0.2s;
+            opacity: 0.9;
+            flex-shrink: 0;
         }
+        #theme-toggle:hover { opacity: 1; background: #a07608; }
 
         /* Confirm modal */
         #studio-confirm-modal {
@@ -633,7 +635,8 @@
 <div id="page-projects" class="studio-page active">
     <div class="studio-topbar">
         <h1>☦ ምልክት Studio</h1>
-        <span id="sync-status-text" style="font-size:12px; color:#7eb8f7;">⟳ Loading...</span>
+        <button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
+        <div id="sync-indicator">✓ Synced</div>
     </div>
     <div class="studio-content">
         <div class="login-hero">
@@ -657,6 +660,8 @@
 <div id="page-folders" class="studio-page">
     <div class="studio-topbar">
         <h1>☦ ምልክት Studio</h1>
+        <button id="theme-toggle-folders" onclick="toggleTheme()">☾ Dark</button>
+        <div id="sync-indicator-folders">✓ Synced</div>
     </div>
     <div class="studio-content">
         <div class="page-title-bar">
@@ -675,6 +680,8 @@
 <div id="page-pieces" class="studio-page">
     <div class="studio-topbar">
         <h1>☦ ምልክት Studio</h1>
+        <button id="theme-toggle-pieces" onclick="toggleTheme()">☾ Dark</button>
+        <div id="sync-indicator-pieces">✓ Synced</div>
     </div>
     <div class="studio-content">
         <div class="page-title-bar">
@@ -833,11 +840,10 @@
                         <div>
                             <button id="remove-btn" class="btn btn-warning">Remove Selected</button>
                             <button id="clear-btn" class="btn btn-danger">Clear Queue</button>
-                        </div>
-                        <div>
                             <button id="print-btn" class="btn btn-primary">Print Queue</button>
                             <button id="savePdfBtn" class="btn btn-info" style="display:none;">Save as PDF</button>
                             <button id="goToSlidesBtn" class="btn btn-secondary" style="display:none;background:#1a2a3a;color:#f0c040;border:1px solid #b8860b;">🎞 Go to Slides</button>
+                            <button id="printLinesBtn" class="btn" style="background:#4a7c59;color:white;border:1px solid #5a9c69;">☰ Print Lines</button>
                         </div>
                     </div>
                 </div>
@@ -868,11 +874,6 @@
     <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
     <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
 </div>
-
-<!-- Shared UI -->
-<button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
-<div id="sync-indicator">✓ Synced</div>
-
 
 <!-- Translation Modal -->
 <div id="translation-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
@@ -1315,6 +1316,36 @@ $('#goToSlidesBtn').on('click', function(){
     goToSlides();
 });
 
+$('#printLinesBtn').on('click', function(){
+    $('#savePdfBtn').show();
+    $('#goToSlidesBtn').show();
+    const notes = {};
+    if (currentUser && appData[currentUser]) {
+        appData[currentUser].folders.forEach(folder => {
+            folder.pieces.forEach(piece => {
+                if (piece.visualData) notes[piece.name] = piece.visualData;
+            });
+        });
+    }
+    const contents = [];
+    $('#que .list-group-item').each(function() {
+        const n = $(this).data('notename');
+        if (!notes[n]) return;
+        const segments = splitByPunctuation(notes[n]);
+        if (!segments.length) return;
+        const linesHtml = segments.map(seg =>
+            '<div class="printed-line" style="margin-bottom:1.5rem;">' + seg + '</div>'
+        ).join('');
+        contents.push('<div style="margin-top:2rem;">' + linesHtml + '</div>');
+    });
+    const sep = '<hr class="style-eight my-5"/>';
+    $('#result').html(contents.join(sep));
+    $('#result .highlight').removeClass('highlight');
+    $('#result *').contents().filter(function(){ return this.nodeType === 3; }).each(function(){
+        $(this).replaceWith(this.nodeValue.replace(/፤|።|፠|፨/ug, m => '<span class="red">'+m+'</span>'));
+    });
+});
+
 $('#savePdfBtn').on('click', function(){
     if (!$('#result').children().length) return;
     $('#result *').each(function(){
@@ -1411,10 +1442,13 @@ function saveData() {
 
 // --- Sync status ---
 function showSyncStatus(state) {
-    const el = document.getElementById('sync-indicator');
-    if (state === 'saved') { el.style.background = '#27ae60'; el.textContent = '✓ Synced'; }
-    else if (state === 'pending') { el.style.background = '#e6a817'; el.textContent = '⟳ Saving...'; }
-    else if (state === 'failed') { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; }
+    ['sync-indicator', 'sync-indicator-folders', 'sync-indicator-pieces'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (state === 'saved')        { el.style.background = '#27ae60'; el.textContent = '✓ Synced'; }
+        else if (state === 'pending') { el.style.background = '#e6a817'; el.textContent = '⟳ Saving...'; }
+        else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; }
+    });
 }
 
 // --- Gist sync ---
@@ -1435,15 +1469,15 @@ async function pushToGist() {
 }
 
 async function pullFromGist() {
-    const statusEl = document.getElementById('sync-status-text');
-    if (statusEl) { statusEl.textContent = '⟳ Syncing from cloud...'; statusEl.style.color = '#7eb8f7'; }
+    const statusEl = document.getElementById('sync-indicator');
+    if (statusEl) { statusEl.textContent = '⟳ Syncing...'; statusEl.style.background = '#3a5a82'; }
     try {
         const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             headers: { 'Authorization': `token ${getGistToken()}` }
         });
         const gist = await res.json();
         const file = gist.files && gist.files[GIST_FILENAME];
-        if (!file) { if (statusEl) { statusEl.textContent = '✓ No cloud data yet'; statusEl.style.color = '#27ae60'; } return; }
+        if (!file) { if (statusEl) { statusEl.textContent = '✓ No cloud data yet'; statusEl.style.background = '#27ae60'; } return; }
 
         const content = file.truncated
             ? await fetch(file.raw_url).then(r => r.text())
@@ -1497,7 +1531,7 @@ async function pullFromGist() {
                     saveData();
                     localStorage.setItem('miliket_last_saved', cloudTs);
                 }
-                if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.color = '#27ae60'; }
+                if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.background = '#27ae60'; }
                 resolve();
             }
             btn.addEventListener('click', confirm);
@@ -1506,7 +1540,7 @@ async function pullFromGist() {
 
     } catch(e) {
         console.warn('Gist pull failed:', e);
-        if (statusEl) { statusEl.textContent = '✗ Offline — using local'; statusEl.style.color = '#e74c3c'; }
+        if (statusEl) { statusEl.textContent = '✗ Offline'; statusEl.style.background = '#e74c3c'; }
     }
 }
 
@@ -1939,8 +1973,11 @@ document.addEventListener('keydown', e => {
 // --- Theme ---
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-mode');
-    const btn = document.getElementById('theme-toggle');
-    btn.textContent = isDark ? '☀ Light' : '☾ Dark';
+    const label = isDark ? '☀ Light' : '☾ Dark';
+    ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.textContent = label;
+    });
     localStorage.setItem('miliket_theme', isDark ? 'dark' : 'light');
 }
 
@@ -2473,7 +2510,10 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Theme
     if (localStorage.getItem('miliket_theme') === 'dark') {
         document.body.classList.add('dark-mode');
-        document.getElementById('theme-toggle').textContent = '☀ Light';
+        ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.textContent = '☀ Light';
+});
     }
 
     // Open DB
