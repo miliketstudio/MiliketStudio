@@ -8,6 +8,8 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
@@ -62,7 +64,7 @@
         .delete-button { color:white; background-color:rgb(150,30,30); border:1px solid white; border-radius:0.3rem; cursor:pointer; padding:2px 6px; }
         li>h5 { cursor:pointer; padding:0 0.5rem; margin:0; font-size:0.95rem; }
         .x-btn { color:red; cursor:pointer; font-weight:bold; }
-        #result { margin:0 0.5rem; min-height:200px; }
+        #result { margin:0 0.5rem; min-height:200px; background:#fffdf8; }
         .list-group-item { cursor:pointer; }
         #savednoteslist>ul,#que { height:25rem; overflow-y:auto; border:1px solid #ccc; padding:10px; }
         #savednoteslist ul { list-style:none; padding:0; margin:0; }
@@ -703,6 +705,7 @@
         <button onclick="undoLastSlide()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Undo Slide</button>
     <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">✕ Exit</button>
         <span style="color:#f0c040;font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
+        <button id="export-pptx-btn" onclick="exportToPptx()" style="display:none;position:absolute;left:50%;transform:translateX(-50%);background:#4a7c59;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📥 Export to Slides</button>
         <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
         <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
         <button id="next-slide-btn" onclick="saveAndNextSlide()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:12px;">Next Slide →</button>
@@ -2158,13 +2161,16 @@ function renderSlideBuilder() {
         .filter(l => !assignedIndices.has(l.originalIndex));
 
     if (unassignedLines.length === 0) {
-        container.innerHTML = '<p style="text-align:center;padding:40px;font-size:1.2rem;color:#3a5a82;">All lines assigned! Click <b>Finish &amp; ▶ Present</b> to start.</p>';
+        renderSlideReorder(container);
         document.getElementById('next-slide-btn').style.display = 'none';
         document.getElementById('finish-present-btn').style.display = '';
+        document.getElementById('export-pptx-btn').style.display = '';
         updateSelectionCount();
         return;
     }
 
+    const exportBtn = document.getElementById('export-pptx-btn');
+    if (exportBtn) exportBtn.style.display = 'none';
     const grid = document.createElement('div');
     grid.id = 'line-grid';
 
@@ -2196,6 +2202,144 @@ function renderSlideBuilder() {
 
     container.appendChild(grid);
     updateSelectionCount();
+}
+
+function renderSlideReorder(container) {
+    container.innerHTML = '';
+    const header = document.createElement('div');
+    header.style.cssText = 'text-align:center;padding:24px 40px 12px;';
+    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; ▶ Present</b>.</p>';
+    container.appendChild(header);
+
+    const list = document.createElement('div');
+    list.style.cssText = 'padding:0 40px;display:flex;flex-direction:column;gap:10px;';
+    let _reorderDragSrc = null;
+
+    _builtSlides.forEach((indices, slideIdx) => {
+        const row = document.createElement('div');
+        row.draggable = true;
+        row.dataset.idx = slideIdx;
+        row.style.cssText = 'display:flex;align-items:center;gap:12px;background:white;border:2px solid #b8d4ee;border-radius:8px;padding:10px 14px;cursor:grab;transition:border-color 0.15s;user-select:none;';
+        const preview = indices.map(i => extractFirstTwoWords(_allLines[i].segmentHtml)).join(' … ');
+        const pieceName = _allLines[indices[0]].pieceName;
+        row.innerHTML =
+            '<span style="color:#b8860b;font-size:1.3rem;flex-shrink:0;">⠿</span>' +
+            '<span style="background:#eef3ff;color:#3a5a82;font-size:0.7rem;font-weight:bold;padding:2px 8px;border-radius:4px;white-space:nowrap;">' + pieceName + '</span>' +
+            '<span style="font-size:0.85rem;color:#1a2a3a;flex:1;">Slide ' + (slideIdx + 1) + ' — ' + preview + '</span>' +
+            '<span style="font-size:0.75rem;color:#aaa;">' + indices.length + ' line' + (indices.length !== 1 ? 's' : '') + '</span>';
+
+        row.addEventListener('dragstart', e => { _reorderDragSrc = slideIdx; row.style.opacity = '0.4'; e.dataTransfer.effectAllowed = 'move'; });
+        row.addEventListener('dragend',   () => { row.style.opacity = ''; _reorderDragSrc = null; });
+        row.addEventListener('dragover',  e => { e.preventDefault(); row.style.borderColor = '#b8860b'; });
+        row.addEventListener('dragleave', () => { row.style.borderColor = '#b8d4ee'; });
+        row.addEventListener('drop', e => {
+            e.preventDefault();
+            row.style.borderColor = '#b8d4ee';
+            if (_reorderDragSrc === null || _reorderDragSrc === slideIdx) return;
+            const [moved] = _builtSlides.splice(_reorderDragSrc, 1);
+            _builtSlides.splice(slideIdx, 0, moved);
+            renderSlideReorder(container);
+        });
+        list.appendChild(row);
+    });
+
+    container.appendChild(list);
+}
+
+async function exportToPptx() {
+    if (!_builtSlides.length) { alert('No slides to export.'); return; }
+    const btn = document.getElementById('export-pptx-btn');
+    if (btn) { btn.textContent = '⏳ Exporting...'; btn.disabled = true; }
+    try {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE';
+        const PW = 13.33, PH = 7.5;
+        const geezH = PH * 0.75;
+        const transY = geezH;
+        const transH = PH - geezH;
+        const rW = 1333, rH = 562;
+
+        for (let si = 0; si < _builtSlides.length; si++) {
+            const indices = _builtSlides[si];
+            const chunks = indices.map(i => _allLines[i]);
+            const geezHtml = chunks.map(c => c.segmentHtml).join('')
+                .replace(/<br\s*\/?>/gi, '')
+                .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
+            const translation = chunks.map(c => c.translation).filter(Boolean).join(' / ');
+
+            // Render Ge'ez to a hidden fixed-size div
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + rW + 'px;height:' + rH + 'px;overflow:hidden;background:#fffdf8;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;box-sizing:border-box;pointer-events:none;font-family:"Abyssinica SIL",serif;';
+            const inner = document.createElement('div');
+            inner.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;box-sizing:border-box;';
+            inner.innerHTML = geezHtml;
+            wrap.appendChild(inner);
+            document.body.appendChild(wrap);
+
+            // Binary search scale — same logic as the live presenter
+            const availW = rW - 80;
+            const availH = rH - 40;
+            let lo = 0.05, hi = 8;
+            for (let iter = 0; iter < 24; iter++) {
+                const mid = (lo + hi) / 2;
+                inner.style.width = Math.max(60, Math.round(availW / mid)) + 'px';
+                inner.style.transform = 'none';
+                void inner.offsetHeight;
+                (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
+            }
+            const finalScale = lo * 0.97;
+            inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
+            inner.style.transform = 'scale(' + finalScale + ')';
+            inner.style.transformOrigin = 'top left';
+            void inner.offsetHeight;
+
+            // Two frames so fonts/layout settle before capture
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+
+            const canvas = await html2canvas(wrap, {
+                scale: 1, useCORS: true, allowTaint: true,
+                backgroundColor: '#fffdf8',
+                width: rW, height: rH,
+                windowWidth: rW, windowHeight: rH
+            });
+            document.body.removeChild(wrap);
+            const imgData = canvas.toDataURL('image/png');
+
+            // Build the slide
+            const slide = pptx.addSlide();
+            slide.background = { color: 'FFFDF8' };
+
+            // Ge'ez as image — top 75%
+            slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: geezH });
+
+            // Translation band — bottom 25%
+            slide.addShape(pptx.ShapeType.rect, {
+                x: 0, y: transY, w: PW, h: transH,
+                fill: { color: 'EEF3FF' },
+                line: { color: 'B8D4EE', width: 1 }
+            });
+            if (translation) {
+                slide.addText(translation, {
+                    x: 0.3, y: transY + 0.1,
+                    w: PW - 0.6, h: transH - 0.2,
+                    fontSize: 28,
+                    bold: true, italic: true,
+                    color: '1A2A3A',
+                    fontFace: 'Georgia',
+                    align: 'center', valign: 'middle',
+                    wrap: true, shrinkText: true
+                });
+            }
+        }
+
+        await pptx.writeFile({ fileName: 'miliket_slides.pptx' });
+
+    } catch(e) {
+        console.error('PPTX export failed:', e);
+        alert('Export failed — check the browser console for details.');
+    }
+    if (btn) { btn.textContent = '📥 Export to Slides'; btn.disabled = false; }
 }
 
 function saveAndNextSlide() {
@@ -2375,12 +2519,22 @@ function renderSlideshowSlide() {
         inner.style.height          = scaledH + 'px';
 
         if (slide.translation && slide.translation.trim()) {
-            const colH     = transEl.clientHeight;
-            const colW     = transEl.clientWidth - 32;
-            const avgCharW = 10;
-            const lineCount = Math.max(1, Math.ceil((slide.translation.length * avgCharW) / colW));
-            const fontSize  = Math.max(18, Math.min(40, Math.floor(colH / (lineCount * 1.5))));
-            transEl.innerHTML = '<p style="margin:0;font-size:' + fontSize + 'px;color:#1a2a3a;font-style:italic;font-family:Georgia,serif;text-align:center;line-height:1.45;font-weight:700;">' + slide.translation + '</p>';
+            const p = document.createElement('p');
+            p.style.cssText = 'margin:0;color:#1a2a3a;font-style:italic;font-family:Georgia,serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+            p.textContent = slide.translation;
+            transEl.innerHTML = '';
+            transEl.appendChild(p);
+            const availH = transEl.clientHeight - 16;
+            const availW = transEl.clientWidth;
+            let lo = 12, hi = 140;
+            for (let i = 0; i < 24; i++) {
+                const mid = Math.round((lo + hi) / 2);
+                p.style.fontSize = mid + 'px';
+                void p.offsetHeight;
+                (p.scrollHeight <= availH && p.scrollWidth <= availW) ? (lo = mid) : (hi = mid - 1);
+                if (lo >= hi) break;
+            }
+            p.style.fontSize = lo + 'px';
         } else {
             transEl.innerHTML = '<p style="margin:0;font-size:1rem;color:#b8d4ee;font-family:sans-serif;text-align:center;">—</p>';
         }
@@ -2559,7 +2713,7 @@ function togglePresentFullscreen() {
         if (footer) footer.style.display = 'none';
         if (subtitle) subtitle.style.display = 'none';
         if (notesQueueRow) notesQueueRow.closest('.container').style.display = 'none';
-        result.style.cssText = 'position:fixed;inset:0;background:white;z-index:3000;overflow-y:auto;padding:4rem 3rem 6rem;margin:0;min-height:unset;';
+        result.style.cssText = 'position:fixed;inset:0;background:#fffdf8;z-index:3000;overflow-y:auto;padding:4rem 3rem 6rem;margin:0;min-height:unset;';
         const hud = document.createElement('div');
         hud.id = 'fs-hud';
         hud.style.cssText = 'position:fixed;top:14px;right:16px;z-index:4000;display:flex;align-items:center;gap:8px;flex-wrap:nowrap;';
