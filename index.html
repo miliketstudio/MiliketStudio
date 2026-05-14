@@ -1225,28 +1225,6 @@ function displayKeys() {
     });
 }
 
-function loadNoteIntoEditor(key) {
-    var notes = getAllNotes();
-    if (!notes[key]) return;
-    text = "";
-    enterEditorMode();
-    showPage('editor');
-    $('#container').html(notes[key]);
-    loadednotelength = $('#container').children().length;
-    var max = 0;
-    $('#container span[id^="cussta"]').each(function(){
-        var n = parseInt($(this).attr('id').replace('cussta',''), 10);
-        if (n > max) max = n;
-    });
-    cusstaid = max + 1;
-    var $lastSpan = $('#container').children().last().find('span.letter').first();
-    var lastId = $lastSpan.attr('id');
-    idcount = lastId ? (parseInt(lastId.replace(/\D/g,'')) || 0) + 1 : 0;
-    init();
-    removeGlow();
-    updaterowcount();
-}
-
 function loadNotesList() {
     var $list = $('#notesList');
     $list.empty();
@@ -1621,12 +1599,12 @@ async function pullFromGist() {
                     <h3 style="margin:0 0 8px;font-size:16px;">☁ Choose Version to Load</h3>
                     <p style="font-size:12px;color:#999;margin-bottom:18px;">Which version would you like to work with?</p>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
-                        <div style="border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;">
+                        <div onclick="document.getElementById('sync-choice').value='CLOUD';" style="cursor:pointer;border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;">
                             <div style="font-weight:bold;color:#3a9ad1;margin-bottom:6px;">☁ Cloud</div>
                             <div style="font-size:12px;color:#333;">${cloudProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${cloudTs ? new Date(cloudTs).toLocaleString() : 'Unknown'}</span></div>
                             <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>CLOUD</b></div>
                         </div>
-                        <div style="border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;">
+                        <div onclick="document.getElementById('sync-choice').value='LOCAL';" style="cursor:pointer;border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;">
                             <div style="font-weight:bold;color:#27ae60;margin-bottom:6px;">💾 Local</div>
                             <div style="font-size:12px;color:#333;">${localProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${localTs ? new Date(localTs).toLocaleString() : 'Unknown'}</span></div>
                             <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>LOCAL</b></div>
@@ -1981,8 +1959,6 @@ function savePieceNow() {
     markPieceDirty(piece.id);
     unsavedChanges = false;
     saveData();
-    const btn = document.getElementById('savePieceBtn');
-    if (btn) { btn.textContent = '✓ Saved!'; setTimeout(() => { btn.textContent = '💾 Save Piece'; }, 1400); }
 }
 
 // --- Export / Import ---
@@ -2128,41 +2104,6 @@ function triggerAutoSave() {
         showSyncStatus('saved');
     }, 10000);
     showSyncStatus('pending');
-}
-
-// ============================================================
-// GEMINI API TRANSLATION
-// ============================================================
-async function translatePiece(index) {
-    const pieceDiv = document.getElementById('piece-' + index);
-    if (!pieceDiv) return;
-
-    // 1. Extract ONLY the base text (ignore miliket)
-    let rawText = "";
-    const baseLetters = pieceDiv.querySelectorAll('.baseletter');
-    
-    baseLetters.forEach(function(el) {
-        let txt = el.innerText;
-        // Check if it's a structural whitespace block
-        if (el.classList.contains('whitespace') || txt.trim() === '0') {
-            rawText += " ";
-        } else {
-            // Remove hairspaces and zero-width spaces you use for formatting
-            rawText += txt.replace(/[\u200A\u200B\u200C\u200D]/g, '');
-        }
-    });
-
-    rawText = rawText.replace(/\s+/g, ' ').trim(); // Clean up spacing
-
-    // 2. Copy prompt to clipboard then open Gemini
-    const prompt = "Translate the following Ge'ez liturgical text into simple, clear English suitable for church congregation slides. Keep the meaning faithful and reverent but use language everyday people can understand. Preserve every ። and ፣ punctuation mark exactly where it appears in the original. Return only the translation, nothing else:\n\n" + rawText;
-    
-    navigator.clipboard.writeText(prompt).then(() => {
-        alert("✓ Prompt copied!\n\nGemini is opening — paste with Ctrl+V and hit Enter.");
-        window.open('https://gemini.google.com/app', '_blank');
-    }).catch(() => {
-        window.open('https://gemini.google.com/app', '_blank');
-    });
 }
 
 // ============================================================
@@ -2540,35 +2481,6 @@ let _ssSlides = [];
 let _ssIndex = 0;
 let _ssHudTimer = null;
 let _ssHudHidden = false;
-
-function buildSlideshowFlat() {
-    // Flatten all pieceSegments + their slideStarts into a single ordered array of slides
-    const pieceSegments = window._slidesPieceSegments;
-    if (!pieceSegments) return [];
-    const flat = [];
-    pieceSegments.forEach(pc => {
-        const starts = pc.slideStarts || [0];
-        const total = pc.segments.length;
-        starts.forEach((startIdx, si) => {
-            const endIdx = starts[si + 1] !== undefined ? starts[si + 1] : total;
-            const chunk = pc.segments.slice(startIdx, endIdx);
-            const transChunk = pc.transSegs.slice(startIdx, endIdx);
-            flat.push({
-                geezHtml: chunk.map(seg => seg
-    .replace(/<br\s*\/?>/gi, '')
-    .replace(/>\s+</g, '><')
-    .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"')
-).join(''),
-                translation: transChunk.filter(Boolean).join(' / ')
-            });
-        });
-    });
-    return flat;
-}
-
-function startSlideshow() {
-    // Entry point is now finishAndPresent()
-}
 
 function renderSlideshowSlide() {
     const slide = _ssSlides[_ssIndex];
