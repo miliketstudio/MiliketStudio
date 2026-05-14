@@ -1408,8 +1408,79 @@ let confirmAnswer = '';
 const DB_NAME = 'MiliketStudio';
 const DB_STORE = 'appData';
 const GIST_ID = 'ab4704ff54867605993a5720e2a61c14';
-const GIST_FILENAME = 'miliket_backup.json';
+const GIST_FILENAME = 'miliket_backup.json';   // kept for legacy migration detection only
+const GIST_INDEX_FILE = 'miliket_index.json';
+const PIECE_FILE_PREFIX = 'miliket_piece_';
 function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
+
+// --- Dirty tracking ---
+let _dirtyPieceIds = new Set();
+let _deletedPieceIds = new Set();
+
+function markPieceDirty(pieceId) {
+    if (pieceId) _dirtyPieceIds.add(pieceId);
+}
+function markPieceDeleted(pieceId) {
+    if (pieceId) { _deletedPieceIds.add(pieceId); _dirtyPieceIds.delete(pieceId); }
+}
+function markAllPiecesDirty() {
+    _dirtyPieceIds.clear(); _deletedPieceIds.clear();
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
+        (appData[projName].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(piece => { if (piece.id) _dirtyPieceIds.add(piece.id); });
+        });
+    });
+}
+
+// --- Build index (no visualData) ---
+function buildIndexData() {
+    const index = { _lastSaved: appData._lastSaved };
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
+        index[projName] = {
+            folders: (appData[projName].folders || []).map(folder => ({
+                name: folder.name,
+                pieces: (folder.pieces || []).map(piece => ({
+                    id: piece.id,
+                    name: piece.name,
+                    content: piece.content || '',
+                    translation: piece.translation || '',
+                    lastModified: piece.lastModified || ''
+                }))
+            }))
+        };
+    });
+    return index;
+}
+
+// --- Load visualData from per-piece Gist files ---
+async function loadCloudPieces(gistFiles, cloudData) {
+    const promises = [];
+    Object.keys(cloudData).filter(k => k !== '_lastSaved').forEach(projName => {
+        (cloudData[projName].folders || []).forEach((folder, fi) => {
+            (folder.pieces || []).forEach((piece, pi) => {
+                const fileName = PIECE_FILE_PREFIX + piece.id + '.json';
+                const pieceFile = gistFiles[fileName];
+                if (pieceFile) {
+                    const p = (pieceFile.truncated
+                        ? fetch(pieceFile.raw_url).then(r => r.text())
+                        : Promise.resolve(pieceFile.content)
+                    ).then(content => {
+                        try {
+                            cloudData[projName].folders[fi].pieces[pi].visualData = JSON.parse(content).visualData || '';
+                        } catch(e) {
+                            cloudData[projName].folders[fi].pieces[pi].visualData = '';
+                        }
+                    }).catch(() => { cloudData[projName].folders[fi].pieces[pi].visualData = ''; });
+                    promises.push(p);
+                } else {
+                    piece.visualData = '';
+                }
+            });
+        });
+    });
+    await Promise.all(promises);
+    return cloudData;
+}
 
 // --- IndexedDB ---
 function openDB() {
@@ -1456,17 +1527,48 @@ function showSyncStatus(state) {
 
 // --- Gist sync ---
 async function pushToGist() {
+    if (!navigator.onLine) { showSyncStatus('failed'); return; }
     try {
         showSyncStatus('pending');
-        const content = JSON.stringify(appData);
+        const files = {};
+
+        // Index is always updated (tiny — no visualData)
+        files[GIST_INDEX_FILE] = { content: JSON.stringify(buildIndexData()) };
+
+        // Only push dirty pieces
+        _dirtyPieceIds.forEach(pieceId => {
+            let found = null;
+            Object.keys(appData).filter(k => k !== '_lastSaved').some(projName =>
+                (appData[projName].folders || []).some(folder =>
+                    (folder.pieces || []).some(piece => {
+                        if (piece.id === pieceId) { found = piece; return true; }
+                    })
+                )
+            );
+            if (found) {
+                files[PIECE_FILE_PREFIX + pieceId + '.json'] = {
+                    content: JSON.stringify({ visualData: found.visualData || '' })
+                };
+            }
+        });
+
+        // Delete removed piece files from Gist
+        _deletedPieceIds.forEach(pieceId => {
+            files[PIECE_FILE_PREFIX + pieceId + '.json'] = null;
+        });
+
         const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             method: 'PATCH',
             headers: { 'Authorization': `token ${getGistToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files: { [GIST_FILENAME]: { content } } })
+            body: JSON.stringify({ files })
         });
-        if (!res.ok) throw new Error('Push failed');
+        if (!res.ok) throw new Error('Push failed: ' + res.status);
+
+        _dirtyPieceIds.clear();
+        _deletedPieceIds.clear();
         showSyncStatus('saved');
     } catch(e) {
+        console.error('Gist push failed:', e);
         showSyncStatus('failed');
     }
 }
@@ -1479,15 +1581,33 @@ async function pullFromGist() {
             headers: { 'Authorization': `token ${getGistToken()}` }
         });
         const gist = await res.json();
-        const file = gist.files && gist.files[GIST_FILENAME];
-        if (!file) { if (statusEl) { statusEl.textContent = '✓ No cloud data yet'; statusEl.style.background = '#27ae60'; } return; }
+        const gistFiles = gist.files || {};
 
-        const content = file.truncated
-            ? await fetch(file.raw_url).then(r => r.text())
-            : file.content;
-        const cloudData = JSON.parse(content);
+        let cloudData = null;
 
-        // Show CLOUD / LOCAL picker
+        if (gistFiles[GIST_INDEX_FILE]) {
+            // New per-piece format
+            const indexFile = gistFiles[GIST_INDEX_FILE];
+            const indexContent = indexFile.truncated
+                ? await fetch(indexFile.raw_url).then(r => r.text())
+                : indexFile.content;
+            cloudData = JSON.parse(indexContent);
+            await loadCloudPieces(gistFiles, cloudData);
+
+        } else if (gistFiles[GIST_FILENAME]) {
+            // Legacy single-file — read it as-is, next sync will convert it
+            const oldFile = gistFiles[GIST_FILENAME];
+            const content = oldFile.truncated
+                ? await fetch(oldFile.raw_url).then(r => r.text())
+                : oldFile.content;
+            cloudData = JSON.parse(content);
+
+        } else {
+            if (statusEl) { statusEl.textContent = '✓ No cloud data yet'; statusEl.style.background = '#27ae60'; }
+            return;
+        }
+
+        // Cloud/Local picker — identical to before
         const localTs = parseInt(localStorage.getItem('miliket_last_saved') || '0');
         const cloudTs = cloudData._lastSaved || 0;
 
@@ -1642,6 +1762,9 @@ function renameProject(oldName) {
 
 function deleteProject(name) {
     openConfirm('Delete Project', `"${name}" and all its contents will be permanently deleted.`, name, () => {
+        (appData[name].folders || []).forEach(f => {                                    // ← ADD
+            (f.pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
+        });                                                                             
         delete appData[name];
         saveData();
         renderProjects();
@@ -1708,6 +1831,7 @@ function renameFolder(index) {
 function deleteFolder(index) {
     const name = appData[currentUser].folders[index].name;
     openConfirm('Delete Folder', `"${name}" and all its pieces will be permanently deleted.`, name, () => {
+        (appData[currentUser].folders[index].pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); }); // ← ADD
         appData[currentUser].folders.splice(index, 1);
         saveData();
         renderFolders();
@@ -1779,6 +1903,7 @@ function duplicatePiece(index) {
     copy.name = original.name + ' (Copy)';
     copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
+    markPieceDirty(copy.id);   // ← ADD THIS
     saveData();
     renderPieces();
 }
@@ -1799,7 +1924,9 @@ function movePiece(index) {
 
 function deletePiece(index) {
     const name = appData[currentUser].folders[currentFolder].pieces[index].name;
+    const pieceId = appData[currentUser].folders[currentFolder].pieces[index].id;  // ← add
     openConfirm('Delete Piece', `"${name}" will be permanently deleted.`, name, () => {
+        markPieceDeleted(pieceId);   // ← add
         appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
         saveData();
         renderPieces();
@@ -1851,6 +1978,8 @@ function savePieceNow() {
     if (!piece) return;
     piece.visualData = $('#container').html();
     piece.lastModified = new Date().toISOString();
+    markPieceDirty(piece.id);
+    unsavedChanges = false;
     saveData();
     const btn = document.getElementById('savePieceBtn');
     if (btn) { btn.textContent = '✓ Saved!'; setTimeout(() => { btn.textContent = '💾 Save Piece'; }, 1400); }
@@ -1876,13 +2005,14 @@ function importAllData() {
         if (!file) return;
         const reader = new FileReader();
         reader.onload = event => {
-            try {
-                appData = JSON.parse(event.target.result);
-                saveData();
-                renderProjects();
-                alert('Data imported successfully!');
-            } catch(err) { alert('Invalid backup file.'); }
-        };
+        try {
+            appData = JSON.parse(event.target.result);
+            markAllPiecesDirty();   // ← add
+            saveData();
+            renderProjects();
+            alert('Data imported successfully!');
+        } catch(err) { alert('Invalid backup file.'); }
+    };
         reader.readAsText(file);
     };
     input.click();
@@ -1986,8 +2116,10 @@ function toggleTheme() {
 
 // --- Debounced Auto-save ---
 let autoSaveTimer = null;
+let unsavedChanges = false;
 
 function triggerAutoSave() {
+    unsavedChanges = true;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(async () => {
         savePieceNow();      // visual data → appData
@@ -2376,6 +2508,8 @@ function finishAndPresent() {
     renderSlideshowSlide();
     showSsHud();
     document.addEventListener('keydown', ssKeyHandler);
+    document.getElementById('slideshow-overlay').addEventListener('touchstart', ssHandleTouchStart, { passive: true });
+    document.getElementById('slideshow-overlay').addEventListener('touchend', ssHandleTouchEnd, { passive: true });
 }
 
 function updateSelectionCount() {
@@ -2560,6 +2694,20 @@ function ssKeyHandler(e) {
     if (e.key === 'Escape') exitSlideshow();
 }
 
+let _ssTouchStartX = null;
+
+function ssHandleTouchStart(e) {
+    _ssTouchStartX = e.changedTouches[0].clientX;
+}
+
+function ssHandleTouchEnd(e) {
+    if (_ssTouchStartX === null) return;
+    const deltaX = e.changedTouches[0].clientX - _ssTouchStartX;
+    _ssTouchStartX = null;
+    if (Math.abs(deltaX) < 50) return; // too short, ignore
+    slideshowNav(deltaX < 0 ? 1 : -1); // swipe left = next, swipe right = prev
+}
+
 function showSsHud() {
     if (_ssHudHidden) return;
     const hud = document.getElementById('ss-hud');
@@ -2574,6 +2722,8 @@ function hideHudPermanently() {
 function exitSlideshow() {
     document.getElementById('slideshow-overlay').style.display = 'none';
     document.removeEventListener('keydown', ssKeyHandler);
+    document.getElementById('slideshow-overlay').removeEventListener('touchstart', ssHandleTouchStart);
+    document.getElementById('slideshow-overlay').removeEventListener('touchend', ssHandleTouchEnd);
     clearTimeout(_ssHudTimer);
     const g = document.getElementById('ss-geez');
     if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
@@ -2674,6 +2824,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     db = await openDB();
     const saved = await idbGet('miliket_data');
     if (saved) appData = saved;
+    markAllPiecesDirty();
 
     // Ask for GitHub token if not set
     if (!getGistToken()) {
@@ -2686,12 +2837,45 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Render projects
     renderProjects();
+    checkSyncReminder();
 
     const statusEl = document.getElementById('sync-status-text');
     if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.color = '#27ae60'; }
 });
 
-window.addEventListener('beforeunload', () => { saveData(); });
+function checkSyncReminder() {
+    const last = parseInt(localStorage.getItem('miliket_last_saved') || '0');
+    if (!last) return;
+    const daysSince = Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24));
+    if (daysSince < 7) return;
+    const banner = document.createElement('div');
+    banner.id = 'sync-reminder';
+    const isDark = document.body.classList.contains('dark-mode');
+    banner.style.cssText = 'background:' + (isDark ? '#2a3a4a' : '#c8ddf0') + ';color:' + (isDark ? '#b5d4f4' : '#1a2a3a') + ';padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-size:0.85rem;font-family:sans-serif;';
+    banner.innerHTML = `
+        <span>☁ Last synced <strong>${daysSince} days ago</strong> — consider syncing your data.</span>
+        <div style="display:flex;gap:8px;">
+            <button onclick="saveAndSync().then(()=>document.getElementById('sync-reminder').remove())" style="background:${isDark ? '#3a5a82' : '#1a2a3a'};color:white;border:none;border-radius:5px;padding:5px 14px;font-weight:bold;cursor:pointer;">Sync Now</button>
+            <button onclick="document.getElementById('sync-reminder').remove()" style="background:transparent;color:${isDark ? '#b5d4f4' : '#1a2a3a'};border:1px solid ${isDark ? 'rgba(181,212,244,0.3)' : 'rgba(26,42,58,0.35)'};border-radius:5px;padding:5px 14px;cursor:pointer;">Dismiss</button>
+        </div>`;
+    const topbar = document.querySelector('.studio-topbar');
+    topbar.insertAdjacentElement('afterend', banner);
+}
+
+window.addEventListener('beforeunload', (e) => {
+    saveData();
+    if (unsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+});
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+        saveData();
+        if (navigator.onLine) pushToGist();
+    }
+});
 
 // ============================================================
 // FULLSCREEN
