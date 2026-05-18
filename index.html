@@ -1925,11 +1925,12 @@ function loadPieceIntoEditor(index) {
     enterEditorMode();
 
     if (piece.visualData && piece.visualData.trim()) {
-        // Has saved visual — go straight to editor
+        // Has saved visual — activate editor page directly, never call populateContainer
         text = piece.content || '';
-        showPage('editor');
+        $('.page').removeClass('active');
+        $('#page-editor').addClass('active');
         $('#container').html(piece.visualData);
-        loadednotelength = $('#container').children().length;
+        loadednotelength = $('#container').children('.letter-container').length;
         var max = 0;
         $('#container span[id^="cussta"]').each(function(){
             var n = parseInt($(this).attr('id').replace('cussta',''), 10);
@@ -1939,7 +1940,10 @@ function loadPieceIntoEditor(index) {
         var $lastSpan = $('#container .letter').last();
         var lastId = $lastSpan.attr('id');
         idcount = lastId ? (parseInt(lastId.replace(/\D/g,'')) || 0) + 1 : 0;
-        setupEditor();
+        var $stacks = $('#stacks-container').detach();
+        $('#milikits-container').html(generateMilikitsHTML(milikits));
+        $('#milikits-container').prepend($('<br>')).prepend($stacks);
+        init();
         removeGlow();
         updaterowcount();
     } else {
@@ -2167,6 +2171,14 @@ let _allLines = [];
 let _builtSlides = [];
 let _currentSlideIndices = [];
 
+function getTranslationForSegment(transSegs, segIdx, totalSegs) {
+    if (!transSegs || !transSegs.length) return '';
+    if (transSegs.length === totalSegs) return transSegs[segIdx] || '';
+    // Counts mismatch — map proportionally so translations never go out of sync
+    const mappedIdx = Math.round((segIdx / Math.max(totalSegs - 1, 1)) * (transSegs.length - 1));
+    return transSegs[Math.min(mappedIdx, transSegs.length - 1)] || '';
+}
+
 function goToSlides() {
     const notes = {};
     if (currentUser && appData[currentUser]) {
@@ -2201,7 +2213,7 @@ function goToSlides() {
                 pieceName: pc.pieceName,
                 segIndex: segIdx,
                 segmentHtml: segHtml,
-                translation: (pc.transSegs[segIdx] || '')
+                translation: getTranslationForSegment(pc.transSegs, segIdx, pc.segments.length)
             });
         });
     });
@@ -2281,7 +2293,7 @@ function renderSlideReorder(container) {
     container.innerHTML = '';
     const header = document.createElement('div');
     header.style.cssText = 'text-align:center;padding:24px 40px 12px;';
-    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; ▶ Present</b>.</p>';
+    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p>';
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -2330,7 +2342,7 @@ async function exportToPptx() {
         const geezH = PH * 0.75;
         const transY = geezH;
         const transH = PH - geezH;
-        const rW = 1333, rH = 562;
+        const rW = 1920, rH = 810;  // 144 DPI × slide dimensions (13.33" × 5.625")
 
         for (let si = 0; si < _builtSlides.length; si++) {
             const indices = _builtSlides[si];
@@ -2346,6 +2358,11 @@ async function exportToPptx() {
             const inner = document.createElement('div');
             inner.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;box-sizing:border-box;';
             inner.innerHTML = geezHtml;
+            // Reset letter-container styles so they flow freely as flex children
+            // (same fix the live slideshow applies — without this, content under-fills width)
+            inner.querySelectorAll('.letter-container').forEach(lc => {
+                lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
+            });
             wrap.appendChild(inner);
             document.body.appendChild(wrap);
 
@@ -2366,12 +2383,28 @@ async function exportToPptx() {
             inner.style.transformOrigin = 'top left';
             void inner.offsetHeight;
 
+            // Overline fix: background-image gradient gives exact control over
+            // position and thickness — CSS `overline` sits too high for this font,
+            // and html2canvas ignores text-underline-offset.
+            wrap.querySelectorAll('*').forEach(function(el) {
+                var s = window.getComputedStyle(el);
+                if (s.textDecorationLine && s.textDecorationLine.includes('underline')) {
+                    var fontSize = parseFloat(s.fontSize) || 16;
+                    var thickness = Math.max(3, Math.round(fontSize * 0.12)); // bold line
+                    el.style.textDecoration = 'none';
+                    el.style.backgroundImage = 'linear-gradient(' + s.color + ',' + s.color + ')';
+                    el.style.backgroundSize  = '100% ' + thickness + 'px';
+                    el.style.backgroundRepeat   = 'no-repeat';
+                    el.style.backgroundPosition = '0 4px'; // ← tune this to raise/lower the line
+                }
+            });
+
             // Two frames so fonts/layout settle before capture
             await new Promise(r => requestAnimationFrame(r));
             await new Promise(r => requestAnimationFrame(r));
 
             const canvas = await html2canvas(wrap, {
-                scale: 1, useCORS: true, allowTaint: true,
+                scale: 3, useCORS: true, allowTaint: true,
                 backgroundColor: '#fffdf8',
                 width: rW, height: rH,
                 windowWidth: rW, windowHeight: rH
