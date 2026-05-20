@@ -43,7 +43,7 @@
         .borders-on .letter,.borders-on .basics,.borders-on .added,.borders-on .cussta { border:1px solid #ccc; }
         .borders-off .letter,.borders-off .basics,.borders-off .added,.borders-off .cussta { border:none; }
         .basics { font-size:3rem; }
-        .baseletter { line-height:4.5rem; font-size:5rem; user-select:none!important; pointer-events:none!important; z-index:900; color:#000000 !important; }
+        .baseletter { line-height:4.5rem; font-size:5rem; z-index:900; color:#000000; cursor:text; }
         .seregela,.tirikeza,.ihita,.others { text-decoration-line:underline; text-underline-offset:-0.9em; }
         .whitespace { visibility:hidden; }
         .milikitstack { font-size:1.5rem; margin-top:-1rem; line-height:1rem; }
@@ -54,7 +54,7 @@
         body.dark-mode .milikititem, body.dark-mode #stacks-container>button { background:#2e4a6a !important; color:white !important; border-color:#5a7aaa !important; }
         .milikit-title { font-size:1.1rem!important; margin-top:0.5rem; }
         #stacks-container { font-size:1rem; }
-        .highlight { border:0.1rem solid #00b8cc!important; z-index:20000000!important; }
+        #container .highlight { border:0.1rem solid #00b8cc!important; z-index:20000000!important; }
         .cussta { cursor:pointer; font-size:2.5rem!important; display:inline-flex; }
         .added { margin-bottom:0.2rem; }
         .widestack .basics { line-height:1rem!important; }
@@ -72,7 +72,7 @@
         .note-item:hover { background:#f0f0f0; }
         .red { color:rgb(216,15,15); }
         hr.style-eight { overflow:visible; padding:0; border:none; border-top:medium double #c00404; color:#be0000; text-align:center; opacity:100%; }
-        hr.style-eight:after { content:"፠፠፠"; display:inline-block; position:relative; top:-0.7em; font-size:3em; padding:0 0.25em; background:white; }
+        hr.style-eight:after { content:"፠፠፠"; display:inline-block; position:relative; top:-0.7em; font-size:3em; padding:0 0.25em; background:#fffdf8; }
         footer { margin-top:5rem; }
 
         /* ============================================================
@@ -538,6 +538,47 @@
             background: rgba(58,90,130,0.05);
         }
         .translate-link:hover { background: rgba(58,90,130,0.15); }
+        
+.translation-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #fffdf8;
+    color: #2a1e10;
+    font-size: 0.78rem;
+    font-style: italic;
+    line-height: 1.5;
+    padding: 10px 13px;
+    border-radius: 8px;
+    width: 220px;
+    z-index: 9999;
+    text-align: left;
+    border-top: 3px solid #b8860b;
+    white-space: normal;
+    pointer-events: none;
+    box-shadow: 0 2px 8px rgba(184,134,11,0.12);
+}
+.translation-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: #fffdf8;
+}
+.translation-tooltip-label {
+    font-size: 0.65rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #b8860b;
+    margin-bottom: 5px;
+}
+.translate-link-wrap { position: relative; display: inline-block; }
+.translate-link-wrap:hover .translation-tooltip { display: block; }
 
 /* ---- slides line-grid cards ---- */
         #line-grid {
@@ -625,6 +666,75 @@
     white-space: nowrap !important;
     line-height: normal !important;
 }
+
+/* ---- Piece card thumbnail preview popup ---- */
+.thumb-popup {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: 230px;
+    background: #fffdf8;
+    border: 2px solid var(--gold);
+    border-radius: 10px;
+    overflow: hidden;
+    z-index: 9999;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.18);
+    pointer-events: none;
+    text-align: left;
+}
+.thumb-popup::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 7px solid transparent;
+    border-top-color: var(--gold);
+}
+.studio-card:hover .thumb-popup { display: block; }
+.thumb-popup-header {
+    background: var(--gold);
+    color: #fffdf8;
+    font-size: 10px;
+    font-weight: bold;
+    padding: 4px 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.thumb-popup-body {
+    padding: 10px 10px 12px;
+    background: #fffdf8;
+}
+.thumb-popup-text {
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 1.9rem;
+    color: #1a2a3a;
+    line-height: 1.3;
+    word-break: break-all;
+    overflow: hidden;
+    max-height: 76px;
+    margin-bottom: 6px;
+    border-bottom: 0.5px solid rgba(184,134,11,0.2);
+    padding-bottom: 6px;
+}
+.thumb-popup-transl {
+    font-size: 11px;
+    color: #3a5a82;
+    font-style: italic;
+    line-height: 1.4;
+    margin-top: 5px;
+}
+.thumb-popup-hint {
+    font-size: 10px;
+    color: #b8a07a;
+    margin-top: 5px;
+}
+
     </style>
 </head>
 <body id="main-body">
@@ -798,6 +908,7 @@
                     <button id="removeline" class="btn" style="background:#8e6a00; color:white; border:1px solid #b8860b; font-size:0.9rem;"><i class="fas fa-arrow-left"></i> DelLn</button>
                     <button id="undoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa; font-size:0.9rem;">↩ Undo</button>
                     <button id="redoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa; font-size:0.9rem;">↪ Redo</button>
+                    <button id="clearBoxBtn" class="btn" style="background:#7a3a2a; color:white; border:1px solid #a05a4a; font-size:0.9rem;">✕ Clear box</button>
                     <button id="toggleButton" class="btn" style="background:#4a6a96; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Hide grid</button>
                     <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Copy HTML</button>
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
@@ -886,7 +997,7 @@
             <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
         </div>
         <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied + Gemini opened. Paste the translation below, then click ✕ to save.</p>
-        <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
+        <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
     </div>
 </div>
@@ -1140,10 +1251,23 @@ function init() {
     });
 
     $('#togglecolor').off('click.tc').on('click.tc', function(e){
+    const sel = window.getSelection();
+    const selected = [];
+    if (sel && sel.rangeCount > 0 && !sel.isCollapsed) {
+        $('#container .baseletter').each(function(){
+            if (sel.containsNode(this, true)) selected.push(this);
+        });
+    }
+    if (selected.length) {
+        const targetColor = redtext ? 'red' : 'black';
+        selected.forEach(el => $(el).css('color', targetColor));
+        sel.removeAllRanges();
+    } else {
         redtext = !redtext;
         $(this).text(redtext ? 'Black milikit' : 'Red milikit');
         $(this).css({ background: redtext ? '#c0392b' : '#1a2a3a', color: 'white', borderColor: redtext ? '#e74c3c' : '#3a5a82' });
-        e.stopImmediatePropagation();
+    }
+    e.stopImmediatePropagation();
     });
 
     $('#newline').off('click.nl').on('click.nl', function(e){
@@ -1162,6 +1286,14 @@ function init() {
 
     $('#undoBtn').off('click.un').on('click.un', function(){ doUndo(); });
     $('#redoBtn').off('click.un').on('click.un', function(){ doRedo(); });
+    
+        // Clear box
+    $('#clearBoxBtn').off('click.cb').on('click.cb', function(e){
+        if (!selectedSpanId) return;
+        snapshotForUndo();
+        $('#' + selectedSpanId).html('&nbsp;');
+        e.stopImmediatePropagation();
+    });
 
     $('#copyButton').off('click.cp').on('click.cp', function(){
         navigator.clipboard.writeText($('#container').html()).then(() => {
@@ -1191,11 +1323,6 @@ function init() {
         savePieceNow();
         saveAndSync();
         var $b = $(this); $b.text('Saved!'); setTimeout(()=>$b.text('💾 Save'),1200);
-    });
-
-    // Save Piece button — saves into the piece system
-    $('#savePieceBtn').off('click.sp').on('click.sp', function(){
-        savePieceNow();
     });
 
     $('#savedWorkLink').off('click.sw').on('click.sw', function(){ displayKeys(); });
@@ -1289,7 +1416,7 @@ $('#print-btn').on('click', function(){
     $('#result').html(contents.join(sep));
     $('#result .highlight').removeClass('highlight');
     $('#result *').contents().filter(function(){ return this.nodeType === 3; }).each(function(){
-        $(this).replaceWith(this.nodeValue.replace(/፤|።|፠|፨/ug, m => '<span class="red">'+m+'</span>'));
+        $(this).replaceWith(this.nodeValue.replace(/፤|።|፠|፨|፣/ug, m => '<span class="red">'+m+'</span>'));
     });
 });
 
@@ -1816,6 +1943,31 @@ function deleteFolder(index) {
     });
 }
 
+function _escHtml(s) {
+    return String(s)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function buildThumbPreview(piece) {
+    if (!piece.visualData || !piece.visualData.trim()) return '';
+    const temp = document.createElement('div');
+    temp.innerHTML = piece.visualData;
+    const containers = Array.from(temp.querySelectorAll('.letter-container')).slice(0, 9);
+    if (!containers.length) return '';
+    const previewHtml = containers.map(lc => lc.outerHTML).join('');
+    return `<div class="thumb-popup">
+        <div class="thumb-popup-header">${_escHtml(piece.name)}</div>
+        <div class="thumb-popup-body">
+            <div style="width:190px;height:90px;overflow:hidden;">
+                <div style="width:600px;transform:scale(0.3);transform-origin:top left;display:flex;align-items:flex-end;">
+                    ${previewHtml}
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
+
 // --- Pieces ---
 function renderPieces() {
     const grid = document.getElementById('pieces-grid');
@@ -1839,11 +1991,15 @@ function renderPieces() {
                 <button class="card-action-btn mov" onclick="event.stopPropagation(); movePiece(${index})" title="Move">↪</button>
                 <button class="card-action-btn del" onclick="event.stopPropagation(); deletePiece(${index})" title="Delete">×</button>
             </div>
+            ${buildThumbPreview(piece)}
             <div class="card-icon">📜</div>
             <div class="card-name">${piece.name}</div>
             <div class="card-meta">${date}</div>
             <div class="edit-text-link" onclick="event.stopPropagation(); editPieceText(${index})">Edit text</div>
-            <div class="translate-link" onclick="event.stopPropagation(); openTranslationModal(${index})">✦ Translation</div>`;
+            <div class="translate-link-wrap">
+            <div class="translate-link" onclick="event.stopPropagation(); openTranslationModal(${index})">✦ Translation</div>
+                ${piece.translation ? `<div class="translation-tooltip"><div class="translation-tooltip-label">Translation</div>${piece.translation}</div>` : ''}
+            </div>`;
         div.onclick = () => loadPieceIntoEditor(index);
         attachDragHandlers(div, 'piece');
         grid.appendChild(div);
@@ -2031,7 +2187,7 @@ function openTranslationModal(index) {
         return;
     }
 
-    const geminiPrompt = "Translate the following Ge'ez liturgical text into simple, clear English suitable for church congregation slides. Keep the meaning faithful and reverent but use language everyday people can understand. Preserve every ። ፤ ፡ ፠ ፨ punctuation mark exactly where it appears in the original. Return only the translation, nothing else:\n\n" + rawText;
+    const geminiPrompt = "Translate the following Ge'ez liturgical text into simple, clear English suitable for church congregation slides. Keep the meaning faithful and reverent but use language everyday people can understand. Preserve every ። ፤ ፡ ፠ ፨ ፣ punctuation mark exactly where it appears in the original — do not add any of these characters yourself where they do not already exist in the source text. You may use standard English punctuation such as commas and full stops, but never introduce ። ፤ ፡ ፠ ፨ ፣ beyond what is already there. Return only the translation, nothing else:\n\n" + rawText;
     navigator.clipboard.writeText(geminiPrompt).catch(() => {});
     window.open('https://gemini.google.com/app', '_blank');
 
@@ -2153,7 +2309,7 @@ function splitByPunctuation(html) {
 
 function splitTranslation(translation) {
     if (!translation || !translation.trim()) return [];
-    const parts = translation.split(/([።፤፡፠፨])/);
+    const parts = translation.split(/([።፤፡፠፨፣])/);
     const segments = [];
     let current = '';
     for (let i = 0; i < parts.length; i++) {
@@ -2512,7 +2668,6 @@ function undoLastSlide() {
 // ============================================================
 let _ssSlides = [];
 let _ssIndex = 0;
-let _ssHudTimer = null;
 let _ssHudHidden = false;
 
 function renderSlideshowSlide() {
@@ -2669,10 +2824,20 @@ function exitSlideshow() {
     document.removeEventListener('keydown', ssKeyHandler);
     document.getElementById('slideshow-overlay').removeEventListener('touchstart', ssHandleTouchStart);
     document.getElementById('slideshow-overlay').removeEventListener('touchend', ssHandleTouchEnd);
-    clearTimeout(_ssHudTimer);
     const g = document.getElementById('ss-geez');
     if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
 }
+
+document.addEventListener('keydown', function(e){
+    if (!$('#page-slides').hasClass('active')) return;
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        const nextBtn = document.getElementById('next-slide-btn');
+        const finishBtn = document.getElementById('finish-present-btn');
+        if (finishBtn && finishBtn.style.display !== 'none') finishBtn.click();
+        else if (nextBtn && nextBtn.style.display !== 'none') nextBtn.click();
+    }
+});
 
 function exitSlides() {
     $('#page-slides').removeClass('active');
