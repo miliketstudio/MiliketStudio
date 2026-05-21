@@ -2560,7 +2560,7 @@ async function exportToPptx() {
             await new Promise(r => requestAnimationFrame(r));
 
             const canvas = await html2canvas(wrap, {
-                scale: 3, useCORS: true, allowTaint: true,
+                scale: 2, useCORS: true, allowTaint: true,
                 backgroundColor: '#fffdf8',
                 width: rW, height: rH,
                 windowWidth: rW, windowHeight: rH
