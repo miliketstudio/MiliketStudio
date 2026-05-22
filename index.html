@@ -1626,7 +1626,20 @@ function showSyncStatus(state) {
         if (!el) return;
         if (state === 'saved')        { el.style.background = '#27ae60'; el.textContent = '✓ Synced'; }
         else if (state === 'pending') { el.style.background = '#e6a817'; el.textContent = '⟳ Saving...'; }
-        else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; }
+        else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; el.style.cursor = 'default'; el.style.pointerEvents = 'none'; el.onclick = null; }
+        else if (state === 'auth_failed') {
+            el.style.background = '#e74c3c';
+            el.textContent = '✕ 403 Token Error — click to fix';
+            el.style.cursor = 'pointer';
+            el.style.pointerEvents = 'auto';
+            el.onclick = () => {
+                const token = prompt('Enter your GitHub token for cloud sync:');
+                if (token && token.trim()) {
+            localStorage.setItem('miliket_gist_token', token.trim());
+            saveAndSync();
+                }
+            };
+        }
     });
 }
 
@@ -1674,7 +1687,15 @@ async function pushToGist() {
         showSyncStatus('saved');
     } catch(e) {
         console.error('Gist push failed:', e);
-        showSyncStatus('failed');
+        if (e.message && (e.message.includes('403') || e.message.includes('401'))) {
+            showSyncStatus('auth_failed');
+            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
+            if (token && token.trim()) {
+                localStorage.setItem('miliket_gist_token', token.trim());
+                await pushToGist();
+            }
+        }
+        else showSyncStatus('failed');
     }
 }
 
@@ -1685,6 +1706,14 @@ async function pullFromGist() {
         const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
             headers: { 'Authorization': `token ${getGistToken()}` }
         });
+        if (res.status === 401 || res.status === 403) {
+            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
+            if (token && token.trim()) {
+                localStorage.setItem('miliket_gist_token', token.trim());
+                await pullFromGist();
+            }
+            return;
+        }
         const gist = await res.json();
         const gistFiles = gist.files || {};
 
