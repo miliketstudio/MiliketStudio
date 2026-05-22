@@ -838,13 +838,6 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <li class="nav-item"><a class="nav-link" href="#" onclick="exitToStudio(); return false;">Home</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" data-page="present">Present</a></li>
-                <li class="nav-item dropdown" id="shownotes">
-                    <a class="nav-link dropdown-toggle" href="#" id="savedWorkLink" role="button"
-                        data-bs-toggle="dropdown" aria-expanded="false">Pieces</a>
-                    <ul class="dropdown-menu p-3" style="min-width:220px;" id="pieces-quickswitch">
-                        <li><div id="keysList"></div></li>
-                    </ul>
-                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="#" onclick="exitToStudio(); return false;" style="color:#f0c040;">← Studio</a>
                 </li>
@@ -1076,7 +1069,19 @@ function showPage(name) {
 
 $(document).on('click', '[data-page]', function(e) {
     e.preventDefault();
-    showPage($(this).data('page'));
+    var page = $(this).data('page');
+    if (page === 'editor') {
+        $('#container').empty().removeClass().addClass('borders-on red-off');
+        selectedSpanId = '';
+        highlightedspan = '';
+        idcount = 0;
+        cusstaid = 0;
+        mcount = 0;
+        loadednotelength = 0;
+        _undoStack = [];
+        _redoStack = [];
+    }
+    showPage(page);
 });
 
 function getAllNotes() {
@@ -1115,7 +1120,14 @@ function generateMilikitsHTML(data) {
 
 function populateContainer() {
     var $c = $("#container");
-    $c.empty();
+    $c.empty().removeClass().addClass('borders-on red-off');
+    selectedSpanId = '';
+    highlightedspan = '';
+    idcount = 0;
+    cusstaid = 0;
+    loadednotelength = 0;
+    _undoStack = [];
+    _redoStack = [];
     idcount = 0;
     text = ' ' + text.trimStart();
     for (var i = 0; i < text.length; i++) {
@@ -1131,12 +1143,11 @@ function populateContainer() {
 }
 
 function addStack() {
-    var len = loadednotelength > 0 ? loadednotelength : text.length;
-    for (var i = 0; i < len; i++) {
-        $("#letter-container" + i).prepend(
+    $('#container').children('.letter-container').each(function() {
+        $(this).prepend(
             $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&nbsp;</span>')
         );
-    }
+    });
     bindLetterClicks();
     numOfRows++;
     updaterowcount();
@@ -1170,8 +1181,11 @@ function bindLetterClicks() {
 }
 
 function applyToSelected(html) {
-    var $s = $('#' + selectedSpanId);
-    if ($s.length) $s.html($s.html() + html);
+    if (!selectedSpanId) return;
+    var $s = $('#container').find('#' + selectedSpanId);
+    if (!$s.length) return;
+    snapshotForUndo();
+    $s.html($s.html() + html);
 }
 
 function colorStack(inner) {
@@ -1191,42 +1205,38 @@ function init() {
     $('#rowromveform').off('submit.rr').on('submit.rr', function(e) {
         e.preventDefault();
         var idx = parseInt($('#rowCount').val());
-        var count = $('#container').children().length;
-        for (var i = 0; i < count; i++) $("#letter-container" + i).children().eq(idx-1).remove();
-        updaterowcount();
-        e.stopImmediatePropagation();
+        $('#container').children('.letter-container').each(function() {
+        $(this).children().eq(idx - 1).remove();
     });
+    updaterowcount();
+    e.stopImmediatePropagation();
+});
 
-    $('#tripledown').off('click.sb').on('click.sb',   function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎔',1)+bs('᎔',1))); e.stopImmediatePropagation(); });
-    $('#tripleup').off('click.sb').on('click.sb',     function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎑',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#tripleupdown').off('click.sb').on('click.sb', function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('_')+bs('᎔',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#doubledown').off('click.sb').on('click.sb',   function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎔',1))); e.stopImmediatePropagation(); });
-    $('#doubleup').off('click.sb').on('click.sb',     function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#updown').off('click.sb').on('click.sb',       function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎔')+bs('᎑',1))); e.stopImmediatePropagation(); });
-    $('#downup').off('click.sb').on('click.sb',       function(e){ snapshotForUndo(); applyToSelected(colorStack(bs('᎑')+bs('᎔',1))); e.stopImmediatePropagation(); });
+$('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎔',1)+bs('᎔',1))); e.stopImmediatePropagation(); });
+    $('#tripleup').off('click.sb').on('click.sb',     function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎑',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#tripleupdown').off('click.sb').on('click.sb', function(e){ applyToSelected(colorStack(bs('_')+bs('᎔',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#doubledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎔',1))); e.stopImmediatePropagation(); });
+    $('#doubleup').off('click.sb').on('click.sb',     function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#updown').off('click.sb').on('click.sb',       function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎑',1))); e.stopImmediatePropagation(); });
+    $('#downup').off('click.sb').on('click.sb',       function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎔',1))); e.stopImmediatePropagation(); });
     $('#flickup').off('click.sb').on('click.sb', function(e){
-        snapshotForUndo();
         applyToSelected('<span style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span style="margin-left:0.5rem;" class="basics">᎑</span><span style="margin-top:-3.7rem;" class="basics">᎖</span></span>&hairsp;');
         e.stopImmediatePropagation();
     });
     $('#customstack').off('click.sb').on('click.sb', function(e){
-        snapshotForUndo();
         applyToSelected('<span style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span id="cussta'+cusstaid+'" class="basics cussta">&hairsp;</span><span style="margin-top:-3.5rem;" id="cussta'+(cusstaid+1)+'" class="basics cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=2; rebindCussta(); e.stopImmediatePropagation();
     });
     $('#widestack').off('click.sb').on('click.sb', function(e){
-        snapshotForUndo();
         applyToSelected('<span class="widestack" style="color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span style="font-size:2rem!important;margin-bottom:-0.5rem;" id="cussta'+cusstaid+'" class="cussta">&hairsp;</span><span style="font-size:2rem!important;margin-bottom:-0.5rem;" id="cussta'+(cusstaid+1)+'" class="cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=2; rebindCussta(); e.stopImmediatePropagation();
     });
     $('#customsere').off('click.sb').on('click.sb', function(e){
-        snapshotForUndo();
         applyToSelected('<span style="text-decoration-line:underline;text-underline-offset:-0.9em;color:'+(redtext?"red":"black")+';display:flex;flex-direction:column;"><span id="cussta'+cusstaid+'" class="basics cussta">&hairsp;</span></span>&hairsp;');
         cusstaid+=1; rebindCussta(); e.stopImmediatePropagation();
     });
 
     $('.milikititem').off('click.mi').on('click.mi', function(e){
-        snapshotForUndo();
         triggerAutoSave();
         var $sp = $(this).find('span');
         var content = $sp.text();
@@ -1271,15 +1281,17 @@ function init() {
     });
 
     $('#newline').off('click.nl').on('click.nl', function(e){
-        snapshotForUndo();
-        var $s = $('#' + selectedSpanId);
+        var $s = $('#container').find('#' + selectedSpanId);
+        if (!$s.length) return;
+        snapshotForUndo();                  // now only fires with a real target
         if ($s.length) $s.parent().after('<br>');
         e.stopImmediatePropagation();
     });
 
     $('#removeline').off('click.rl').on('click.rl', function(e){
-        snapshotForUndo();
-        var $s = $('#' + selectedSpanId);
+        var $s = $('#container').find('#' + selectedSpanId);
+        if (!$s.length) return;
+        snapshotForUndo();                  // now only fires with a real target
         if ($s.length) { var $next = $s.parent().next(); if ($next.is('br')) $next.remove(); }
         e.stopImmediatePropagation();
     });
@@ -1290,8 +1302,10 @@ function init() {
         // Clear box
     $('#clearBoxBtn').off('click.cb').on('click.cb', function(e){
         if (!selectedSpanId) return;
+        var $s = $('#container').find('#' + selectedSpanId);
+        if (!$s.length) return;
         snapshotForUndo();
-        $('#' + selectedSpanId).html('&nbsp;');
+        $s.html('&nbsp;');
         e.stopImmediatePropagation();
     });
 
@@ -1325,31 +1339,6 @@ function init() {
         var $b = $(this); $b.text('Saved!'); setTimeout(()=>$b.text('💾 Save'),1200);
     });
 
-    $('#savedWorkLink').off('click.sw').on('click.sw', function(){ displayKeys(); });
-    // Keep this — it now calls the updated displayKeys which reads from pieces
-}
-
-function displayKeys() {
-    if (!currentUser || currentFolder === null || !appData[currentUser]) {
-        $('#keysList').html('<ul><li style="padding:8px"><em>No folder open</em></li></ul>');
-        return;
-    }
-    var pieces = appData[currentUser].folders[currentFolder].pieces || [];
-    var html = '<ul><li style="display:flex;justify-content:space-between;padding:4px 8px;"><strong>' + appData[currentUser].folders[currentFolder].name + '</strong></li>';
-    if (!pieces.length) { html += '<li style="padding:8px"><em>No pieces yet</em></li>'; }
-    else {
-        pieces.forEach(function(piece, index) {
-            var isActive = index === currentPiece;
-            html += '<li><h5 class="load-note" data-pieceindex="' + index + '" style="' + (isActive ? 'font-weight:bold;color:#b8860b;' : '') + '">' + (isActive ? '▶ ' : '') + piece.name + '</h5></li>';
-        });
-    }
-    html += '</ul>';
-    $('#keysList').html(html);
-    $('.load-note').off('click').on('click', function(){
-        var idx = parseInt($(this).data('pieceindex'));
-        savePieceNow();
-        loadPieceIntoEditor(idx);
-    });
 }
 
 function loadNotesList() {
@@ -1528,6 +1517,22 @@ function markPieceDirty(pieceId) {
 function markPieceDeleted(pieceId) {
     if (pieceId) { _deletedPieceIds.add(pieceId); _dirtyPieceIds.delete(pieceId); }
 }
+function migrateMissingIds() {
+    let changed = false;
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
+        (appData[projName].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(piece => {
+                if (!piece.id) {
+                    piece.id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+                    markPieceDirty(piece.id);
+                    changed = true;
+                }
+            });
+        });
+    });
+    if (changed) saveData();
+}
+
 function markAllPiecesDirty() {
     _dirtyPieceIds.clear(); _deletedPieceIds.clear();
     Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
@@ -2963,6 +2968,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     db = await openDB();
     const saved = await idbGet('miliket_data');
     if (saved) appData = saved;
+    migrateMissingIds();
     markAllPiecesDirty();
 
     // Ask for GitHub token if not set
