@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
@@ -1543,6 +1544,20 @@ function markAllPiecesDirty() {
     });
 }
 
+// --- Compression helpers ---
+function compressForCloud(visualData) {
+    if (!visualData) return '';
+    return 'lzb64:' + LZString.compressToBase64(visualData);
+}
+function decompressFromCloud(raw) {
+    if (!raw) return '';
+    if (raw.startsWith('lzb64:')) {
+        try { return LZString.decompressFromBase64(raw.slice(6)) || raw; }
+        catch(e) { console.warn('Decompression failed, using raw', e); return raw; }
+    }
+    return raw; // legacy uncompressed — works as-is
+}
+
 // --- Build index (no visualData) ---
 function buildIndexData() {
     const index = { _lastSaved: appData._lastSaved };
@@ -1577,7 +1592,7 @@ async function loadCloudPieces(gistFiles, cloudData) {
                         : Promise.resolve(pieceFile.content)
                     ).then(content => {
                         try {
-                            cloudData[projName].folders[fi].pieces[pi].visualData = JSON.parse(content).visualData || '';
+                            cloudData[projName].folders[fi].pieces[pi].visualData = decompressFromCloud(JSON.parse(content).visualData || '');
                         } catch(e) {
                             cloudData[projName].folders[fi].pieces[pi].visualData = '';
                         }
@@ -1671,7 +1686,7 @@ async function pushToGist() {
             );
             if (found) {
                 files[PIECE_FILE_PREFIX + pieceId + '.json'] = {
-                    content: JSON.stringify({ visualData: found.visualData || '' })
+                    content: JSON.stringify({ visualData: compressForCloud(found.visualData || '') })
                 };
             }
         });
