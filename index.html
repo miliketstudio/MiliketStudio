@@ -907,6 +907,7 @@
                     <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Copy HTML</button>
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
+                    <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
                 </div>
             </div>
@@ -1552,8 +1553,17 @@ function compressForCloud(visualData) {
 function decompressFromCloud(raw) {
     if (!raw) return '';
     if (raw.startsWith('lzb64:')) {
-        try { return LZString.decompressFromBase64(raw.slice(6)) || raw; }
-        catch(e) { console.warn('Decompression failed, using raw', e); return raw; }
+        try {
+            let decompressed = LZString.decompressFromBase64(raw.slice(6));
+            if (decompressed === null) return raw;
+            if (typeof decompressed === 'string' && decompressed.normalize) {
+                decompressed = decompressed.normalize('NFC');
+            }
+            return decompressed;
+        } catch(e) {
+            console.warn('Decompression failed, using raw', e);
+            return raw;
+        }
     }
     return raw; // legacy uncompressed — works as-is
 }
@@ -2157,6 +2167,24 @@ function loadPieceIntoEditor(index) {
         text = piece.content || '';
         $('#textInput').val(piece.content || '');
         showPage('prompt');
+    }
+}
+
+function pullFromLocal() {
+    if (currentUser === null || currentFolder === null || currentPiece === null) {
+        alert('No piece is open.');
+        return;
+    }
+    const piece = appData[currentUser].folders[currentFolder].pieces[currentPiece];
+    if (piece && piece.visualData) {
+        $('#container').html(piece.visualData);
+        rebindCussta();
+        bindLetterClicks();
+        updaterowcount();
+        removeGlow();
+        alert('Restored from local storage.');
+    } else {
+        alert('No local visual data found for this piece.');
     }
 }
 
