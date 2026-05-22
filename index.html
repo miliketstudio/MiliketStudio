@@ -1237,6 +1237,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
     });
 
     $('.milikititem').off('click.mi').on('click.mi', function(e){
+        if (!selectedSpanId) return;
         triggerAutoSave();
         var $sp = $(this).find('span');
         var content = $sp.text();
