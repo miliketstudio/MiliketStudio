@@ -2605,7 +2605,7 @@ async function exportToPptx() {
             inner.innerHTML = geezHtml;
             // Reset letter-container styles so they flow freely as flex children
             // (same fix the live slideshow applies — without this, content under-fills width)
-            inner.querySelectorAll('.letter-container').forEach(lc => {
+            inner.querySelectorAll('.baseletter').forEach(bl => {     if (!bl.textContent.trim()) {         bl.textContent = '0';         bl.classList.add('whitespace');     } }); inner.querySelectorAll('.letter-container').forEach(lc => {
                 lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
             });
             wrap.appendChild(inner);
@@ -2794,7 +2794,7 @@ function renderSlideshowSlide() {
         geezEl.style.justifyContent = 'flex-start';
         geezEl.style.alignItems     = 'flex-start';
 
-        inner.querySelectorAll('.letter-container').forEach(lc => {
+        inner.querySelectorAll('.baseletter').forEach(bl => {     if (!bl.textContent.trim()) {         bl.textContent = '0';         bl.classList.add('whitespace');     } }); inner.querySelectorAll('.letter-container').forEach(lc => {
             lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
         });
 
