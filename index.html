@@ -971,6 +971,7 @@
     <span id="ss-counter" style="color:#1a2a3a;font-size:13px;font-weight:bold;font-family:sans-serif;background:rgba(255,255,255,0.8);padding:3px 10px;border-radius:4px;"></span>
     <div style="display:flex;gap:8px;">
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
+        <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
         <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
     </div>
 </div>
@@ -2871,6 +2872,8 @@ function slideshowNav(dir) {
     const next = _ssIndex + dir;
     if (next < 0 || next >= _ssSlides.length) return;
     _ssIndex = next;
+    const toast = document.getElementById('ss-trans-toast');
+    if (toast) toast.remove();
     renderSlideshowSlide();
     showSsHud();
 }
@@ -2916,9 +2919,173 @@ function exitSlideshow() {
     if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
 }
 
+async function copyCurrentSlide(btn) {
+    const overlay  = document.getElementById('slideshow-overlay');
+    const hud      = document.getElementById('ss-hud');
+    const prev     = document.getElementById('ss-prev');
+    const next     = document.getElementById('ss-next');
+    const geezEl   = document.getElementById('ss-geez');
+    const transEl  = document.getElementById('ss-translation');
+
+    // Hide HUD/arrows and translation text — keep the blue box visible
+    hud.style.visibility  = 'hidden';
+    prev.style.visibility = 'hidden';
+    next.style.visibility = 'hidden';
+    const transTextEl = transEl.querySelector('p');
+    if (transTextEl) transTextEl.style.visibility = 'hidden';
+
+    // Overline fix — applied to geez area only; save originals to revert after
+    const _overlineReverts = [];
+    geezEl.querySelectorAll('*').forEach(function(el) {
+        const s = window.getComputedStyle(el);
+        if (s.textDecorationLine && s.textDecorationLine.includes('underline')) {
+            const fontSize = parseFloat(s.fontSize) || 16;
+            const thickness = Math.max(3, Math.round(fontSize * 0.12));
+            _overlineReverts.push({
+                el,
+                textDecoration:     el.style.textDecoration,
+                backgroundImage:    el.style.backgroundImage,
+                backgroundSize:     el.style.backgroundSize,
+                backgroundRepeat:   el.style.backgroundRepeat,
+                backgroundPosition: el.style.backgroundPosition
+            });
+            el.style.textDecoration     = 'none';
+            el.style.backgroundImage    = 'linear-gradient(' + s.color + ',' + s.color + ')';
+            el.style.backgroundSize     = '100% ' + thickness + 'px';
+            el.style.backgroundRepeat   = 'no-repeat';
+            el.style.backgroundPosition = '0 4px';
+        }
+    });
+
+    // Two frames — let the DOM repaint cleanly before capture
+    await new Promise(r => requestAnimationFrame(r));
+    await new Promise(r => requestAnimationFrame(r));
+
+    try {
+        const canvas = await html2canvas(overlay, {
+            scale: 1.5,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: '#fffdf8',
+            width:        overlay.offsetWidth,
+            height:       overlay.offsetHeight,
+            windowWidth:  overlay.offsetWidth,
+            windowHeight: overlay.offsetHeight
+        });
+
+        if (navigator.clipboard && window.ClipboardItem) {
+            canvas.toBlob(async (blob) => {
+                try {
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                    btn.textContent = '✓ Copied!';
+                    setTimeout(() => btn.textContent = '📋 Copy', 1600);
+                } catch(e) {
+                    _downloadSlide(canvas, btn);
+                }
+            }, 'image/png');
+        } else {
+            _downloadSlide(canvas, btn);
+        }
+
+        // Show translation toast so user can copy it as text
+        const slide = _ssSlides[_ssIndex];
+        if (slide && slide.translation && slide.translation.trim()) {
+            _showTranslationToast(slide.translation);
+        }
+
+    } catch(e) {
+        console.error('Slide capture failed:', e);
+        btn.textContent = '✕ Failed';
+        setTimeout(() => btn.textContent = '📋 Copy', 1600);
+    } finally {
+        _overlineReverts.forEach(function(o) {
+            o.el.style.textDecoration     = o.textDecoration;
+            o.el.style.backgroundImage    = o.backgroundImage;
+            o.el.style.backgroundSize     = o.backgroundSize;
+            o.el.style.backgroundRepeat   = o.backgroundRepeat;
+            o.el.style.backgroundPosition = o.backgroundPosition;
+        });
+        hud.style.visibility  = '';
+        prev.style.visibility = '';
+        next.style.visibility = '';
+        if (transTextEl) transTextEl.style.visibility = '';
+    }
+}
+
+function _showTranslationToast(translation) {
+    // Remove any existing toast
+    const existing = document.getElementById('ss-trans-toast');
+    if (existing) existing.remove();
+
+    const toast = document.createElement('div');
+    toast.id = 'ss-trans-toast';
+    toast.style.cssText = 'position:absolute;bottom:22%;left:50%;transform:translateX(-50%);background:#1a2a3a;border:2px solid #b8860b;border-radius:10px;padding:14px 18px;z-index:99999;max-width:70%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+
+    const label = document.createElement('div');
+    label.style.cssText = 'font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:#b8860b;margin-bottom:8px;font-family:sans-serif;';
+    label.textContent = 'Translation — select & copy as text';
+
+    const text = document.createElement('div');
+    text.style.cssText = 'font-size:1rem;color:#fffdf8;font-style:italic;font-family:Georgia,serif;line-height:1.5;cursor:text;user-select:text;';
+    text.textContent = translation;
+
+    const copyBtn = document.createElement('button');
+    copyBtn.style.cssText = 'margin-top:10px;background:#b8860b;border:none;color:white;border-radius:5px;padding:5px 16px;font-size:11px;font-weight:bold;cursor:pointer;font-family:sans-serif;';
+    copyBtn.textContent = '📋 Copy Translation';
+    copyBtn.onclick = () => {
+        const htmlPayload = '<p style="font-style:italic;font-size:25px;font-family:Georgia,serif;color:#1a2a3a;">' + translation + '</p>';
+        try {
+            const item = new ClipboardItem({
+                'text/plain': new Blob([translation], { type: 'text/plain' }),
+                'text/html':  new Blob([htmlPayload],  { type: 'text/html' })
+            });
+            navigator.clipboard.write([item]).then(() => {
+                copyBtn.textContent = '✓ Copied!';
+                setTimeout(() => toast.remove(), 1000);
+            }).catch(() => {
+                // Fallback — plain text only
+                navigator.clipboard.writeText(translation).then(() => {
+                    copyBtn.textContent = '✓ Copied!';
+                    setTimeout(() => toast.remove(), 1000);
+                });
+            });
+        } catch(e) {
+            // Browser doesn't support ClipboardItem — plain text fallback
+            navigator.clipboard.writeText(translation).then(() => {
+                copyBtn.textContent = '✓ Copied!';
+                setTimeout(() => toast.remove(), 1000);
+            });
+        }
+    };
+    const dismiss = document.createElement('button');
+    dismiss.style.cssText = 'margin-top:10px;margin-left:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:5px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:sans-serif;';
+    dismiss.textContent = 'Dismiss';
+    dismiss.onclick = () => toast.remove();
+
+    toast.appendChild(label);
+    toast.appendChild(text);
+    toast.appendChild(document.createElement('br'));
+    toast.appendChild(copyBtn);
+    toast.appendChild(dismiss);
+
+    document.getElementById('slideshow-overlay').appendChild(toast);
+
+    // Auto-dismiss after 12 seconds
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 12000);
+}
+
+function _downloadSlide(canvas, btn) {
+    const a = document.createElement('a');
+    a.download = 'slide_' + (_ssIndex + 1) + '.png';
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+    btn.textContent = '↓ Saved!';
+    setTimeout(() => btn.textContent = '📋 Copy', 1600);
+}
+
 document.addEventListener('keydown', function(e){
     if (!$('#page-slides').hasClass('active')) return;
-    if (e.key === 'Enter') {
+    if (e.key === ' ') {
         e.preventDefault();
         const nextBtn = document.getElementById('next-slide-btn');
         const finishBtn = document.getElementById('finish-present-btn');
