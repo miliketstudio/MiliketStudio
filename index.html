@@ -513,6 +513,18 @@
         .studio-card.drag-over { outline: 2px solid #3a9ad1; background: rgba(58,154,209,0.07); }
         .studio-card.dragging  { opacity: 0.45; outline: 2px solid #3a9ad1; cursor: grabbing; }
 
+        #hairSpaceBtn {
+            background: #3D7B7B;
+            color: white;
+            border: 1px solid #2a5a5a;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            transition: background 0.2s;
+        }
+        #hairSpaceBtn:hover { background: #2a5a5a; }
+
 /* Edit text button on piece card */
         .edit-text-link {
             display: inline-block;
@@ -909,6 +921,17 @@
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
+                    <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="
+                        const html = '<span style=\'font-size:2.5rem\'>\u200A</span>';
+                        try {
+                            navigator.clipboard.write([new ClipboardItem({
+                                'text/html': new Blob([html], {type:'text/html'}),
+                                'text/plain': new Blob(['\u200A'], {type:'text/plain'})
+                            })]).then(() => { this.style.background='#137333'; setTimeout(() => this.style.background='', 1500); });
+                        } catch(e) {
+                            navigator.clipboard.writeText('\u200A').then(() => { this.style.background='#137333'; setTimeout(() => this.style.background='', 1500); });
+                        }
+                    ">hairspace</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
