@@ -940,7 +940,7 @@
             <div class="row mb-5">
                 <div class="col-md-6">
                     <h2>Your saved notes</h2>
-                    <div id="savednoteslist" style="height:25rem;overflow-y:auto;border:1px solid #ccc;padding:10px;"><div id="notesList"></div></div>
+                    <div id="savednoteslist" style="height:25rem;overflow-y:auto;border:1px solid #ccc;position:relative;"></div>
                 </div>
                 <div class="col-md-6">
                     <h2>Queue</h2>
@@ -1346,33 +1346,115 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
 }
 
 function loadNotesList() {
-    var $list = $('#notesList');
-    $list.empty();
+    const $container = $('#savednoteslist');
+    $container.off();
+    $container.empty();
+    $('#notes-overflow-dropdown').remove();
+    $(document).off('click.notesdropdown').off('click.notesoverflow');
+
     if (!currentUser || !appData[currentUser]) {
-        $list.append('<p class="text-muted" style="padding:8px"><em>No saved notes yet.</em></p>');
+        $container.html('<p class="text-muted" style="padding:8px"><em>No saved notes yet.</em></p>');
         return;
     }
-    var hasAny = false;
-    appData[currentUser].folders.forEach(folder => {
-        var pieces = (folder.pieces || []).filter(p => p.visualData && p.visualData.trim());
-        if (!pieces.length) return;
-        hasAny = true;
-        $list.append('<div class="pft-folder-label">📁 ' + folder.name + '</div>');
-        pieces.forEach(piece => {
-            var $row = $('<div class="pft-piece-row"></div>');
-            $row.append('<span class="pft-piece-name">' + piece.name + '</span>');
-            var $btn = $('<button class="pft-add-btn">+ Add</button>');
-            $btn.on('click', function(e) { e.stopPropagation(); addToQueue(piece.name); });
-            $row.on('click', function() { addToQueue(piece.name); });
-            $row.append($btn);
-            $list.append($row);
+
+    const folders = (appData[currentUser].folders || []).filter(f =>
+        (f.pieces || []).some(p => p.visualData && p.visualData.trim())
+    );
+
+    if (!folders.length) {
+        $container.html('<p class="text-muted" style="padding:8px"><em>No saved pieces yet.</em></p>');
+        return;
+    }
+
+    const MAX_TABS = 4;
+    const visibleFolders = folders.slice(0, MAX_TABS);
+    const overflowFolders = folders.slice(MAX_TABS);
+
+    let tabBarHtml = '<div id="notes-tab-bar" style="display:flex;border-bottom:1px solid #ccc;background:#f8f9fa;position:sticky;top:0;z-index:10;">';
+    visibleFolders.forEach((folder, i) => {
+        const active = i === 0;
+        tabBarHtml += `<div class="notes-tab" data-tab="${i}" style="flex:1;padding:9px 6px;text-align:center;font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${active ? 'color:#1a2a3a;border-bottom:2px solid #1a2a3a;background:white;font-weight:bold;' : 'color:#666;border-bottom:2px solid transparent;'}">${folder.name}</div>`;
+    });
+    if (overflowFolders.length) {
+        tabBarHtml += `<div id="notes-more-btn" style="flex-shrink:0;padding:9px 12px;font-size:12px;cursor:pointer;color:#3a5a82;background:#f0f4f8;border-bottom:2px solid transparent;border-left:1px solid #ccc;font-weight:500;">+${overflowFolders.length} ▾</div>`;
+    }
+    tabBarHtml += '</div>';
+
+    let dropdownHtml = '';
+
+    let panelsHtml = '';
+    folders.forEach((folder, i) => {
+        const pieces = (folder.pieces || []).filter(p => p.visualData && p.visualData.trim());
+        const rows = pieces.map(piece =>
+            `<div class="notes-add-piece" data-name="${piece.name}" data-id="${piece.id}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background='rgba(184,134,11,0.07)'" onmouseout="this.style.background=''">
+                <span style="font-size:13px;color:#1a2a3a;">${piece.name}</span>
+                <button class="pft-add-btn" style="pointer-events:none;">+ Add</button>
+            </div>`
+        ).join('');
+        panelsHtml += `<div class="notes-panel" data-panel="${i}" style="display:${i === 0 ? '' : 'none'};">${rows}</div>`;
+    });
+
+    $container.html(`<div style="position:relative;">${tabBarHtml}</div>${panelsHtml}`);
+
+    function activateTab(idx, fromOverflow) {
+        $container.find('.notes-panel').hide();
+        $container.find(`[data-panel="${idx}"]`).show();
+        $container.find('.notes-tab').each(function() {
+            const isActive = !fromOverflow && parseInt($(this).data('tab')) === idx;
+            $(this).css({ color: isActive ? '#1a2a3a' : '#666', 'border-bottom': isActive ? '2px solid #1a2a3a' : '2px solid transparent', background: isActive ? 'white' : '', 'font-weight': isActive ? 'bold' : 'normal' });
+        });
+        const $more = $('#notes-more-btn');
+        if (fromOverflow) {
+            $container.find('.notes-tab').css({ color: '#666', 'border-bottom': '2px solid transparent', background: '', 'font-weight': 'normal' });
+            $more.css({ color: '#1a2a3a', 'border-bottom': '2px solid #1a2a3a', 'font-weight': 'bold' });
+        } else {
+            $more.css({ color: '#3a5a82', 'border-bottom': '2px solid transparent', 'font-weight': 'normal' });
+        }
+    }
+
+    $container.on('click', '.notes-tab', function() {
+        activateTab(parseInt($(this).data('tab')), false);
+    });
+
+    $container.on('click', '#notes-more-btn', function(e) {
+        e.stopPropagation();
+        const existing = $('#notes-overflow-dropdown');
+        if (existing.length) { existing.remove(); return; }
+
+        let ddHtml = '<div id="notes-overflow-dropdown" style="position:fixed;width:180px;background:white;border:1px solid #ccc;border-radius:6px;z-index:99999;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.15);">';
+        overflowFolders.forEach((folder, i) => {
+            const realIdx = MAX_TABS + i;
+            ddHtml += `<div class="notes-overflow-item" data-tab="${realIdx}" style="padding:9px 14px;font-size:13px;cursor:pointer;color:#1a2a3a;border-bottom:1px solid #eee;">${folder.name}</div>`;
+        });
+        ddHtml += '</div>';
+        $('body').append(ddHtml);
+
+        const rect = this.getBoundingClientRect();
+        $('#notes-overflow-dropdown').css({
+            top: rect.bottom + 4,
+            left: Math.max(4, rect.right - 180)
         });
     });
-    if (!hasAny) $list.append('<p class="text-muted" style="padding:8px"><em>No saved pieces yet.</em></p>');
+
+    $container.on('click', '.notes-add-piece', function(e) {
+        e.stopPropagation();
+        addToQueue($(this).data('name'), $(this).data('id'));
+    });
+
+    $(document).on('click.notesoverflow', '.notes-overflow-item', function() {
+        activateTab(parseInt($(this).data('tab')), true);
+        $('#notes-overflow-dropdown').remove();
+    });
+
+    $(document).on('click.notesdropdown', function(e) {
+        if (!$(e.target).closest('#notes-overflow-dropdown, #notes-more-btn').length) {
+            $('#notes-overflow-dropdown').remove();
+        }
+    });
 }
 
-function addToQueue(name) {
-    $('#que').append($('<li class="list-group-item">').attr('data-notename', name).text(name));
+function addToQueue(name, id) {
+    $('#que').append($('<li class="list-group-item">').attr('data-notename', name).attr('data-pieceid', id).text(name));
 }
 
 $(document).on('click', '#que .list-group-item', function(){ $(this).toggleClass('active'); });
@@ -1390,17 +1472,18 @@ $('#print-btn').on('click', function(){
     if (currentUser && appData[currentUser]) {
         appData[currentUser].folders.forEach(folder => {
             folder.pieces.forEach(piece => {
-                if (piece.visualData) notes[piece.name] = piece.visualData;
+                if (piece.visualData) notes[piece.id] = piece.visualData;
             });
         });
     }
     var contents = [];
     $('#que .list-group-item').each(function(index){
+        var id = $(this).data('pieceid');
         var n = $(this).data('notename');
-        if (notes[n]) {
+        if (notes[id]) {
             // Wrap the piece in a container and add the Translate button at the top right
             var pieceHtml = '<div class="printed-piece" id="piece-' + index + '" style="position: relative; margin-top: 2rem;">' +
-                            '<div class="piece-content">' + notes[n] + '</div>' +
+                            '<div class="piece-content">' + notes[id] + '</div>' +
                             '</div>';
             contents.push(pieceHtml);
         }
@@ -1424,15 +1507,15 @@ $('#printLinesBtn').on('click', function(){
     if (currentUser && appData[currentUser]) {
         appData[currentUser].folders.forEach(folder => {
             folder.pieces.forEach(piece => {
-                if (piece.visualData) notes[piece.name] = piece.visualData;
+                if (piece.visualData) notes[piece.id] = piece.visualData;
             });
         });
     }
     const contents = [];
     $('#que .list-group-item').each(function() {
-        const n = $(this).data('notename');
-        if (!notes[n]) return;
-        const segments = splitByPunctuation(notes[n]);
+        const id = $(this).data('pieceid');
+        if (!notes[id]) return;
+        const segments = splitByPunctuation(notes[id]);
         if (!segments.length) return;
         const linesHtml = segments.map(seg =>
             '<div class="printed-line" style="margin-bottom:1.5rem;">' + seg + '</div>'
@@ -2429,15 +2512,15 @@ function goToSlides() {
     if (currentUser && appData[currentUser]) {
         appData[currentUser].folders.forEach(folder => {
             folder.pieces.forEach(piece => {
-                if (piece.visualData) notes[piece.name] = piece;
+                if (piece.visualData) notes[piece.id] = piece;
             });
         });
     }
 
     const pieceSegments = [];
     $('#que .list-group-item').each(function() {
-        const name = $(this).data('notename');
-        const piece = notes[name];
+        const id = $(this).data('pieceid');
+        const piece = notes[id];
         if (!piece || !piece.visualData) return;
         pieceSegments.push({
             pieceName: piece.name,
