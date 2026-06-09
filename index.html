@@ -14,7 +14,7 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@700&display=swap" rel="stylesheet">
     <style>
         /* ============================================================
            ORIGINAL IDEFISSEHA CSS — NOT TOUCHED
@@ -828,7 +828,8 @@
         <button onclick="undoLastSlide()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Undo Slide</button>
     <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">✕ Exit</button>
         <span style="color:#f0c040;font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
-        <button id="export-pptx-btn" onclick="exportToPptx()" style="display:none;position:absolute;left:50%;transform:translateX(-50%);background:#4a7c59;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📥 Export to Slides</button>
+        <button id="export-pptx-btn" onclick="exportToPptx()" style="display:none;position:absolute;left:calc(50% - 90px);transform:translateX(-50%);background:#4a7c59;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📥 Export to Slides</button>
+        <button id="export-pptx-exact-btn" onclick="exportToPptxExact()" style="display:none;position:absolute;left:calc(50% + 90px);transform:translateX(-50%);background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📋 Export (Exact Copy)</button>
         <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
         <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
         <button id="next-slide-btn" onclick="saveAndNextSlide()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:12px;">Next Slide →</button>
@@ -2372,9 +2373,8 @@ function openTranslationModal(index) {
         return;
     }
 
-    const geminiPrompt = `You are a Ge'ez liturgical translator for the Ethiopian Orthodox Tewahedo Church. \nYour translations appear as subtitles on church congregation slides, shown line by \nline in sync with the original Ge'ez text.\n\nCRITICAL RULE — PUNCTUATION BOUNDARIES:\nThe original Ge'ez text uses these characters as phrase boundaries: ። ፤ ፡ ፠ ፨ ፣\nEvery single one of these characters is a sync point. Your translation MUST contain \nexactly the same number of these characters in exactly the same order as the original.\nDo NOT replace them with semicolons, commas, dashes, or any other character.\nDo NOT add any of these characters where they do not exist in the original.\nDo NOT remove any of these characters that exist in the original.\n\nSTYLE RULES:\n- Use simple, clear, reverent English that a congregation can read at a glance\n- Do not use archaic language (no "thee", "thou", "dost", "hath")\n- Be faithful to the liturgical meaning, not word-for-word literal\n\nOUTPUT RULES:\n- Return ONLY the translation\n- No commentary, no notes, no explanations, no alternatives\n- No markdown, no bullet points, no numbering\n- No semicolons (;) anywhere in your output\n\nTranslate the following Ge'ez text:\n\n` + rawText;
+    const geminiPrompt = You are a Ge'ez liturgical translator for the Ethiopian Orthodox Tewahedo Church. \nYour translations appear as subtitles on church congregation slides, shown line by \nline in sync with the original Ge'ez text.\n\nCRITICAL RULE — PUNCTUATION BOUNDARIES:\nThe original Ge'ez text uses these characters as phrase boundaries: ። ፤ ፡ ፠ ፨ ፣\nEvery single one of these characters is a sync point. Your translation MUST contain \nexactly the same number of these characters in exactly the same order as the original.\nDo NOT replace them with semicolons, commas, dashes, or any other character.\nDo NOT add any of these characters where they do not exist in the original.\nDo NOT remove any of these characters that exist in the original.\n\nSTYLE RULES:\n- Use simple, clear, reverent English that a congregation can read at a glance\n- Do not use archaic language (no "thee", "thou", "dost", "hath")\n- Be faithful to the liturgical meaning, not word-for-word literal\n\nOUTPUT RULES:\n- Return ONLY the translation\n- No commentary, no notes, no explanations, no alternatives\n- No markdown, no bullet points, no numbering\n- No semicolons (;) anywhere in your output\n- Capitalise the first letter of the word that follows every sync point (። ፤ ፡ ፠ ፨ ፣)\n\nTranslate the following Ge'ez text:\n\n + rawText;
     navigator.clipboard.writeText(geminiPrompt).catch(() => {});
-    window.open('https://gemini.google.com/app', '_blank');
 
     const modal = document.getElementById('translation-modal');
     modal.style.display = 'flex';
@@ -2601,6 +2601,7 @@ function renderSlideBuilder() {
         document.getElementById('next-slide-btn').style.display = 'none';
         document.getElementById('finish-present-btn').style.display = '';
         document.getElementById('export-pptx-btn').style.display = '';
+        document.getElementById('export-pptx-exact-btn').style.display = '';
         updateSelectionCount();
         return;
     }
@@ -2780,12 +2781,12 @@ async function exportToPptx() {
                 slide.addText(translation, {
                     x: 0.3, y: transY + 0.1,
                     w: PW - 0.6, h: transH - 0.2,
-                    fontSize: 28,
-                    bold: true, italic: true,
-                    color: '1A2A3A',
-                    fontFace: 'Georgia',
+                    fontSize: 36,
+                    bold: true, italic: false,
+                    color: '000000',
+                    fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
-                    wrap: true, shrinkText: true
+                    wrap: true, autoFitType: 'resize'
                 });
             }
         }
@@ -2797,6 +2798,183 @@ async function exportToPptx() {
         alert('Export failed — check the browser console for details.');
     }
     if (btn) { btn.textContent = '📥 Export to Slides'; btn.disabled = false; }
+}
+
+async function exportToPptxExact() {
+    if (!_builtSlides.length) { alert('No slides to export.'); return; }
+
+    // ── 1. Loading overlay ───────────────────────────────────────────────────
+    const loader = document.createElement('div');
+    loader.id = 'pptx-export-loader';
+    Object.assign(loader.style, {
+        position: 'fixed', inset: '0', zIndex: '99999',
+        background: 'rgba(0,0,0,0.72)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        fontFamily: 'sans-serif', color: '#fff'
+    });
+    loader.innerHTML = `
+        <div style="font-size:2rem;margin-bottom:.5rem">⏳</div>
+        <div id="pptx-loader-msg" style="font-size:1.1rem;font-weight:600">Preparing export…</div>
+        <div id="pptx-loader-sub" style="font-size:.85rem;opacity:.7;margin-top:.3rem"></div>
+    `;
+    document.body.appendChild(loader);
+    const setMsg = (main, sub = '') => {
+        document.getElementById('pptx-loader-msg').textContent = main;
+        document.getElementById('pptx-loader-sub').textContent = sub;
+    };
+
+    const btn = document.getElementById('export-pptx-exact-btn');
+    if (btn) { btn.textContent = '⏳ Exporting...'; btn.disabled = true; }
+
+    // ── 2. Build _ssSlides from _builtSlides ─────────────────────────────────
+    const prevSlides    = _ssSlides;
+    const prevIndex     = _ssIndex;
+    const prevHudHidden = _ssHudHidden;
+
+    _ssSlides = _builtSlides.map(indices => {
+        const chunks = indices.map(i => _allLines[i]);
+        const geezHtml = chunks.map(c => c.segmentHtml)
+            .join('')
+            .replace(/<br\s*\/?>/gi, '')
+            .replace(/>\s+</g, '><')
+            .replace(/style="([^"]*)"/g, (m, s) =>
+                'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
+        const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
+        return { geezHtml, translation };
+    });
+
+    // ── 3. Open overlay visibly, hide HUD/nav ───────────────────────────────
+    const overlay = document.getElementById('slideshow-overlay');
+    const hud     = document.getElementById('ss-hud');
+    const prevBtn = document.getElementById('ss-prev');
+    const nextBtn = document.getElementById('ss-next');
+
+    overlay.style.display    = 'flex';
+    overlay.style.visibility = 'visible';
+    hud.style.visibility     = 'hidden';
+    prevBtn.style.visibility = 'hidden';
+    nextBtn.style.visibility = 'hidden';
+    _ssHudHidden = true;
+
+    try {
+        const pptx = new PptxGenJS();
+        pptx.layout = 'LAYOUT_WIDE';
+        const PW = 13.33, PH = 7.5;
+        const geezH  = PH * 0.75;
+        const transY = geezH;
+        const transH = PH - geezH;
+
+        const total = _ssSlides.length;
+
+        for (let si = 0; si < total; si++) {
+            setMsg(`Exporting slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
+
+            _ssIndex = si;
+            renderSlideshowSlide();
+
+            // Let auto-scale + font settle
+            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+
+            const geezEl    = document.getElementById('ss-geez');
+            const transEl   = document.getElementById('ss-translation');
+            const transTextEl = transEl?.querySelector('p');
+
+            // Hide translation panel text during Ge'ez capture
+            if (transTextEl) transTextEl.style.visibility = 'hidden';
+
+            // Underline → overline conversion
+            const reverts = [];
+            geezEl.querySelectorAll('*').forEach(el => {
+                const s = window.getComputedStyle(el);
+                if (s.textDecorationLine?.includes('underline')) {
+                    const thickness = Math.max(3, Math.round((parseFloat(s.fontSize) || 16) * 0.12));
+                    reverts.push({
+                        el,
+                        textDecoration:     el.style.textDecoration,
+                        backgroundImage:    el.style.backgroundImage,
+                        backgroundSize:     el.style.backgroundSize,
+                        backgroundRepeat:   el.style.backgroundRepeat,
+                        backgroundPosition: el.style.backgroundPosition
+                    });
+                    el.style.textDecoration     = 'none';
+                    el.style.backgroundImage    = `linear-gradient(${s.color},${s.color})`;
+                    el.style.backgroundSize     = `100% ${thickness}px`;
+                    el.style.backgroundRepeat   = 'no-repeat';
+                    el.style.backgroundPosition = '0 4';
+                }
+            });
+
+            await new Promise(r => requestAnimationFrame(r));
+            await new Promise(r => requestAnimationFrame(r));
+
+            const captureW = geezEl.offsetWidth;
+            const captureH = geezEl.offsetHeight;
+            const canvas = await html2canvas(geezEl, {
+                scale: 2, useCORS: true, allowTaint: true,
+                backgroundColor: '#fffdf8',
+                width:  captureW,
+                height: captureH,
+                windowWidth:  captureW,
+                windowHeight: captureH
+            });
+
+            // Revert overline fix
+            reverts.forEach(o => {
+                o.el.style.textDecoration     = o.textDecoration;
+                o.el.style.backgroundImage    = o.backgroundImage;
+                o.el.style.backgroundSize     = o.backgroundSize;
+                o.el.style.backgroundRepeat   = o.backgroundRepeat;
+                o.el.style.backgroundPosition = o.backgroundPosition;
+            });
+            if (transTextEl) transTextEl.style.visibility = '';
+
+            const imgData = canvas.toDataURL('image/png');
+
+            const slide = pptx.addSlide();
+            slide.background = { color: 'FFFDF8' };
+            const imgAspect = captureW / captureH;
+            const slideImgH = PW / imgAspect;
+            const imgY = (geezH - slideImgH) / 2;
+            slide.addImage({ data: imgData, x: 0, y: Math.max(0, imgY), w: PW, h: Math.min(geezH, slideImgH) });
+            slide.addShape(pptx.ShapeType.rect, {
+                x: 0, y: transY, w: PW, h: transH,
+                fill: { color: 'EEF3FF' },
+                line: { color: 'B8D4EE', width: 1 }
+            });
+            if (_ssSlides[si].translation) {
+                slide.addText(_ssSlides[si].translation, {
+                    x: 0.3, y: transY + 0.1,
+                    w: PW - 0.6, h: transH - 0.2,
+                    fontSize: 36, bold: true,
+                    color: '000000', fontFace: 'Lexend',
+                    align: 'center', valign: 'middle',
+                    wrap: true, autoFitType: 'resize'
+                });
+            }
+        }
+
+        setMsg('Saving file…', '');
+        await pptx.writeFile({ fileName: 'miliket_slides_exact.pptx' });
+
+    } catch (e) {
+        console.error('PPTX export failed:', e);
+        alert('Export failed — check the browser console for details.');
+    } finally {
+        // ── 4. Tear down ─────────────────────────────────────────────────────
+        hud.style.visibility     = '';
+        prevBtn.style.visibility = '';
+        nextBtn.style.visibility = '';
+        _ssHudHidden  = prevHudHidden;
+        _ssSlides     = prevSlides;
+        _ssIndex      = prevIndex;
+        overlay.style.display    = 'none';
+        overlay.style.visibility = '';
+        document.body.removeChild(loader);
+        if (btn) { btn.textContent = '📋 Export (Exact Copy)'; btn.disabled = false; }
+    }
 }
 
 function saveAndNextSlide() {
@@ -2949,7 +3127,7 @@ function renderSlideshowSlide() {
 
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
-            p.style.cssText = 'margin:0;color:#1a2a3a;font-style:italic;font-family:Georgia,serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+            p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
             p.textContent = slide.translation;
             transEl.innerHTML = '';
             transEl.appendChild(p);
@@ -3132,14 +3310,14 @@ function _showTranslationToast(translation) {
     label.textContent = 'Translation — select & copy as text';
 
     const text = document.createElement('div');
-    text.style.cssText = 'font-size:1rem;color:#fffdf8;font-style:italic;font-family:Georgia,serif;line-height:1.5;cursor:text;user-select:text;';
+    text.style.cssText = 'font-size:1rem;color:#fffdf8;font-style:normal;font-family:Lexend,sans-serif;font-weight:700;line-height:1.5;cursor:text;user-select:text;text-align:center;';
     text.textContent = translation;
 
     const copyBtn = document.createElement('button');
     copyBtn.style.cssText = 'margin-top:10px;background:#b8860b;border:none;color:white;border-radius:5px;padding:5px 16px;font-size:11px;font-weight:bold;cursor:pointer;font-family:sans-serif;';
     copyBtn.textContent = '📋 Copy Translation';
     copyBtn.onclick = () => {
-        const htmlPayload = '<p style="font-style:italic;font-size:25px;font-family:Georgia,serif;color:#1a2a3a;">' + translation + '</p>';
+        const htmlPayload = '<p style="font-style:normal;font-weight:700;font-size:25px;font-family:Lexend,sans-serif;color:#000000;">' + translation + '</p>';
         try {
             const item = new ClipboardItem({
                 'text/plain': new Blob([translation], { type: 'text/plain' }),
@@ -3176,8 +3354,6 @@ function _showTranslationToast(translation) {
 
     document.getElementById('slideshow-overlay').appendChild(toast);
 
-    // Auto-dismiss after 12 seconds
-    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 12000);
 }
 
 function _downloadSlide(canvas, btn) {
