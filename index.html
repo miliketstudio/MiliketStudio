@@ -993,14 +993,18 @@
     <!-- Top HUD -->
     <div id="ss-hud" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(0,0,0,0.5);opacity:1;transition:opacity 0.3s;z-index:20;">
     <span id="ss-counter" style="color:#1a2a3a;font-size:13px;font-weight:bold;font-family:sans-serif;background:rgba(255,255,255,0.8);padding:3px 10px;border-radius:4px;"></span>
-    <div style="display:flex;gap:8px;">
+    <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="ssZoomOut()" id="ss-zoom-out" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 10px;font-size:15px;cursor:pointer;font-family:sans-serif;line-height:1;">−</button>
+        <span id="ss-zoom-label" onclick="ssZoomClickLabel()" style="font-family:monospace;font-size:13px;font-weight:bold;color:white;background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:6px;min-width:52px;text-align:center;cursor:pointer;user-select:none;" title="Click to type exact %">100%</span>
+        <button onclick="ssZoomIn()" id="ss-zoom-in" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 10px;font-size:15px;cursor:pointer;font-family:sans-serif;line-height:1;">+</button>
+        <input id="ss-zoom-input" type="text" maxlength="5" placeholder="100" style="display:none;width:56px;padding:4px 6px;font-size:13px;border:1px solid #b8860b;border-radius:6px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;" />
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
         <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
         <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
     </div>
 </div>
     <!-- Full-width Ge'ez, translation floats as overlay on right -->
-    <div style="flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
+    <div id="ss-slide-content" style="flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
     <div id="ss-geez" style="flex:1;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;min-height:0;"></div>
     <div id="ss-translation" style="flex:0 0 18%;background:#eef3ff;border-top:2px solid #b8d4ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;"></div>
 </div>
@@ -1992,6 +1996,8 @@ function renderProjects() {
     keys.forEach(name => {
         const div = document.createElement('div');
         div.className = 'studio-card';
+        div.draggable = true;
+        div.dataset.index = keys.indexOf(name);
         const folderCount = (appData[name].folders || []).length;
         div.innerHTML = `
             <div class="card-actions">
@@ -2000,8 +2006,10 @@ function renderProjects() {
             </div>
             <div class="card-icon">☦</div>
             <div class="card-name">${name}</div>
-            <div class="card-meta">${folderCount} folder${folderCount !== 1 ? 's' : ''}</div>`;
+            <div class="card-meta">${folderCount} folder${folderCount !== 1 ? 's' : ''}</div>
+            <div class="card-meta">${appData[name].createdAt ? 'Created ' + new Date(appData[name].createdAt).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>`;
         div.onclick = () => openProject(name);
+        attachDragHandlers(div, 'project');
         grid.appendChild(div);
     });
 }
@@ -2017,7 +2025,7 @@ function createProject() {
     const name = prompt('Enter project name:');
     if (!name || !name.trim()) return;
     if (appData[name.trim()]) { alert('A project with that name already exists.'); return; }
-    appData[name.trim()] = { folders: [] };
+    appData[name.trim()] = { folders: [], createdAt: new Date().toISOString() };
     saveData();
     renderProjects();
 }
@@ -2067,7 +2075,8 @@ function renderFolders() {
             </div>
             <div class="card-icon">📁</div>
             <div class="card-name">${folder.name}</div>
-            <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>`;
+            <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>
+            <div class="card-meta">${folder.createdAt ? 'Created ' + new Date(folder.createdAt).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>`;
         div.onclick = () => openFolder(index);
         attachDragHandlers(div, 'folder');
         grid.appendChild(div);
@@ -2087,7 +2096,7 @@ function createFolder() {
     const name = prompt('Enter folder name:');
     if (!name || !name.trim()) return;
     if (!appData[currentUser].folders) appData[currentUser].folders = [];
-    appData[currentUser].folders.push({ name: name.trim(), pieces: [] });
+    appData[currentUser].folders.push({ name: name.trim(), pieces: [], createdAt: new Date().toISOString() });
     saveData();
     renderFolders();
 }
@@ -2151,7 +2160,7 @@ function renderPieces() {
         div.className = 'studio-card';
         div.draggable = true;
         div.dataset.index = index;
-        const date = piece.lastModified ? new Date(piece.lastModified).toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) : 'Never';
+        const date = piece.lastModified ? new Date(piece.lastModified).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Never';
         div.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn ren" onclick="event.stopPropagation(); renamePiece(${index})" title="Rename">✎</button>
@@ -2747,7 +2756,7 @@ async function exportToPptx() {
                     el.style.backgroundImage = 'linear-gradient(' + s.color + ',' + s.color + ')';
                     el.style.backgroundSize  = '100% ' + thickness + 'px';
                     el.style.backgroundRepeat   = 'no-repeat';
-                    el.style.backgroundPosition = '0 4px'; // ← tune this to raise/lower the line
+                    el.style.backgroundPosition = '0 0px'; // ← tune this to raise/lower the line
                 }
             });
 
@@ -2873,7 +2882,7 @@ async function exportToPptxExact() {
             _ssIndex = si;
             renderSlideshowSlide();
 
-            // Let auto-scale + font settle
+            // Let auto-scale + font settle — zoom is applied by renderSlideshowSlide via applySlideZoom
             await new Promise(r => setTimeout(r, 150));
             await new Promise(r => requestAnimationFrame(r));
             await new Promise(r => requestAnimationFrame(r));
@@ -2903,20 +2912,21 @@ async function exportToPptxExact() {
                     el.style.backgroundImage    = `linear-gradient(${s.color},${s.color})`;
                     el.style.backgroundSize     = `100% ${thickness}px`;
                     el.style.backgroundRepeat   = 'no-repeat';
-                    el.style.backgroundPosition = '0 4';
+                    el.style.backgroundPosition = '0 0';
                 }
             });
 
             await new Promise(r => requestAnimationFrame(r));
             await new Promise(r => requestAnimationFrame(r));
 
-            const captureW = geezEl.offsetWidth;
-            const captureH = geezEl.offsetHeight;
-            const canvas = await html2canvas(geezEl, {
+            const exportZoom = _ssZoomLevels[si] || 1.0;
+            const captureW = Math.round(overlay.offsetWidth * exportZoom);
+            const captureH = Math.round(overlay.offsetHeight * exportZoom);
+            const canvas = await html2canvas(overlay, {
                 scale: 2, useCORS: true, allowTaint: true,
                 backgroundColor: '#fffdf8',
-                width:  captureW,
-                height: captureH,
+                width:        captureW,
+                height:       captureH,
                 windowWidth:  captureW,
                 windowHeight: captureH
             });
@@ -2933,21 +2943,25 @@ async function exportToPptxExact() {
 
             const imgData = canvas.toDataURL('image/png');
 
+            // Calculate translation band position based on actual overlay dimensions
+            const overlayH = overlay.offsetHeight;
+            const transElH = document.getElementById('ss-translation').offsetHeight;
+            const transFrac = transElH / overlayH;
+            const nativeTransY = PH * (1 - transFrac);
+            const nativeTransH = PH * transFrac;
+
             const slide = pptx.addSlide();
             slide.background = { color: 'FFFDF8' };
-            const imgAspect = captureW / captureH;
-            const slideImgH = PW / imgAspect;
-            const imgY = (geezH - slideImgH) / 2;
-            slide.addImage({ data: imgData, x: 0, y: Math.max(0, imgY), w: PW, h: Math.min(geezH, slideImgH) });
+            slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: PH });
             slide.addShape(pptx.ShapeType.rect, {
-                x: 0, y: transY, w: PW, h: transH,
+                x: 0, y: nativeTransY, w: PW, h: nativeTransH,
                 fill: { color: 'EEF3FF' },
                 line: { color: 'B8D4EE', width: 1 }
             });
             if (_ssSlides[si].translation) {
                 slide.addText(_ssSlides[si].translation, {
-                    x: 0.3, y: transY + 0.1,
-                    w: PW - 0.6, h: transH - 0.2,
+                    x: 0.3, y: nativeTransY + 0.05,
+                    w: PW - 0.6, h: nativeTransH - 0.1,
                     fontSize: 36, bold: true,
                     color: '000000', fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
@@ -3026,6 +3040,7 @@ function updateSelectionCount() {
 
 function undoLastSlide() {
     if (_builtSlides.length === 0) {
+        _ssZoomLevels = [];
         exitSlides();
         return;
     }
@@ -3034,6 +3049,8 @@ function undoLastSlide() {
     _currentSlideIndices = [...lastSlide];
     document.getElementById('next-slide-btn').style.display = '';
     document.getElementById('finish-present-btn').style.display = 'none';
+    document.getElementById('export-pptx-btn').style.display = 'none';
+    document.getElementById('export-pptx-exact-btn').style.display = 'none';
     renderSlideBuilder();
 }
 // ============================================================
@@ -3042,6 +3059,62 @@ function undoLastSlide() {
 let _ssSlides = [];
 let _ssIndex = 0;
 let _ssHudHidden = false;
+let _ssZoomLevels = [];
+
+function ssGetZoom() {
+    return _ssZoomLevels[_ssIndex] || 1.0;
+}
+function ssSetZoom(val) {
+    val = Math.min(3.0, Math.max(0.25, val));
+    _ssZoomLevels[_ssIndex] = val;
+    const label = document.getElementById('ss-zoom-label');
+    if (label) label.textContent = Math.round(val * 100) + '%';
+    applySlideZoom();
+}
+function ssZoomIn()  { ssSetZoom(ssGetZoom() + 0.1); }
+function ssZoomOut() { ssSetZoom(ssGetZoom() - 0.1); }
+function ssZoomReset() { ssSetZoom(1.0); }
+
+function ssZoomClickLabel() {
+    const label = document.getElementById('ss-zoom-label');
+    const input = document.getElementById('ss-zoom-input');
+    if (!label || !input) return;
+    label.style.display = 'none';
+    input.style.display = '';
+    input.value = Math.round(ssGetZoom() * 100);
+    input.focus();
+    input.select();
+    input.onkeydown = (e) => {
+        if (e.key === 'Enter') {
+            const v = parseInt(input.value);
+            if (!isNaN(v) && v > 0) ssSetZoom(v / 100);
+            input.style.display = 'none';
+            label.style.display = '';
+        }
+        if (e.key === 'Escape') {
+            input.style.display = 'none';
+            label.style.display = '';
+        }
+    };
+    input.onblur = () => {
+        const v = parseInt(input.value);
+        if (!isNaN(v) && v > 0) ssSetZoom(v / 100);
+        input.style.display = 'none';
+        label.style.display = '';
+    };
+}
+
+function applySlideZoom() {
+    const overlay = document.getElementById('slideshow-overlay');
+    if (!overlay) return;
+    const zoom = ssGetZoom();
+    overlay.style.transform = 'scale(' + zoom + ')';
+    overlay.style.transformOrigin = 'top left';
+    overlay.style.width = Math.round(100 / zoom) + '%';
+    overlay.style.height = Math.round(100 / zoom) + '%';
+    const zLabel = document.getElementById('ss-zoom-label');
+    if (zLabel) zLabel.textContent = Math.round(zoom * 100) + '%';
+}
 
 function renderSlideshowSlide() {
     const slide = _ssSlides[_ssIndex];
@@ -3123,7 +3196,9 @@ function renderSlideshowSlide() {
         const scaledH = Math.round(inner.scrollHeight * finalScale);
         inner.style.transform       = 'scale(' + finalScale + ')';
         inner.style.transformOrigin = 'top left';
-        inner.style.height          = scaledH + 'px';
+        inner.style.height          = Math.round(inner.scrollHeight * finalScale) + 'px';
+        const zLabel = document.getElementById('ss-zoom-label');
+        if (zLabel) zLabel.textContent = Math.round(ssGetZoom() * 100) + '%';
 
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
@@ -3150,6 +3225,7 @@ function renderSlideshowSlide() {
     // Update prev/next button visibility
     document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
     document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+    applySlideZoom();
 }
 
 function slideshowNav(dir) {
@@ -3167,6 +3243,13 @@ function ssKeyHandler(e) {
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); slideshowNav(1); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); slideshowNav(-1); }
     if (e.key === 'Escape') exitSlideshow();
+    if (e.ctrlKey && e.key === '0') { e.preventDefault(); ssZoomReset(); }
+}
+
+function ssWheelHandler(e) {
+    if (!e.ctrlKey) return;
+    e.preventDefault();
+    e.deltaY < 0 ? ssZoomIn() : ssZoomOut();
 }
 
 let _ssTouchStartX = null;
@@ -3195,7 +3278,11 @@ function hideHudPermanently() {
 }
 
 function exitSlideshow() {
-    document.getElementById('slideshow-overlay').style.display = 'none';
+    const overlay = document.getElementById('slideshow-overlay');
+    overlay.style.transform = '';
+    overlay.style.width = '';
+    overlay.style.height = '';
+    overlay.style.display = 'none';
     document.removeEventListener('keydown', ssKeyHandler);
     document.getElementById('slideshow-overlay').removeEventListener('touchstart', ssHandleTouchStart);
     document.getElementById('slideshow-overlay').removeEventListener('touchend', ssHandleTouchEnd);
@@ -3204,7 +3291,6 @@ function exitSlideshow() {
 }
 
 async function copyCurrentSlide(btn) {
-    const overlay  = document.getElementById('slideshow-overlay');
     const hud      = document.getElementById('ss-hud');
     const prev     = document.getElementById('ss-prev');
     const next     = document.getElementById('ss-next');
@@ -3212,11 +3298,19 @@ async function copyCurrentSlide(btn) {
     const transEl  = document.getElementById('ss-translation');
 
     // Hide HUD/arrows and translation text — keep the blue box visible
+    const overlay = document.getElementById('slideshow-overlay');
+    const inner = document.getElementById('ss-geez-inner');
     hud.style.visibility  = 'hidden';
     prev.style.visibility = 'hidden';
     next.style.visibility = 'hidden';
     const transTextEl = transEl.querySelector('p');
     if (transTextEl) transTextEl.style.visibility = 'hidden';
+    const ssZoomOut = document.getElementById('ss-zoom-out');
+    const ssZoomIn  = document.getElementById('ss-zoom-in');
+    const ssZoomLabel = document.getElementById('ss-zoom-label');
+    if (ssZoomOut)  ssZoomOut.style.visibility  = 'hidden';
+    if (ssZoomIn)   ssZoomIn.style.visibility   = 'hidden';
+    if (ssZoomLabel) ssZoomLabel.style.visibility = 'hidden';
 
     // Overline fix — applied to geez area only; save originals to revert after
     const _overlineReverts = [];
@@ -3237,7 +3331,7 @@ async function copyCurrentSlide(btn) {
             el.style.backgroundImage    = 'linear-gradient(' + s.color + ',' + s.color + ')';
             el.style.backgroundSize     = '100% ' + thickness + 'px';
             el.style.backgroundRepeat   = 'no-repeat';
-            el.style.backgroundPosition = '0 4px';
+            el.style.backgroundPosition = '0 0px';
         }
     });
 
@@ -3246,15 +3340,18 @@ async function copyCurrentSlide(btn) {
     await new Promise(r => requestAnimationFrame(r));
 
     try {
+        const zoom = ssGetZoom();
+        const visualW = Math.round(overlay.offsetWidth * zoom);
+        const visualH = Math.round(overlay.offsetHeight * zoom);
         const canvas = await html2canvas(overlay, {
             scale: 1.5,
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#fffdf8',
-            width:        overlay.offsetWidth,
-            height:       overlay.offsetHeight,
-            windowWidth:  overlay.offsetWidth,
-            windowHeight: overlay.offsetHeight
+            width:        visualW,
+            height:       visualH,
+            windowWidth:  visualW,
+            windowHeight: visualH
         });
 
         if (navigator.clipboard && window.ClipboardItem) {
@@ -3293,6 +3390,9 @@ async function copyCurrentSlide(btn) {
         prev.style.visibility = '';
         next.style.visibility = '';
         if (transTextEl) transTextEl.style.visibility = '';
+        if (ssZoomOut)  ssZoomOut.style.visibility  = '';
+        if (ssZoomIn)   ssZoomIn.style.visibility   = '';
+        if (ssZoomLabel) ssZoomLabel.style.visibility = '';
     }
 }
 
@@ -3377,6 +3477,7 @@ document.addEventListener('keydown', function(e){
 });
 
 function exitSlides() {
+    _ssZoomLevels = [];
     $('#page-slides').removeClass('active');
     document.getElementById('main-navbar').style.display = '';
     document.getElementById('main-footer').style.display = '';
@@ -3434,7 +3535,18 @@ function attachDragHandlers(div, type) {
         if (_dragSrcIndex === null || targetIndex === _dragSrcIndex || _dragType !== type) return;
         _dragMoved = true;
 
-        if (type === 'folder') {
+        if (type === 'project') {
+            const keys = Object.keys(appData).filter(k => k !== '_lastSaved');
+            const orderedKeys = keys;
+            const [movedKey] = orderedKeys.splice(_dragSrcIndex, 1);
+            orderedKeys.splice(targetIndex, 0, movedKey);
+            const reordered = {};
+            orderedKeys.forEach(k => { reordered[k] = appData[k]; });
+            if (appData._lastSaved) reordered._lastSaved = appData._lastSaved;
+            appData = reordered;
+            saveData();
+            renderProjects();
+        } else if (type === 'folder') {
             const arr = appData[currentUser].folders;
             const [moved] = arr.splice(_dragSrcIndex, 1);
             arr.splice(targetIndex, 0, moved);
