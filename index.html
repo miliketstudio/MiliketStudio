@@ -748,6 +748,42 @@
     margin-top: 5px;
 }
 
+/* ============================================================
+           EOTC CALENDAR PAGE CSS
+        ============================================================ */
+        *{box-sizing:border-box;margin:0;padding:0}
+        .wrap{padding:1rem 0;font-family:var(--font-sans)}
+        .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+        .ttl{font-size:18px;font-weight:500;color:var(--text)}
+        .yr-ctrls{display:flex;align-items:center;gap:8px}
+        .yr-btn{background:var(--card-bg);border:1px solid var(--card-border);color:var(--text);border-radius:6px;padding:5px 12px;cursor:pointer;font-size:14px}
+        .yr-btn:hover{background:var(--page-bg)}
+        .yr-val{font-size:15px;font-weight:500;color:var(--text);min-width:36px;text-align:center}
+        .legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:1.25rem}
+        .l-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text-muted)}
+        .l-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+        .next-up{background:var(--card-bg);border:1px solid var(--card-border);border-radius:10px;padding:11px 14px;margin-bottom:1.25rem;display:flex;align-items:center;gap:12px}
+        .nu-lbl{font-size:11px;color:var(--text-muted);margin-bottom:2px}
+        .nu-nm{font-size:14px;font-weight:500;color:var(--text)}
+        .month-grp{margin-bottom:1.25rem}
+        .month-hdr{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;padding-bottom:7px;border-bottom:1px solid var(--card-border);margin-bottom:9px}
+        .card{display:flex;align-items:center;gap:11px;background:var(--card-bg);border:0.5px solid var(--card-border);border-left:3px solid #ccc;border-radius:10px;padding:11px 13px;margin-bottom:7px}
+        .card.passed{opacity:0.5}
+        .card.today{background:rgba(184,134,11,0.07)}
+        .c-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+        .c-info{flex:1;min-width:0}
+        .c-name{font-size:14px;font-weight:500;color:var(--text);margin-bottom:2px}
+        .c-date{font-size:12px;color:var(--text-muted)}
+        .c-badge{font-size:11px;font-weight:500;padding:3px 8px;border-radius:6px;white-space:nowrap;flex-shrink:0}
+        .b-today{background:#E1F5EE;color:#085041}
+        .b-soon{background:#EEEDFE;color:#3C3489}
+        .b-passed{background:var(--page-bg);color:var(--text-muted)}
+        .b-far{background:var(--page-bg);color:var(--text-muted)}
+        .tsom-card{background:var(--card-bg);border:0.5px solid var(--card-border);border-left:3px solid #884fb7;border-radius:10px;padding:11px 13px;margin-bottom:7px}
+        .tsom-card.passed{opacity:0.5}
+        .tsom-card.today{background:rgba(184,134,11,0.07)}
+        .tsom-top{display:flex;align-items:center;gap:11px}
+        .tsom-sub{font-size:12px;color:var(--text-muted);margin-top:5px;padding-left:20px}
     </style>
 </head>
 <body id="main-body">
@@ -777,6 +813,7 @@
             <button class="transfer-btn" style="background:#27ae60;" onclick="exportAllData()">💾 Export Data</button>
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
+            <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
         </div>
     </div>
 </div>
@@ -798,6 +835,40 @@
             <button class="action-trio-btn action-add" onclick="createFolder()">＋ New Folder</button>
             <button class="action-trio-btn action-present" onclick="goToPresent()">▶ Present</button>
         </div>
+    </div>
+</div>
+
+<!-- PAGE: CALENDAR -->
+<div id="page-calendar" class="studio-page">
+    <div class="studio-topbar">
+        <h1>☦ ምልክት Studio</h1>
+        <button onclick="toggleTheme()">☾ Dark</button>
+    </div>
+    <div class="studio-content">
+        <div class="wrap">
+            <div class="hdr">
+                <div class="ttl">EOTC Feast Calendar</div>
+                <div class="yr-ctrls">
+                    <button class="yr-btn" onclick="changeYear(-1)">‹</button>
+                    <span class="yr-val" id="yr-val">2025</span>
+                    <button class="yr-btn" onclick="changeYear(1)">›</button>
+                </div>
+            </div>
+            <div class="legend">
+                <div class="l-item"><div class="l-dot" style="background:#b8860b"></div>Jesus</div>
+                <div class="l-item"><div class="l-dot" style="background:#3a5a82"></div>Mary</div>
+                <div class="l-item"><div class="l-dot" style="background:#27ae60"></div>Trinity</div>
+                <div class="l-item"><div class="l-dot" style="background:#e74c3c"></div>Gabriel</div>
+                <div class="l-item"><div class="l-dot" style="background:#884fb7"></div>Tsom</div>
+                <div class="l-item"><div class="l-dot" style="background:#e67e22"></div>Michael</div>
+                <div class="l-item"><div class="l-dot" style="background:#1abc9c"></div>Qirqos</div>
+            </div>
+            <div id="next-up"></div>
+            <div id="cal-list"></div>
+        </div>
+    </div>
+    <div class="studio-center-actions">
+        <button class="action-trio-btn action-back" onclick="showStudioPage('page-projects')">← Back</button>
     </div>
 </div>
 
@@ -3636,6 +3707,226 @@ document.addEventListener('visibilitychange', () => {
         if (navigator.onLine) pushToGist();
     }
 });
+
+// ============================================================
+// EOTC CALENDAR
+// ============================================================
+let curYear = new Date().getFullYear();
+
+const TINSAE_DB = {
+    2025: new Date(2025, 3, 20),  // 20 Apr 2025
+    2026: new Date(2026, 3, 12),  // 12 Apr 2026
+    2027: new Date(2027, 4, 2),   // 02 May 2027
+    2028: new Date(2028, 3, 16),  // 16 Apr 2028
+    2029: new Date(2029, 3, 8),   // 08 Apr 2029
+    2030: new Date(2030, 3, 28),  // 28 Apr 2030
+    2031: new Date(2031, 3, 13),  // 13 Apr 2031
+    2032: new Date(2032, 4, 2),   // 02 May 2032
+    2033: new Date(2033, 3, 24),  // 24 Apr 2033
+    2034: new Date(2034, 3, 9),   // 09 Apr 2034
+    2035: new Date(2035, 3, 29),  // 29 Apr 2035
+    2036: new Date(2036, 3, 20),  // 20 Apr 2036
+};
+
+const CAT_COLOR = {
+    Jesus:'#b8860b', Mary:'#3a5a82', Trinity:'#27ae60',
+    Gabriel:'#e74c3c', Tsom:'#884fb7', Michael:'#e67e22', Qirqos:'#1abc9c'
+};
+
+function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
+
+function getEvents(year) {
+    const tinsae = TINSAE_DB[year] || computeTinsae(year);
+    const abiyStart     = addDays(tinsae, -55);
+    const abiyEnd       = addDays(tinsae, -1);
+    const neneweStart   = addDays(abiyStart, -14);
+    const neneweEnd     = addDays(neneweStart, 2);
+    const hosanna       = addDays(tinsae, -7);
+    const erget         = addDays(tinsae, 39);
+    const paracletos    = addDays(tinsae, 49);
+    const hawariatStart = addDays(paracletos, 1);
+    const hawariatEnd   = new Date(year, 6, 12);
+    const hawariatDays  = Math.round((hawariatEnd - hawariatStart) / 86400000) + 1;
+    const nebiyatEnd    = new Date(year + 1, 0, 6);
+    const nebiyatDays   = Math.round((nebiyatEnd - new Date(year, 10, 24)) / 86400000) + 1;
+    return [
+        {name:'Leddat / ልደት',           amh:'Christmas',          start:new Date(year,0,7),    end:new Date(year,0,7),    cat:'Jesus',   desc:'Birth of our Lord Jesus Christ'},
+        {name:'Timkat / ጥምቀት',          amh:'Epiphany',           start:new Date(year,0,19),   end:new Date(year,0,19),   cat:'Jesus',   desc:'Baptism of Jesus Christ'},
+        {name:'Asteryo Mariam / አስተርዮ ማርያም', amh:'Dormition',   start:new Date(year,0,29),   end:new Date(year,0,29),   cat:'Mary',    desc:'Feast of the Dormition of Holy Mother Mary (Tir 21)'},
+        {name:'Tsome Nenewe / ጾመ ነነዌ',  amh:'Fast of Nineveh',   start:neneweStart,            end:neneweEnd,             cat:'Tsom',    desc:'Fast of Nineveh — 3 days'},
+        {name:'Abiy Tsom / ዓቢይ ጾም',     amh:'Great Lent',         start:abiyStart,             end:abiyEnd,               cat:'Tsom',    desc:'Great Lent — 55 days before Tinsae'},
+        {name:'Hosanna / ሆሳዕና',          amh:'Palm Sunday',        start:hosanna,               end:hosanna,               cat:'Jesus',   desc:'Entry of Jesus into Jerusalem'},
+        {name:'Tinsae / ትንሣኤ',           amh:'Easter',             start:tinsae,                end:tinsae,                cat:'Jesus',   desc:'Resurrection of our Lord'},
+        {name:'Erget / ዕርገት',            amh:'Ascension',          start:erget,                 end:erget,                 cat:'Jesus',   desc:'Ascension of our Lord (39 days after Tinsae)'},
+        {name:'Paracletos / ጰራቅሊጦስ',    amh:'Pentecost',          start:paracletos,            end:paracletos,            cat:'Jesus',   desc:'Descent of the Holy Spirit'},
+        {name:'Tsome Hawariat / ጾመ ሐዋርያት', amh:'Fast of Apostles', start:hawariatStart,       end:hawariatEnd,           cat:'Tsom',    desc:`Fast of the Apostles — ${hawariatDays} days (ends Hamle 5)`},
+        {name:'Beale Michael / በዓለ ሚካኤል', amh:'Sene',             start:new Date(year,5,19),   end:new Date(year,5,19),   cat:'Michael', desc:'Feast of Archangel Michael (Sene 12)'},
+        {name:'Sene Mariam / ሰኔ ማርያም',   amh:'Sene Mary',         start:new Date(year,5,28),   end:new Date(year,5,28),   cat:'Mary',    desc:'Feast of St. Mary — Building of her first church (Sene 21)'},
+        {name:'Beale Sillasie / በዓለ ሥላሴ', amh:'Holy Trinity',     start:new Date(year,6,14),   end:new Date(year,6,14),   cat:'Trinity', desc:'Feast of the Holy Trinity (Hamle 7)'},
+        {name:'Beale Qirqos / በዓለ ቂርቆስ',  amh:'St Qirqos',        start:new Date(year,6,26),   end:new Date(year,6,26),   cat:'Qirqos',  desc:'Feast of Saint Qirqos and His Mother Iyeluta (Hamle 19)'},
+        {name:'Tsome Filseta / ጾመ ፍልሰታ', amh:'Fast of Assumption', start:new Date(year,7,7),  end:new Date(year,7,21),   cat:'Tsom',    desc:'Fast of the Assumption of the Virgin Mary — 15 days (Nehase 1–15)'},
+        {name:'Debre Tabor / ደብረ ታቦር',   amh:'Transfiguration',   start:new Date(year,7,19),   end:new Date(year,7,19),   cat:'Jesus',   desc:'Transfiguration of Jesus on Mount Tabor (Nehase 13)'},
+        {name:'Filseta / ፍልሰታ',          amh:'Assumption',         start:new Date(year,7,22),   end:new Date(year,7,22),   cat:'Mary',    desc:'Assumption of Holy Mother Mary (Nehase 16)'},
+        {name:'Meskel / መስቀል',           amh:'Finding of the Cross', start:new Date(year,8,27), end:new Date(year,8,27),   cat:'Jesus',   desc:'Finding of the True Cross by Empress Helena'},
+        {name:'Meskerem Mariam / መስከረም ማርያም', amh:'October Mary', start:new Date(year,9,1),   end:new Date(year,9,1),    cat:'Mary',    desc:'Feast of St. Mary (Meskerem 21)'},
+        {name:'Beale Michael / በዓለ ሚካኤል', amh:'Hidar',            start:new Date(year,10,21),  end:new Date(year,10,21),  cat:'Michael', desc:'Feast of Archangel Michael (Hidar 12)'},
+        {name:'Tsome Nebiyat / ጾመ ነቢያት', amh:'Fast of Prophets',  start:new Date(year,10,24),  end:nebiyatEnd,            cat:'Tsom',    desc:`Fast of the Prophets (Advent) — ${nebiyatDays} days (Hidar 15 to Tahsas 28)`},
+        {name:'Hidar Mariam / ኅዳር ማርያም',  amh:'November Mary',    start:new Date(year,10,30),  end:new Date(year,10,30),  cat:'Mary',    desc:'Feast of St. Mary — Presentation of St. Mary (Hidar 21)'},
+        {name:'Beale Gabriel / በዓለ ገብርኤል', amh:'St Gabriel',      start:new Date(year,11,28),  end:new Date(year,11,28),  cat:'Gabriel', desc:'Feast of Archangel Gabriel — Deliverance of the Three Holy Children (Tahsas 19)'},
+    ].sort((a, b) => a.start - b.start);
+}
+
+function computeTinsae(year) {
+    const a = year % 19;
+    const b = year % 4;
+    const c = year % 7;
+    const d = (19 * a + 15) % 30;
+    const e = (2 * b + 4 * c + 6 * d + 6) % 7;
+    
+    // The Meeus Julian algorithm returns days starting from March 22nd
+    let julianMonth = 2; // 2 = March (0-indexed)
+    let julianDay = 22 + d + e;
+    
+    // March has 31 days
+    if (julianDay > 31) { 
+        julianMonth = 3; // 3 = April (0-indexed)
+        julianDay = julianDay - 31; 
+    }
+    
+    // Convert Julian base to Gregorian calendar (+13 days for 1900-2099)
+    return addDays(new Date(year, julianMonth, julianDay), 13);
+}
+
+
+function getStatus(start,end){const t=new Date();t.setHours(0,0,0,0);const s=new Date(start);s.setHours(0,0,0,0);const e=new Date(end);e.setHours(23,59,59,999);if(t>e)return 'passed';if(t>=s)return 'today';return 'upcoming';}
+function awayText(start,end,status){if(status==='passed')return{tx:'Passed',cl:'b-passed'};if(status==='today')return{tx:'Ongoing',cl:'b-today'};const t=new Date();t.setHours(0,0,0,0);const s=new Date(start);s.setHours(0,0,0,0);const diff=Math.round((s-t)/86400000);if(diff===0)return{tx:'Today',cl:'b-today'};if(diff===1)return{tx:'Tomorrow',cl:'b-soon'};if(diff<7)return{tx:`${diff} days`,cl:'b-soon'};if(diff<14)return{tx:'Next week',cl:'b-soon'};if(diff<30)return{tx:`${Math.round(diff/7)}w away`,cl:'b-far'};if(diff<60)return{tx:'Next month',cl:'b-far'};return{tx:`${Math.round(diff/30)}mo away`,cl:'b-far'};}
+function fmtRange(s,e){const opt={day:'numeric',month:'short',year:'numeric'};const optS={day:'numeric',month:'short'};if(s.getTime()===e.getTime())return s.toLocaleDateString('en-NZ',opt);return`${s.toLocaleDateString('en-NZ',optS)} – ${e.toLocaleDateString('en-NZ',opt)}`;}
+
+let _calTab = 'upcoming';
+let _calSearch = '';
+
+function renderCalendar() {
+    const today = new Date();
+    const events = getEvents(curYear);
+    document.getElementById('yr-val').textContent = curYear;
+
+    // Next up banner — one upcoming feast, one upcoming fast
+    const nb = document.getElementById('next-up');
+    if (curYear === today.getFullYear() && _calTab === 'upcoming' && !_calSearch) {
+        const nxtFeast = events.find(ev => ev.cat !== 'Tsom' && getStatus(ev.start, ev.end) !== 'passed');
+        const nxtFast  = events.find(ev => ev.cat === 'Tsom' && getStatus(ev.start, ev.end) !== 'passed');
+        const makeRow = (ev, label) => {
+            if (!ev) return '';
+            const st = getStatus(ev.start, ev.end);
+            const aw = awayText(ev.start, ev.end, st);
+            return `<div class="next-up" style="margin-bottom:8px;">
+                <div style="width:9px;height:9px;border-radius:50%;background:${CAT_COLOR[ev.cat]};flex-shrink:0"></div>
+                <div><div class="nu-lbl">${label}</div><div class="nu-nm">${ev.name}</div></div>
+                <div style="margin-left:auto;font-size:12px;color:var(--text-muted);margin-right:8px;">${fmtRange(ev.start, ev.end)}</div>
+                <span class="c-badge ${aw.cl}">${aw.tx}</span>
+            </div>`;
+        };
+        const html = makeRow(nxtFeast, 'Next feast') + makeRow(nxtFast, 'Next fast');
+        nb.innerHTML = html || '';
+    } else { nb.innerHTML = ''; }
+
+    const passedEvents   = events.filter(ev => getStatus(ev.start, ev.end) === 'passed');
+    const upcomingEvents = events.filter(ev => getStatus(ev.start, ev.end) !== 'passed');
+
+    // Search filter — runs across both tabs when active
+    const q = _calSearch.toLowerCase().trim();
+    let visible = q
+        ? events.filter(ev =>
+            ev.name.toLowerCase().includes(q) ||
+            (ev.amh||'').toLowerCase().includes(q) ||
+            ev.desc.toLowerCase().includes(q) ||
+            ev.cat.toLowerCase().includes(q))
+        : (_calTab === 'upcoming' ? upcomingEvents : passedEvents);
+
+    const upCount = upcomingEvents.length;
+    const paCount = passedEvents.length;
+
+    // Search bar + tab bar
+    const controlsHtml = `
+        <div style="margin-bottom:12px;">
+            <input id="cal-search-input" type="text" placeholder="Search feasts…" value="${_calSearch.replace(/"/g,'&quot;')}"
+                oninput="_calSearch=this.value;renderCalendar();"
+                style="width:100%;padding:8px 12px;border:1px solid var(--card-border);border-radius:8px;font-size:13px;background:var(--card-bg);color:var(--text);outline:none;box-sizing:border-box;">
+        </div>
+        ${q ? '' : `<div style="display:flex;border-bottom:1px solid var(--card-border);margin-bottom:16px;">
+            <div onclick="_calTab='upcoming';renderCalendar();" style="flex:1;padding:9px 6px;text-align:center;font-size:13px;cursor:pointer;font-weight:${_calTab==='upcoming'?'bold':'normal'};color:${_calTab==='upcoming'?'var(--text)':'var(--text-muted)'};border-bottom:${_calTab==='upcoming'?'2px solid var(--gold)':'2px solid transparent'};">
+                Upcoming <span style="background:var(--gold);color:white;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">${upCount}</span>
+            </div>
+            <div onclick="_calTab='passed';renderCalendar();" style="flex:1;padding:9px 6px;text-align:center;font-size:13px;cursor:pointer;font-weight:${_calTab==='passed'?'bold':'normal'};color:${_calTab==='passed'?'var(--text)':'var(--text-muted)'};border-bottom:${_calTab==='passed'?'2px solid var(--gold)':'2px solid transparent'};">
+                Passed <span style="background:var(--text-muted);color:white;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px;">${paCount}</span>
+            </div>
+        </div>`}`;
+
+    // Build cards HTML — 2-column grid per month
+    const byMonth = {};
+    for (let m = 0; m < 12; m++) byMonth[m] = [];
+    visible.forEach(ev => byMonth[ev.start.getMonth()].push(ev));
+    const mNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    function cardHtml(ev) {
+        const st = getStatus(ev.start, ev.end);
+        const aw = awayText(ev.start, ev.end, st);
+        const color = CAT_COLOR[ev.cat];
+        const dateStr = fmtRange(ev.start, ev.end);
+        if (ev.cat === 'Tsom') {
+            return `<div class="tsom-card ${st}" style="height:100%;box-sizing:border-box;">
+                <div class="tsom-top"><div class="c-dot" style="background:${color}"></div>
+                <div class="c-info"><div class="c-name" style="font-size:13px;">${ev.name}</div><div class="c-date">${dateStr}</div></div>
+                <span class="c-badge ${aw.cl}">${aw.tx}</span></div>
+                <div class="tsom-sub">${ev.desc}</div></div>`;
+        }
+        return `<div class="card ${st}" style="border-left-color:${color};height:100%;box-sizing:border-box;align-items:flex-start;">
+            <div class="c-dot" style="background:${color};margin-top:3px;flex-shrink:0;"></div>
+            <div class="c-info">
+                <div class="c-name" style="font-size:13px;">${ev.name}</div>
+                <div class="c-date" style="margin-top:2px;">${dateStr}</div>
+                <div class="c-date" style="margin-top:2px;font-style:italic;">${ev.desc}</div>
+            </div>
+            <span class="c-badge ${aw.cl}" style="align-self:flex-start;margin-top:1px;">${aw.tx}</span>
+        </div>`;
+    }
+
+    let html = controlsHtml;
+    let anyShown = false;
+
+    if (q) {
+        // Search results — flat 2-col grid, no month grouping
+        if (visible.length) {
+            anyShown = true;
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
+            visible.forEach(ev => { html += `<div>${cardHtml(ev)}</div>`; });
+            html += `</div>`;
+        }
+    } else {
+        for (let m = 0; m < 12; m++) {
+            if (!byMonth[m].length) continue;
+            anyShown = true;
+            html += `<div class="month-grp"><div class="month-hdr">${mNames[m]}</div>`;
+            html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`;
+            byMonth[m].forEach(ev => { html += `<div>${cardHtml(ev)}</div>`; });
+            html += `</div></div>`;
+        }
+    }
+
+    if (!anyShown) {
+        html += `<div style="text-align:center;padding:40px 0;color:var(--text-muted);font-size:0.9rem;">${q ? 'No feasts match your search.' : _calTab === 'upcoming' ? 'No upcoming feasts this year.' : 'No passed feasts yet.'}</div>`;
+    }
+
+    document.getElementById('cal-list').innerHTML = html;
+
+    // Restore focus on search input if it was active
+    if (q || document.activeElement?.id === 'cal-search-input') {
+        const inp = document.getElementById('cal-search-input');
+        if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+    }
+}
+
+function changeYear(d) { curYear += d; renderCalendar(); }
 
 // ============================================================
 // FULLSCREEN
