@@ -294,11 +294,13 @@
         /* Theme toggle */
         #theme-toggle,
         #theme-toggle-folders,
-        #theme-toggle-pieces {
+        #theme-toggle-pieces,
+        #theme-toggle-welcome,
+        #theme-toggle-calendar {
             background: var(--gold);
             color: #fff;
             border: none;
-            border-radius: 6px;
+            border-radius: 20px;
             padding: 5px 14px;
             font-size: 12px;
             font-weight: bold;
@@ -792,8 +794,34 @@
      STUDIO PAGES (NEW — layered on top, z-index 500)
 ============================================================ -->
 
+<!-- PAGE: WELCOME -->
+<div id="page-welcome" class="studio-page active">
+    <div class="studio-topbar">
+        <h1>☦ ምልክት Studio</h1>
+        <button id="theme-toggle-welcome" onclick="toggleTheme()">☾ Dark</button>
+    </div>
+    <div class="studio-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 70px);">
+        <div class="login-hero">
+            <h1>ምልክት Studio</h1>
+            <p>Where would you like to go?</p>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:32px;max-width:600px;width:100%;">
+            <div class="studio-card" style="padding:48px 24px;" onclick="enterStudio()">
+                <div class="card-icon">✏️</div>
+                <div class="card-name" style="font-size:1.1rem;">Miliket Studio</div>
+                <div class="card-meta">Create &amp; present pieces</div>
+            </div>
+            <div class="studio-card" style="padding:48px 24px;" onclick="showStudioPage('page-calendar'); renderCalendar();">
+                <div class="card-icon">📅</div>
+                <div class="card-name" style="font-size:1.1rem;">Calendar</div>
+                <div class="card-meta">EOTC feast calendar</div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- PAGE: LOGIN / PROJECTS -->
-<div id="page-projects" class="studio-page active">
+<div id="page-projects" class="studio-page">
     <div class="studio-topbar">
         <h1>☦ ምልክት Studio</h1>
         <button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
@@ -814,6 +842,9 @@
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
             <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
+        </div>
+        <div class="studio-center-actions" style="margin-top:16px;">
+            <button class="action-trio-btn action-back" onclick="showStudioPage('page-welcome')">← Home</button>
         </div>
     </div>
 </div>
@@ -841,8 +872,10 @@
 <!-- PAGE: CALENDAR -->
 <div id="page-calendar" class="studio-page">
     <div class="studio-topbar">
+        <button onclick="showStudioPage('page-welcome')" style="background:var(--gold);color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(184,134,11,0.25);transition:background 0.2s;">← Home</button>
         <h1>☦ ምልክት Studio</h1>
-        <button onclick="toggleTheme()">☾ Dark</button>
+        <button onclick="enterStudio()" style="background:var(--gold);color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(184,134,11,0.25);transition:background 0.2s;">✏️ Studio</button>
+        <button id="theme-toggle-calendar" onclick="toggleTheme()">☾ Dark</button>
     </div>
     <div class="studio-content">
         <div class="wrap">
@@ -866,9 +899,6 @@
             <div id="next-up"></div>
             <div id="cal-list"></div>
         </div>
-    </div>
-    <div class="studio-center-actions">
-        <button class="action-trio-btn action-back" onclick="showStudioPage('page-projects')">← Back</button>
     </div>
 </div>
 
@@ -2508,7 +2538,7 @@ document.addEventListener('keydown', e => {
 function toggleTheme() {
     const isDark = document.body.classList.toggle('dark-mode');
     const label = isDark ? '☀ Light' : '☾ Dark';
-    ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces'].forEach(id => {
+    ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces', 'theme-toggle-welcome', 'theme-toggle-calendar'].forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.textContent = label;
     });
@@ -3640,22 +3670,16 @@ function attachDragHandlers(div, type) {
 }
 
 // --- Init ---
-window.addEventListener('DOMContentLoaded', async () => {
-    // Theme
-    if (localStorage.getItem('miliket_theme') === 'dark') {
-        document.body.classList.add('dark-mode');
-        ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.textContent = '☀ Light';
-});
-    }
+let _studioInitialized = false;
 
-    // Open DB
-    db = await openDB();
-    const saved = await idbGet('miliket_data');
-    if (saved) appData = saved;
-    migrateMissingIds();
-    markAllPiecesDirty();
+async function enterStudio() {
+    if (_studioInitialized) {
+        showStudioPage('page-projects');
+        renderProjects();
+        return;
+    }
+    _studioInitialized = true;
+    showStudioPage('page-projects');
 
     // Ask for GitHub token if not set
     if (!getGistToken()) {
@@ -3672,6 +3696,24 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     const statusEl = document.getElementById('sync-status-text');
     if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.color = '#27ae60'; }
+}
+
+window.addEventListener('DOMContentLoaded', async () => {
+    // Theme
+    if (localStorage.getItem('miliket_theme') === 'dark') {
+        document.body.classList.add('dark-mode');
+        ['theme-toggle', 'theme-toggle-folders', 'theme-toggle-pieces', 'theme-toggle-welcome', 'theme-toggle-calendar'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.textContent = '☀ Light';
+});
+    }
+
+    // Open DB silently
+    db = await openDB();
+    const saved = await idbGet('miliket_data');
+    if (saved) appData = saved;
+    migrateMissingIds();
+    markAllPiecesDirty();
 });
 
 function checkSyncReminder() {
