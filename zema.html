@@ -391,11 +391,12 @@
             font-weight: 500;
         }
         .row-meta {
-            font-size: 0.65rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            margin-top: 4px;
-            letter-spacing: 0.3px;
+            font-size: 0.8rem;
+            color: var(--text);
+            opacity: 0.6;
+            margin-top: 5px;
+            letter-spacing: 0.2px;
+            font-family: 'Abyssinica SIL', serif;
         }
         .drawer {
             max-height: 0;
@@ -504,26 +505,46 @@
             color: #000;
         }
 
-        /* full player overlay — 60 / 40 split */
+        /* full player overlay — frosted glass card over blurred web bg */
         .player-overlay {
             position: fixed;
             inset: 0;
             z-index: 1000;
             display: flex;
             flex-direction: row;
+            align-items: center;
+            justify-content: center;
+            background: rgba(9, 9, 11, 0.55);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
+            transition: opacity 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
+            padding: 24px;
         }
         .player-overlay.open {
             opacity: 1;
             pointer-events: auto;
         }
+        body.light-mode .player-overlay {
+            background: rgba(220, 232, 248, 0.6);
+        }
         .player-image-side {
-            flex: 0 0 60%;
+            flex: 0 0 0%;
+            width: 0;
             position: relative;
             overflow: hidden;
             background: #06060a;
+            border-radius: 32px 0 0 32px;
+            transition: flex-basis 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .player-overlay.book-open .player-image-side {
+            flex: 0 0 60%;
+            width: 60%;
+            border-radius: 32px 0 0 32px;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+            height: min(720px, 90vh);
+            overflow: hidden;
         }
         .player-big-image {
             width: 100%;
@@ -535,14 +556,28 @@
             background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="%2306060a"/><text x="50%25" y="52%25" font-size="32" text-anchor="middle" dominant-baseline="middle" fill="%23fef08a" opacity="0.18" font-family="serif">ዜማ ወአቋቋም</text></svg>');
         }
         .player-controls-side {
-            flex: 0 0 40%;
+            flex: 1;
+            max-width: 520px;
+            min-width: 0;
             display: flex;
             flex-direction: column;
             position: relative;
-            overflow: hidden;
-            background: rgba(9,9,11,0.97);
-            border-left: 1px solid var(--border);
+            overflow: visible;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 32px;
+            box-shadow: 0 32px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
             backdrop-filter: blur(20px);
+            transition: border-color 0.4s, border-radius 0.4s, max-width 0.4s, box-shadow 0.4s;
+            height: min(720px, 90vh);
+        }
+        body.light-mode .player-controls-side {
+            box-shadow: 0 32px 80px rgba(100,140,200,0.18), 0 0 0 1px rgba(0,0,0,0.06);
+        }
+        .player-overlay.book-open .player-controls-side {
+            border-left: none;
+            border-radius: 0 32px 32px 0;
+            max-width: 40vw;
         }
         .player-container {
             flex: 1;
@@ -551,7 +586,7 @@
             justify-content: center;
             padding: 24px;
             position: relative;
-            overflow: hidden;
+            overflow: visible;
         }
         .center-stage {
             max-width: 360px;
@@ -562,30 +597,50 @@
         }
         .player-left-panel {
             position: absolute;
-            left: 0; top: 0; bottom: 0;
-            width: 100%;
-            background: rgba(9,9,11,0.98);
-            transform: translateX(-100%);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            right: calc(100% + 12px);
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateX(16px);
             overflow-y: auto;
             padding: 24px 20px;
-            z-index: 3;
+            z-index: 1100;
         }
         .player-right-panel {
             position: absolute;
-            right: 0; top: 0; bottom: 0;
-            width: 100%;
-            background: rgba(9,9,11,0.98);
-            transform: translateX(100%);
-            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            left: calc(100% + 12px);
+            top: 0;
+            bottom: 0;
+            width: 280px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.35);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateX(-16px);
             overflow-y: auto;
             padding: 24px 20px;
-            z-index: 3;
+            z-index: 1100;
         }
-        .player-container.timestamps-open .player-left-panel { transform: translateX(0); }
-        .player-container.timestamps-open .center-stage { transform: none; }
-        .player-container.queue-open .player-right-panel { transform: translateX(0); }
-        .player-container.queue-open .center-stage { transform: none; }
+        .player-container.timestamps-open .player-left-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
+        .player-container.queue-open .player-right-panel {
+            opacity: 1;
+            pointer-events: auto;
+            transform: translateX(0);
+        }
         .panel-toggle-btn {
             background: transparent;
             border: 1px solid var(--border);
@@ -751,16 +806,21 @@
         }
 
         @media (max-width: 800px) {
-            .player-overlay { flex-direction: column; }
-            .player-image-side { flex: 0 0 38%; }
-            .player-controls-side { flex: 1; border-left: none; border-top: 1px solid var(--border); }
-            .player-left-panel { transform: translateX(-100%); }
-            .player-right-panel { transform: translateX(100%); }
-            .player-container.timestamps-open .player-left-panel { transform: translateX(0); }
-            .player-container.queue-open .player-right-panel { transform: translateX(0); }
-            .app-container { padding: 16px; }
-            .mini-progress { width: 100px; }
-            .player-container { padding: 16px 12px; align-items: center; padding-top: 50px; }
+        .player-left-panel, .player-right-panel {
+            position: fixed;
+            left: 0; right: 0; bottom: 0; top: auto;
+            width: 100%;
+            border-radius: 24px 24px 0 0;
+            max-height: 60vh;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+        }
+        .player-container.timestamps-open .player-left-panel,
+        .player-container.queue-open .player-right-panel {
+            transform: translateY(0);
+            opacity: 1;
+            pointer-events: auto;
+            }
         }
         @media (max-width: 550px) {
             .drawer-actions { flex-direction: column; gap: 12px; }
@@ -981,21 +1041,132 @@
             background: rgba(254,240,138,0.04);
             color: var(--gold);
         }
+
+        /* custom scrollbars everywhere */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 99px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--gold);
+        }
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: var(--border) transparent;
+        }
+        .beat-picker {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 12px 16px;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            animation: fadeSlideIn 0.18s ease;
+        }
+        @keyframes fadeSlideIn {
+            from { opacity: 0; transform: translateY(-6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+        .beat-option {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-radius: 14px;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: 0.15s;
+            background: var(--card);
+        }
+        .beat-option:hover {
+            border-color: var(--gold);
+            background: rgba(254,240,138,0.06);
+        }
+        .beat-option-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .beat-option-name {
+            font-size: 0.9rem;
+            font-weight: 500;
+            font-family: 'Abyssinica SIL', serif;
+        }
+        .beat-option-chanter {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .beat-option-duration {
+            font-size: 0.75rem;
+            color: var(--muted);
+            font-variant-numeric: tabular-nums;
+        }
+        .beat-picker-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            padding: 0 2px;
+        }
+        .now-playing-bar {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 22px;
+            background: rgba(254,240,138,0.07);
+            border-top: 1px solid rgba(254,240,138,0.2);
+            font-size: 0.78rem;
+            color: var(--gold);
+            font-family: 'Abyssinica SIL', serif;
+            animation: fadeSlideIn 0.2s ease;
+        }
+        .now-playing-bars {
+            display: flex;
+            align-items: flex-end;
+            gap: 2px;
+            height: 14px;
+        }
+        .now-playing-bars span {
+            display: block;
+            width: 3px;
+            background: var(--gold);
+            border-radius: 2px;
+            animation: npBar 0.7s ease-in-out infinite alternate;
+        }
+        .now-playing-bars span:nth-child(2) { animation-delay: 0.2s; }
+        .now-playing-bars span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes npBar {
+            from { height: 3px; }
+            to   { height: 13px; }
+        }
+        .now-playing-bars.paused span { animation-play-state: paused; height: 4px; }
     </style>
 </head>
 <body>
 <div class="app-container" id="app">
-    <div class="top-bar">
-        <div class="logo">
-            <h1>ዜማ ወአቋቋም</h1>
-            <p>Zema · Aquaquam · Timestamps</p>
-        </div>
-        <div class="search-wrap">
+    <div class="top-bar" style="flex-wrap:nowrap; gap:10px;">
+            <div class="logo">
+                <h1>ዜማ ወአቋቋም</h1>
+                <p>Zema · Aquaquam · Timestamps</p>
+            </div>
+            <div class="search-wrap">
             <input type="text" id="globalSearch" class="search-input" placeholder="Search hymns, feasts...">
             <div id="searchResults" class="search-results"></div>
         </div>
-        <button id="themeToggleBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">☀ Light</button>
-        <button id="studioTrigger" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;" onmouseenter="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙ Studio</button>
+        <div style="display:flex; gap:8px; align-items:center; margin-left:auto;">
+            <button id="themeToggleBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">☀ Light</button>
+            <button id="studioTrigger" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">⚙ Studio</button>
+        </div>
     </div>
     
     <section class="hero-section">
@@ -1036,15 +1207,18 @@
         <button class="category-tab active" data-filter="all">All</button>
         <button class="category-tab" data-filter="upcoming">Upcoming Months</button>
         <button class="category-tab" data-filter="recent">Recently Played</button>
+        <button class="category-tab" data-filter="negsh" style="font-family:'Abyssinica SIL',serif;">ነግሥ</button>
+        <button class="category-tab" data-filter="qine" style="font-family:'Abyssinica SIL',serif;">ቅኔ</button>
     </div>
 
-
 <div id="monthView" class="month-grid"></div>
+<div id="qineView" style="display:none;"></div>
+<div id="negshView" style="display:none;"></div>
 
     <!-- holiday detail view (hidden initially) -->
     <div id="holidayView" style="display: none;">
         <div class="back-bar">
-            <button class="back-btn" id="backToMonthsBtn">← Back to months</button>
+            <button class="back-btn" id="backToMonthsBtn">← Back</button>
         </div>
         <div id="holidayHeader"></div>
         <div id="recordingList" class="recording-list"></div>
@@ -1057,12 +1231,14 @@
     <!-- Image side 60% -->
     <div class="player-image-side">
         <div id="playerBigImage" class="player-big-image"></div>
-        <button id="closePlayerBtn" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:7px 18px;color:#fff;font-size:0.85rem;cursor:pointer;z-index:5;">✕ Close</button>
+        <button id="closePlayerBtn" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:7px 18px;color:#fff;font-size:0.85rem;cursor:pointer;z-index:5;">⏹ Stop</button>
     </div>
 
     <!-- Controls side 40% -->
     <div class="player-controls-side">
-        <div style="position:absolute;top:16px;right:16px;z-index:10;display:flex;gap:8px;">
+        <button id="dismissPlayerBtn" style="position:absolute;top:16px;left:16px;background:transparent;border:1px solid var(--border);border-radius:40px;padding:6px 16px;color:var(--muted);font-size:0.75rem;cursor:pointer;z-index:10;transition:0.2s;">✕ Dismiss</button>
+        <div style="position:absolute;top:16px;right:16px;z-index:10;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 120px);" id="playerTopBtns">
+            <button class="panel-toggle-btn" id="bookToggleBtn">📖 View Book</button>
             <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
             <button class="panel-toggle-btn" id="queueToggleBtn">≡ Queue</button>
         </div>
@@ -1072,7 +1248,7 @@
             <div class="player-left-panel" id="timestampsPanelWrap">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                     <div class="panel-section-title" style="margin:0;">Timestamps</div>
-                    <button class="panel-toggle-btn" onclick="document.getElementById('playerContainer').classList.remove('timestamps-open');document.getElementById('tsToggleBtn').classList.remove('active');">✕</button>
+                    <button class="panel-toggle-btn" onclick="setPlayerPanelState(null)">✕</button>
                 </div>
                 <div id="timestampsPanel"></div>
             </div>
@@ -1094,9 +1270,9 @@
                     <div class="time-row"><span id="currentTimeLabel">0:00</span><span id="durationLabel">0:00</span></div>
                     <div style="display:flex; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap;">
                         <button id="loopBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); cursor:pointer;">🔁</button>
-                        <select id="speedSelect" style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border);">
-                            <option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
-                        </select>
+                        <input id="speedSelect" type="number" min="0.5" max="2" step="0.25" value="1"
+                            style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border); width:72px; text-align:center; outline:none; font-family:inherit; font-size:0.85rem;"
+                            title="Playback speed (0.5–2x)">
                         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);">
                     </div>
                 </div>
@@ -1106,7 +1282,7 @@
             <div class="player-right-panel" id="rightPanelWrap">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                     <div class="panel-section-title" style="margin:0;">Queue & Lyrics</div>
-                    <button class="panel-toggle-btn" onclick="document.getElementById('playerContainer').classList.remove('queue-open');document.getElementById('queueToggleBtn').classList.remove('active');">✕</button>
+                    <button class="panel-toggle-btn" onclick="setPlayerPanelState(null)">✕</button>
                 </div>
                 <div class="panel-section-title">Now playing</div>
                 <div id="queuePanel"></div>
@@ -1150,9 +1326,17 @@
         <div id="studioTabStructure" class="studio-tab-content" style="flex:1; display:flex; overflow:hidden;">
             <!-- left: tree -->
             <div style="width:340px; border-right:1px solid var(--border); overflow-y:auto; padding:20px 16px; flex-shrink:0;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--muted);">Months & Holidays</span>
-                    <button class="studio-add-btn" onclick="studioAddMonth()">+ Month</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--muted);">Editing Page</span>
+                </div>
+                <select id="studioPageSelect" class="studio-input" style="margin-bottom:16px; font-family:'Abyssinica SIL',serif;">
+                    <option value="months">Months &amp; Holidays</option>
+                    <option value="qine">ቅኔ</option>
+                    <option value="negsh">ነግሥ</option>
+                </select>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span id="studioTreeLabel" style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--muted);">Months &amp; Holidays</span>
+                    <button class="studio-add-btn" id="studioAddTopBtn" onclick="studioAddMonth()">+ Month</button>
                 </div>
                 <div id="studioTree"></div>
             </div>
@@ -1246,6 +1430,10 @@
         { id:3, name:"Hidar", amharic:"ኅዳር", holidays:[{ name:"Beale Michael", folder:"michael", hymns:[{ title:"ሰላም", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", chanter:"ዲያቆን ዮሴፍ", duration:"03:20", timestamps:[{time:"00:00",label:"ዝማሜ"}] }] }] }] }
     ];
 
+    const QINE_DATA = [];
+    const NEGSH_DATA = [];
+    let currentFlatData = null;
+    let activeTab = 'all';
     let currentMonth = null, currentHoliday = null;
     let audio = new Audio();
     audio.volume = 0.8;
@@ -1388,7 +1576,10 @@
         sessionStorage.setItem('monthScrollY', window.scrollY);
         currentMonth = month;
         currentHoliday = holiday;
+        currentFlatData = null;
         document.getElementById('monthView').style.display = 'none';
+        document.getElementById('qineView').style.display = 'none';
+        document.getElementById('negshView').style.display = 'none';
         document.getElementById('holidayView').style.display = 'block';
         document.getElementById('holidayHeader').innerHTML = `<div class="holiday-title">${month.amharic} · ${holiday.name}</div>`;
         renderHolidayRows(holiday);
@@ -1400,37 +1591,73 @@
         holiday.hymns.forEach((hymn, idx) => {
             const hasKum = hymn.kum && hymn.kum.length;
             const hasAqu = hymn.aqu && (hymn.aqu.tach?.length || hymn.aqu.lay?.length);
-            const kumVer = hasKum ? hymn.kum[0] : null;
-            const aquVer = hasAqu ? (hymn.aqu.tach?.[0] || hymn.aqu.lay?.[0]) : null;
+            const kumCount = hasKum ? hymn.kum.length : 0;
+            const aquVersions = hasAqu ? [...(hymn.aqu.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu.lay||[]).map(v=>({...v,_type:'lay'}))] : [];
             const row = document.createElement('div');
             row.className = 'holiday-row';
             row.innerHTML = `
-                <div class="row-main">
-                    <div class="row-title"><h3>${hymn.displayTitle || hymn.title}</h3><div class="row-meta">${hasKum ? 'ቁም ዜማ' : ''} ${hasAqu ? 'አቋቋም' : ''}</div></div>
-                </div>
-                <div class="drawer">
-                    <div class="drawer-actions">
-                        ${hasKum ? `<div class="action-group"><span class="action-label">ቁም ዜማ</span><button class="btn-play" data-type="kum" data-idx="${idx}">▶ ${kumVer.duration || '--'}</button></div>` : ''}
-                        ${hasAqu ? `<div class="action-group"><span class="action-label">አቋቋም</span><div class="aqu-split"><div class="split-default" data-type="aqu" data-idx="${idx}">▶ ${aquVer.duration || '--'}</div><div class="split-hover" data-type="aqu" data-idx="${idx}">${(aquVer.timestamps||[]).map(ts=>`<button class="split-segment" data-seek="${ts.time}">${ts.label}</button>`).join('')}</div></div></div>` : ''}
+                <div class="row-main" style="flex-wrap:wrap; gap:12px;">
+                    <div class="row-title">
+                        <h3>${hymn.displayTitle || hymn.title}</h3>
+                        <div class="row-meta">${[hasKum?`ቁም ዜማ${kumCount>1?' ('+kumCount+')':''}` :'', aquVersions.length?`አቋቋም${aquVersions.length>1?' ('+aquVersions.length+')':''}` :''].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
+                        ${hasKum ? `<button class="btn-play btn-kum-row">▶ ቁም ዜማ</button>` : ''}
+                        ${aquVersions.length ? `<button class="btn-play btn-aqu-row">▶ አቋቋም</button>` : ''}
                     </div>
                 </div>
+                <div class="beat-picker" id="bp-${idx}" style="display:none;"></div>
             `;
-            row.querySelector('.row-main').onclick = () => {
-            row.classList.toggle('open');
-            };
-
             container.appendChild(row);
-            // attach events
-            row.querySelectorAll('[data-type="kum"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); playHymn(hymn, 'kum', 0, null); });
-            row.querySelectorAll('.split-default[data-type="aqu"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); playHymn(hymn, 'aqu', 0, null); });
-            row.querySelectorAll('.split-segment').forEach(seg => seg.onclick = (e) => { e.stopPropagation(); const seek = seg.dataset.seek; playHymn(hymn, 'aqu', 0, seek); });
+
+            function closePickers() {
+                container.querySelectorAll('.beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
+            }
+
+            function showBeatPicker(versions, type) {
+                closePickers();
+                const picker = row.querySelector(`#bp-${idx}`);
+                if(versions.length === 1) {
+                    playHymn(hymn, type, 0, null);
+                    return;
+                }
+                picker.innerHTML = `<div class="beat-picker-label">Select ቤት</div>` +
+                    versions.map((v, vi) => `
+                        <div class="beat-option" data-vi="${vi}">
+                            <div class="beat-option-left">
+                                <span class="beat-option-name">${v.beat || (type==='kum' ? 'ቁም ዜማ' : 'አቋቋም') + ' ' + (vi+1)}</span>
+                                <span class="beat-option-chanter">${v.chanter || ''}</span>
+                            </div>
+                            <span class="beat-option-duration">${v.duration || '--'}</span>
+                        </div>`
+                    ).join('');
+                picker.style.display = 'flex';
+                picker.querySelectorAll('.beat-option').forEach(el => {
+                    el.onclick = (e) => { e.stopPropagation(); closePickers(); playHymn(hymn, type, parseInt(el.dataset.vi), null); };
+                });
+            }
+
+            const kumBtn = row.querySelector('.btn-kum-row');
+            const aquBtn = row.querySelector('.btn-aqu-row');
+            if(kumBtn) kumBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(hymn.kum, 'kum'); };
+            if(aquBtn) aquBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(aquVersions, 'aqu'); };
         });
+
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('.holiday-row')) {
+                container.querySelectorAll('.beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
+            }
+        }, { once: false });
     }
 
     function playHymn(hymn, type, versionIdx, seekTime = null) {
         let version = null;
-        if(type === 'kum') version = hymn.kum[versionIdx];
-        else version = hymn.aqu?.tach?.[versionIdx] || hymn.aqu?.lay?.[versionIdx];
+        if(type === 'kum') {
+            version = hymn.kum[versionIdx];
+        } else {
+            const flat = [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))];
+            version = flat[versionIdx] || flat[0];
+        }
         if(!version) return;
         currentHymnTitle = hymn.displayTitle || hymn.title;
         clipStartSec = parseTimeToSec(version.clipStart);
@@ -1461,6 +1688,11 @@
             JSON.stringify(recentlyPlayed)
         );
         audio.playbackRate = parseFloat(document.getElementById('speedSelect').value);
+        // Open player immediately — don't wait for audio to load
+        syncPlayerUI();
+        openFullPlayer();
+        document.getElementById('miniPlayer').classList.remove('visible');
+
         audio.onloadedmetadata = () => {
             if(clipEndSec <= clipStartSec) clipEndSec = audio.duration || clipStartSec + 3600;
             document.getElementById('durationLabel').innerText = formatSec(clipEndSec - clipStartSec);
@@ -1470,12 +1702,8 @@
             audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e=>console.warn(e));
             buildPlaylistFromHoliday();
             renderQueue();
-            syncPlayerUI();
-            openFullPlayer();
-            document.getElementById('miniPlayer').classList.add('visible');
             document.getElementById('lyricsPanel').innerText =
             currentTrackObj.hymn.lyrics || '';
-
             document.getElementById('translationPanel').innerText =
             currentTrackObj.hymn.translation || '';
         };
@@ -1483,9 +1711,10 @@
     }
 
     function buildPlaylistFromHoliday() {
-        if(!currentHoliday) return;
+        const source = currentHoliday ? currentHoliday.hymns : (currentFlatData || []);
+        if(!source.length) return;
         playlist = [];
-        currentHoliday.hymns.forEach(h => {
+        source.forEach(h => {
             if(h.kum?.length) playlist.push({ hymn:h, type:'kum', version:h.kum[0] });
             if(h.aqu?.tach?.length) playlist.push({ hymn:h, type:'aqu', version:h.aqu.tach[0] });
             else if(h.aqu?.lay?.length) playlist.push({ hymn:h, type:'aqu', version:h.aqu.lay[0] });
@@ -1497,9 +1726,11 @@
         updateMediaSession();
         loadArtwork(currentMonth, currentHoliday, currentTrackObj.hymn);
         document.getElementById('playerTrackTitle').innerText = currentHymnTitle;
-        document.getElementById('playerChanter').innerText = currentTrackObj.version.chanter || '';
+        const beatLabel = currentTrackObj.version.beat ? `${currentTrackObj.version.beat} · ` : '';
+        document.getElementById('playerChanter').innerText = beatLabel + (currentTrackObj.version.chanter || '');
         document.getElementById('miniTitle').innerText = currentHymnTitle.slice(0, 32);
         document.getElementById('miniArtist').innerText = currentTrackObj.version.chanter || '';
+        updateNowPlayingIndicator();
         document.getElementById('lyricsPanel').innerText =
         currentTrackObj.hymn.lyrics || 'No lyrics available';
 
@@ -1529,6 +1760,35 @@
         }
     }
 
+    function updateNowPlayingIndicator() {
+        // remove any existing indicators
+        document.querySelectorAll('.now-playing-bar').forEach(el => el.remove());
+        if(!currentTrackObj) return;
+        const container = document.getElementById('recordingList');
+        if(!container) return;
+        const rows = container.querySelectorAll('.holiday-row');
+        if(!rows.length) return;
+        const hymns = currentHoliday ? currentHoliday.hymns : (currentFlatData || []);
+        hymns.forEach((hymn, idx) => {
+            if((hymn.displayTitle || hymn.title) === currentHymnTitle) {
+                const row = rows[idx];
+                if(!row) return;
+                // remove old bar if switching tracks
+                row.querySelector('.now-playing-bar')?.remove();
+                const bar = document.createElement('div');
+                bar.className = 'now-playing-bar';
+                const paused = !isPlaying;
+                bar.innerHTML = `
+                    <div class="now-playing-bars ${paused ? 'paused' : ''}">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <span>Now playing · ${currentTrackObj.version.beat || currentTrackObj.version.chanter || (currentTrackObj.type === 'kum' ? 'ቁም ዜማ' : 'አቋቋም')}</span>
+                `;
+                row.appendChild(bar);
+            }
+        });
+    }
+
     function seekTo(seconds) { let newAbs = clipStartSec + Math.min(Math.max(0, seconds), clipEndSec - clipStartSec); audio.currentTime = newAbs; }
     function updatePlayUI() {
         const playBtn = document.getElementById('playerPlayPause');
@@ -1536,6 +1796,10 @@
         const miniBtn = document.getElementById('miniPlayPause');
         if(miniBtn) miniBtn.innerHTML = isPlaying ? '⏸' : '▶';
         if(isPlaying) startVisualizer(); else stopVisualizer();
+        // sync now playing bar animation
+        document.querySelectorAll('.now-playing-bars').forEach(el => {
+            el.classList.toggle('paused', !isPlaying);
+        });
     }
     function togglePlayPause() {
         if(isPlaying) {
@@ -1595,7 +1859,17 @@
     function updateLoopUI() { const btn = document.getElementById('loopBtn'); btn.innerText = loopState===0?'🔁':(loopState===1?'🔁∞':'🔂1'); }
     function toggleLoop() { loopState = (loopState+1)%3; updateLoopUI(); }
     function setSpeed(val) { audio.playbackRate = parseFloat(val); }
-    document.getElementById('speedSelect')?.addEventListener('change', e => setSpeed(e.target.value));
+    document.getElementById('speedSelect')?.addEventListener('change', e => {
+        let val = parseFloat(e.target.value);
+        if(isNaN(val)) return;
+        val = Math.min(2, Math.max(0.5, val));
+        e.target.value = val;
+        setSpeed(val);
+    });
+    document.getElementById('speedSelect')?.addEventListener('blur', e => {
+        let val = parseFloat(e.target.value);
+        if(isNaN(val) || val < 0.5 || val > 2) { e.target.value = 1; setSpeed(1); }
+    });
     document.getElementById('loopBtn')?.addEventListener('click', toggleLoop);
     document.getElementById('playerPlayPause')?.addEventListener('click', togglePlayPause);
     document.getElementById('miniPlayPause')?.addEventListener('click', togglePlayPause);
@@ -1617,8 +1891,23 @@
         isPlaying = false;
         updatePlayUI();
         closeFullPlayer();
+        document.getElementById('fullPlayer').classList.remove('book-open');
+        document.getElementById('bookToggleBtn').classList.remove('active');
+        document.getElementById('bookToggleBtn').innerHTML = '📖 View Book';
+        setPlayerPanelState(null);
         document.getElementById('miniPlayer').classList.remove('visible');
     });
+
+    document.getElementById('dismissPlayerBtn')?.addEventListener('click', () => {
+        closeFullPlayer();
+        document.getElementById('fullPlayer').classList.remove('book-open');
+        document.getElementById('bookToggleBtn').classList.remove('active');
+        document.getElementById('bookToggleBtn').innerHTML = '📖 View Book';
+        setPlayerPanelState(null);
+        // keep audio playing, show mini bar
+        document.getElementById('miniPlayer').classList.add('visible');
+    });
+    
     document.getElementById('miniClose')?.addEventListener('click', () => {
         audio.pause();
         audio.currentTime = 0;
@@ -1651,13 +1940,22 @@
             m.holidays.forEach(h => {
                 h.hymns.forEach(hy => {
                     const raw = `${m.name} ${m.amharic} ${h.name} ${hy.title} ${hy.displayTitle || ''}`;
-                    idx.push({ month: m, holiday: h, hymn: hy, text: raw.toLowerCase(), normalized: normalizeEthiopic(raw) });
+                    idx.push({ month: m, holiday: h, hymn: hy, flatType: null, text: raw.toLowerCase(), normalized: normalizeEthiopic(raw) });
                 });
             });
         });
+        QINE_DATA.forEach(hy => {
+            const raw = `ቅኔ qine ${hy.title} ${hy.displayTitle || ''}`;
+            idx.push({ month: null, holiday: null, hymn: hy, flatType: 'qine', text: raw.toLowerCase(), normalized: normalizeEthiopic(raw) });
+        });
+        NEGSH_DATA.forEach(hy => {
+            const raw = `ነግሥ negsh ${hy.title} ${hy.displayTitle || ''}`;
+            idx.push({ month: null, holiday: null, hymn: hy, flatType: 'negsh', text: raw.toLowerCase(), normalized: normalizeEthiopic(raw) });
+        });
         return idx;
     }
-    const searchIndex = buildSearchIndex();
+    // rebuild search index after gist loads (called again in loadFromGist)
+    let searchIndex = buildSearchIndex();
     const searchInput = document.getElementById('globalSearch');
     const resultsDiv = document.getElementById('searchResults');
     searchInput.addEventListener('input', () => {
@@ -1672,19 +1970,58 @@
             resultsDiv.classList.add('show');
             return;
         }
-        resultsDiv.innerHTML = matches.map(m => `<div class="search-item" data-month="${m.month.id}" data-holiday="${m.holiday.name}" data-hymn="${m.hymn.title}">${m.month.name} · ${m.holiday.name} · ${m.hymn.title}</div>`).join('');
+        resultsDiv.innerHTML = matches.map(m => {
+            if(m.flatType) {
+                const label = m.flatType === 'qine' ? 'ቅኔ' : 'ነግሥ';
+                return `<div class="search-item" data-flattype="${m.flatType}" data-hymn="${m.hymn.title}">${label} · ${m.hymn.displayTitle || m.hymn.title}</div>`;
+            }
+            return `<div class="search-item" data-month="${m.month.id}" data-holiday="${m.holiday.name}" data-hymn="${m.hymn.title}">${m.month.name} · ${m.holiday.name} · ${m.hymn.title}</div>`;
+        }).join('');
         resultsDiv.classList.add('show');
         resultsDiv.querySelectorAll('.search-item').forEach(el => {
-            el.onclick = () => { const hName=el.dataset.holiday; const targetMonth=MONTHS_DATA.find(mo=>mo.id==parseInt(el.dataset.month)); const targetHol=targetMonth?.holidays.find(h=>h.name===hName); if(targetHol){ openHolidayView(targetMonth,targetHol);  setTimeout(() => {     const hymn =     targetHol.hymns.find(         h => h.title === el.dataset.hymn     );      if(hymn?.kum?.length){         playHymn(hymn,'kum',0);     } },50); searchInput.value=''; resultsDiv.classList.remove('show'); } };
+            el.onclick = () => {
+                const flatType = el.dataset.flattype;
+                if(flatType) {
+                    // navigate to the flat page and play
+                    document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+                    document.querySelector(`.category-tab[data-filter="${flatType}"]`)?.classList.add('active');
+                    activeTab = flatType;
+                    document.getElementById('holidayView').style.display = 'none';
+                    const data = flatType === 'qine' ? QINE_DATA : NEGSH_DATA;
+                    const label = flatType === 'qine' ? 'ቅኔ' : 'ነግሥ';
+                    showOnlyView(flatType + 'View');
+                    renderFlatHymnList(flatType + 'View', data, label);
+                    const hymn = data.find(h => h.title === el.dataset.hymn);
+                    if(hymn?.kum?.length) { setTimeout(() => { currentFlatData = data; currentMonth = null; currentHoliday = null; playHymn(hymn, 'kum', 0, null); }, 50); }
+                    searchInput.value = ''; resultsDiv.classList.remove('show');
+                    return;
+                }
+                const hName = el.dataset.holiday;
+                const targetMonth = MONTHS_DATA.find(mo => mo.id == parseInt(el.dataset.month));
+                const targetHol = targetMonth?.holidays.find(h => h.name === hName);
+                if(targetHol) {
+                    openHolidayView(targetMonth, targetHol);
+                    setTimeout(() => { const hymn = targetHol.hymns.find(h => h.title === el.dataset.hymn); if(hymn?.kum?.length) playHymn(hymn, 'kum', 0); }, 50);
+                    searchInput.value = ''; resultsDiv.classList.remove('show');
+                }
+            };
         });
     });
     document.addEventListener('click', (e) => { if(!e.target.closest('.search-wrap')) resultsDiv.classList.remove('show'); });
     document.getElementById('backToMonthsBtn')?.addEventListener('click', () => {
         const savedScroll = sessionStorage.getItem('monthScrollY') || 0;
-        renderMonths();
-        document.getElementById('monthView').style.display = 'block';
         document.getElementById('holidayView').style.display = 'none';
-        requestAnimationFrame(() => window.scrollTo(0, parseInt(savedScroll)));
+        if(activeTab === 'qine') {
+            showOnlyView('qineView');
+            renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
+        } else if(activeTab === 'negsh') {
+            showOnlyView('negshView');
+            renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
+        } else {
+            showOnlyView('monthView');
+            renderMonths();
+            requestAnimationFrame(() => window.scrollTo(0, parseInt(savedScroll)));
+        }
     });
 
 function renderRecent(){
@@ -1747,7 +2084,7 @@ function renderQueue(){
                 break;
             case 'Escape':
                 if(playerOpen) closeFullPlayer();
-                document.getElementById('miniPlayer').classList.add('visible');
+                if(isPlaying) document.getElementById('miniPlayer').classList.add('visible');
                 document.body.style.overflow = '';
                 break;
         }
@@ -1789,23 +2126,44 @@ function renderQueue(){
         }
     });
 
-    document.getElementById('tsToggleBtn')?.addEventListener('click', () => {
+    function setPlayerPanelState(openPanel) {
         const pc = document.getElementById('playerContainer');
-        const btn = document.getElementById('tsToggleBtn');
-        const isOpen = pc.classList.contains('timestamps-open');
         pc.classList.remove('timestamps-open', 'queue-open');
         document.getElementById('tsToggleBtn').classList.remove('active');
         document.getElementById('queueToggleBtn').classList.remove('active');
-        if(!isOpen) { pc.classList.add('timestamps-open'); btn.classList.add('active'); }
+        const allBtns = document.getElementById('playerTopBtns');
+
+        if(openPanel) {
+            pc.classList.add(openPanel);
+            if(openPanel === 'timestamps-open') document.getElementById('tsToggleBtn').classList.add('active');
+            if(openPanel === 'queue-open') document.getElementById('queueToggleBtn').classList.add('active');
+            // hide the other two buttons, only show the active one's close
+            allBtns.querySelectorAll('.panel-toggle-btn').forEach(b => {
+                const isActive = (openPanel === 'timestamps-open' && b.id === 'tsToggleBtn') ||
+                                 (openPanel === 'queue-open' && b.id === 'queueToggleBtn');
+                b.style.display = isActive ? '' : 'none';
+            });
+        } else {
+            // restore all buttons
+            allBtns.querySelectorAll('.panel-toggle-btn').forEach(b => b.style.display = '');
+        }
+    }
+
+    document.getElementById('tsToggleBtn')?.addEventListener('click', () => {
+        const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
+        setPlayerPanelState(isOpen ? null : 'timestamps-open');
     });
     document.getElementById('queueToggleBtn')?.addEventListener('click', () => {
-        const pc = document.getElementById('playerContainer');
-        const btn = document.getElementById('queueToggleBtn');
-        const isOpen = pc.classList.contains('queue-open');
-        pc.classList.remove('timestamps-open', 'queue-open');
-        document.getElementById('tsToggleBtn').classList.remove('active');
-        document.getElementById('queueToggleBtn').classList.remove('active');
-        if(!isOpen) { pc.classList.add('queue-open'); btn.classList.add('active'); }
+        const isOpen = document.getElementById('playerContainer').classList.contains('queue-open');
+        setPlayerPanelState(isOpen ? null : 'queue-open');
+    });
+    document.getElementById('bookToggleBtn')?.addEventListener('click', () => {
+        const overlay = document.getElementById('fullPlayer');
+        const btn = document.getElementById('bookToggleBtn');
+        const isOpen = overlay.classList.contains('book-open');
+        overlay.classList.toggle('book-open', !isOpen);
+        btn.classList.toggle('active', !isOpen);
+        btn.innerHTML = isOpen ? '📖 View Book' : '✕ Close Book';
     });
 
     window.addEventListener('scroll', () => {
@@ -1816,27 +2174,109 @@ function renderQueue(){
         hero.style.opacity = Math.max(0, 1 - scrolled / fadeOver);
     }, { passive: true });
 
-        document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
+        function showOnlyView(viewId) {
+        const monthEl = document.getElementById('monthView');
+        const qineEl  = document.getElementById('qineView');
+        const negshEl = document.getElementById('negshView');
+        if(monthEl) monthEl.style.display = viewId === 'monthView' ? 'grid' : 'none';
+        if(qineEl)  qineEl.style.display  = viewId === 'qineView'  ? 'block' : 'none';
+        if(negshEl) negshEl.style.display = viewId === 'negshView' ? 'block' : 'none';
+    }
+
+    function renderFlatHymnList(containerId, data, sectionLabel) {
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        container.innerHTML = `
+            <div style="margin-bottom:28px;">
+                <h2 style="font-size:2rem;font-weight:600;color:var(--gold);font-family:'Abyssinica SIL',serif;">${sectionLabel}</h2>
+                <p style="color:var(--muted);margin-top:8px;font-size:0.85rem;">${data.length} recording${data.length !== 1 ? 's' : ''} — click a button to play directly</p>
+            </div>
+        `;
+        if(!data.length) {
+            container.innerHTML += `<div style="color:var(--muted);padding:60px 0;text-align:center;font-size:0.9rem;border:1px dashed var(--border);border-radius:20px;">No ${sectionLabel} recordings yet — add them via Studio.</div>`;
+            return;
+        }
+        const list = document.createElement('div');
+        list.className = 'recording-list';
+        data.forEach((hymn) => {
+            const hasKum = hymn.kum && hymn.kum.length;
+            const hasAqu = hymn.aqu && (hymn.aqu.tach?.length || hymn.aqu.lay?.length);
+            const kumVer = hasKum ? hymn.kum[0] : null;
+            const aquVer = hasAqu ? (hymn.aqu.tach?.[0] || hymn.aqu.lay?.[0]) : null;
+            const row = document.createElement('div');
+            row.className = 'holiday-row';
+            row.innerHTML = `
+                <div class="row-main" style="flex-wrap:wrap; gap:12px;">
+                    <div class="row-title">
+                        <h3 style="font-family:'Abyssinica SIL',serif;">${hymn.displayTitle || hymn.title}</h3>
+                        <div class="row-meta">${[hasKum?'ቁም ዜማ':'', hasAqu?'አቋቋም':''].filter(Boolean).join(' · ')}</div>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
+                        ${hasKum ? `<button class="btn-play flat-btn-kum">▶ ቁም &nbsp;${kumVer.duration||'--'}</button>` : ''}
+                        ${hasAqu ? `<button class="btn-play flat-btn-aqu">▶ አቋቋም &nbsp;${aquVer.duration||'--'}</button>` : ''}
+                    </div>
+                </div>
+            `;
+            list.appendChild(row);
+            const kBtn = row.querySelector('.flat-btn-kum');
+            const aBtn = row.querySelector('.flat-btn-aqu');
+            if(kBtn) kBtn.onclick = (e) => { e.stopPropagation(); currentFlatData = data; currentMonth = null; currentHoliday = null; playHymn(hymn, 'kum', 0, null); };
+            if(aBtn) aBtn.onclick = (e) => { e.stopPropagation(); currentFlatData = data; currentMonth = null; currentHoliday = null; playHymn(hymn, 'aqu', 0, null); };
+        });
+        container.appendChild(list);
+    }
+
+    document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.category-tab');
         if(!btn) return;
         document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const filter = btn.dataset.filter;
-        if(filter === 'recent') {
-            document.getElementById('monthView').innerHTML = recentlyPlayed.length
-                ? recentlyPlayed.map(item => `<div class="month-card" style="text-align:left;padding:20px 24px;"><div class="month-name" style="margin-bottom:8px;">Recently played</div><div style="font-size:1.1rem;">${item.title}</div></div>`).join('')
-                : '<div style="color:var(--muted);padding:40px 0;">Nothing played yet.</div>';
-        } else if(filter === 'upcoming') {
+        activeTab = btn.dataset.filter;
+        document.getElementById('holidayView').style.display = 'none';
+        if(activeTab === 'recent') {
+            showOnlyView('monthView');
+            if(!recentlyPlayed.length) {
+                document.getElementById('monthView').innerHTML = '<div style="color:var(--muted);padding:40px 0;">Nothing played yet.</div>';
+            } else {
+                document.getElementById('monthView').innerHTML = recentlyPlayed.map((item, i) =>
+                    `<div class="month-card" style="text-align:left;padding:20px 24px;cursor:pointer;" data-ri="${i}">
+                        <div class="month-name" style="margin-bottom:8px;">${item.holidayName || 'Recently played'}</div>
+                        <div style="font-size:1.1rem;font-family:'Abyssinica SIL',serif;">${item.title}</div>
+                    </div>`
+                ).join('');
+                document.getElementById('monthView').querySelectorAll('[data-ri]').forEach(el => {
+                    el.onclick = () => {
+                        const item = recentlyPlayed[parseInt(el.dataset.ri)];
+                        if(!item.monthId || !item.holidayName) return;
+                        const m = MONTHS_DATA.find(x => x.id === item.monthId);
+                        const h = m?.holidays.find(x => x.name === item.holidayName);
+                        if(m && h) {
+                            document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+                            document.querySelector('.category-tab[data-filter="all"]').classList.add('active');
+                            activeTab = 'all';
+                            openHolidayView(m, h);
+                        }
+                    };
+                });
+            }
+        } else if(activeTab === 'upcoming') {
+            showOnlyView('monthView');
             const currentMonthId = getCurrentEthiopianMonth();
-            // Sort months: current first, then future months, then past months
             const sortedMonths = [...MONTHS_DATA].sort((a, b) => {
                 let adjA = a.id >= currentMonthId ? a.id - currentMonthId : a.id + 13 - currentMonthId;
                 let adjB = b.id >= currentMonthId ? b.id - currentMonthId : b.id + 13 - currentMonthId;
                 return adjA - adjB;
             });
             renderMonths(sortedMonths);
+        } else if(activeTab === 'qine') {
+            showOnlyView('qineView');
+            renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
+        } else if(activeTab === 'negsh') {
+            showOnlyView('negshView');
+            renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
         } else {
-            renderMonths(); // 'all' filter
+            showOnlyView('monthView');
+            renderMonths();
         }
     });
 
@@ -1879,26 +2319,64 @@ function renderQueue(){
             vizEl.appendChild(bar);
         }
     }
-    function startVisualizer() {
-        const bars = vizEl ? vizEl.querySelectorAll('div') : [];
-        if(!bars.length) return;
-        bars.forEach(b => { b.style.opacity = '1'; });
+    let audioCtx = null, analyser = null, vizSource = null, vizRaf = null;
+
+function startVisualizer() {
+    const bars = vizEl ? vizEl.querySelectorAll('div') : [];
+    if(!bars.length) return;
+
+    // only attempt Web Audio for same-origin sources to avoid CORS silencing audio
+    const src = audio.src || '';
+    const isSameOrigin = src.startsWith(location.origin) || src.startsWith('/') || src === '';
+
+    if(isSameOrigin && !audioCtx) {
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioCtx.createAnalyser();
+            analyser.fftSize = 64;
+            vizSource = audioCtx.createMediaElementSource(audio);
+            vizSource.connect(analyser);
+            analyser.connect(audioCtx.destination);
+        } catch(e) {
+            audioCtx = null; analyser = null;
+        }
+    }
+
+    if(audioCtx && analyser) {
+        if(audioCtx.state === 'suspended') audioCtx.resume();
+        const dataArr = new Uint8Array(analyser.frequencyBinCount);
+        function draw() {
+            vizRaf = requestAnimationFrame(draw);
+            analyser.getByteFrequencyData(dataArr);
+            bars.forEach((bar, i) => {
+                const val = dataArr[Math.floor(i * dataArr.length / bars.length)] || 0;
+                bar.style.height = Math.max(4, (val / 255) * 36) + 'px';
+                bar.style.opacity = val > 10 ? '1' : '0.2';
+            });
+        }
+        cancelAnimationFrame(vizRaf);
+        draw();
+    } else {
+        // fallback: fake animated bars, audio plays normally
         clearInterval(vizInterval);
         vizInterval = setInterval(() => {
             bars.forEach((bar, i) => {
-                const center = 15;
-                const dist = Math.abs(i - center) / center;
-                const maxH = 36 * (1 - dist * 0.5);
-                bar.style.height = (Math.random() * maxH + 4) + 'px';
+                const dist = Math.abs(i - 15) / 15;
+                bar.style.height = (Math.random() * 32 * (1 - dist * 0.5) + 4) + 'px';
+                bar.style.opacity = '1';
             });
         }, 100);
     }
-    function stopVisualizer() {
-        clearInterval(vizInterval);
-        vizInterval = null;
-        const bars = vizEl ? vizEl.querySelectorAll('div') : [];
-        bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.2'; });
-    }
+}
+
+function stopVisualizer() {
+    cancelAnimationFrame(vizRaf);
+    vizRaf = null;
+    clearInterval(vizInterval);
+    vizInterval = null;
+    const bars = vizEl ? vizEl.querySelectorAll('div') : [];
+    bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.2'; });
+}
 
     // ============================================================
     // THEME TOGGLE
@@ -1912,8 +2390,6 @@ function renderQueue(){
             document.getElementById('themeToggleBtn').innerText = '☀ Light';
         }
     }
-    localStorage.removeItem('zemaTheme');   // delete any saved theme
-    applyTheme('light');                    // force light mode now
     const savedTheme = localStorage.getItem('zemaTheme') || 'light';
     applyTheme(savedTheme);
     document.getElementById('themeToggleBtn').addEventListener('click', () => {
@@ -1928,9 +2404,14 @@ function renderQueue(){
     // ============================================================
     const STUDIO_PASSWORD = 'zema2026';
     let studioUnlocked = false;
+    let testAudio = null;
     let studioData = JSON.parse(JSON.stringify(MONTHS_DATA)); // deep clone
     let studioSelectedMonth = null;
     let studioSelectedHoliday = null;
+    let dragSrcIdx = null;
+    let dragSrcType = null; // 'hymn' or 'holiday'
+    let dragSrcMi = null;
+    let dragSrcHi = null;
 
     // --- auth ---
     document.getElementById('studioTrigger').addEventListener('click', () => {
@@ -1963,15 +2444,102 @@ function renderQueue(){
         document.getElementById('studioPasswordInput').value = '';
         document.getElementById('studioAuthError').style.display = 'none';
     }
+    function studioTestAudio(inputId) {
+        const src = document.getElementById(inputId)?.value.trim();
+        if(!src) return;
+        if(testAudio) { testAudio.pause(); testAudio = null; }
+        testAudio = new Audio(src);
+        testAudio.play().catch(e => studioSetStatus('⚠ Cannot play: ' + e.message));
+        testAudio.onended = () => testAudio = null;
+    }
+    function studioDragStart(e, type, mi, hi, idx) {
+        dragSrcType = type;
+        dragSrcMi   = mi;
+        dragSrcHi   = hi;
+        dragSrcIdx  = idx;
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.style.opacity = '0.4';
+    }
+
+function studioDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.style.outline = '2px solid var(--gold)';
+}
+
+function studioDragLeave(e) {
+    e.currentTarget.style.outline = '';
+}
+
+function studioDrop(e, type, mi, hi, targetIdx) {
+    e.preventDefault();
+    e.currentTarget.style.outline = '';
+    e.currentTarget.style.opacity = '';
+    if(dragSrcIdx === null || dragSrcIdx === targetIdx) return;
+
+    if(type === 'hymn') {
+        const hymns = studioData[mi].holidays[hi].hymns;
+        const [moved] = hymns.splice(dragSrcIdx, 1);
+        hymns.splice(targetIdx, 0, moved);
+        studioShowHolidayDetail(mi, hi);
+    } else if(type === 'holiday') {
+        const holidays = studioData[mi].holidays;
+        const [moved] = holidays.splice(dragSrcIdx, 1);
+        holidays.splice(targetIdx, 0, moved);
+        studioSelectedHoliday = targetIdx;
+        studioRenderTree();
+        studioShowHolidayDetail(mi, targetIdx);
+    }
+
+    dragSrcIdx = dragSrcType = dragSrcMi = dragSrcHi = null;
+}
 
     // --- open/close ---
+    let studioActivePage = 'months';
+
+    function studioGetActiveData() {
+        if(studioActivePage === 'qine')  return QINE_DATA;
+        if(studioActivePage === 'negsh') return NEGSH_DATA;
+        return studioData;
+    }
+
     function openStudio() {
         studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
         document.getElementById('studioOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
+        studioActivePage = 'months';
+        document.getElementById('studioPageSelect').value = 'months';
+        studioApplyPageMode();
         studioRenderTree();
         studioSwitchTab('structure');
     }
+
+    function studioApplyPageMode() {
+        const label = document.getElementById('studioTreeLabel');
+        const addBtn = document.getElementById('studioAddTopBtn');
+        if(studioActivePage === 'months') {
+            label.innerText = 'Months & Holidays';
+            addBtn.innerText = '+ Month';
+            addBtn.onclick = () => studioAddMonth();
+        } else if(studioActivePage === 'qine') {
+            label.innerText = 'ቅኔ Hymns';
+            addBtn.innerText = '+ Hymn';
+            addBtn.onclick = () => studioAddFlatHymn();
+        } else {
+            label.innerText = 'ነግሥ Hymns';
+            addBtn.innerText = '+ Hymn';
+            addBtn.onclick = () => studioAddFlatHymn();
+        }
+        studioSelectedMonth = null;
+        studioSelectedHoliday = null;
+        document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select an item from the list</div>';
+        studioRenderTree();
+    }
+
+    document.getElementById('studioPageSelect')?.addEventListener('change', (e) => {
+        studioActivePage = e.target.value;
+        studioApplyPageMode();
+    });
     document.getElementById('studioCloseBtn').addEventListener('click', () => {
         document.getElementById('studioOverlay').style.display = 'none';
         document.body.style.overflow = '';
@@ -2153,10 +2721,15 @@ function renderQueue(){
         const token = localStorage.getItem('zemaStudioToken');
         if(!token) { studioSetStatus('⚠ Add your token in Settings first'); return false; }
         try {
+            const payload = {
+                months: studioData,
+                qine: QINE_DATA,
+                negsh: NEGSH_DATA
+            };
             const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: { 'recs.json': { content: JSON.stringify(studioData, null, 2) } } })
+                body: JSON.stringify({ files: { 'recs.json': { content: JSON.stringify(payload, null, 2) } } })
             });
             if(!r.ok) throw new Error(`GitHub ${r.status}`);
             return true;
@@ -2185,6 +2758,34 @@ function renderQueue(){
     function studioRenderTree() {
         const tree = document.getElementById('studioTree');
         tree.innerHTML = '';
+
+        if(studioActivePage === 'qine' || studioActivePage === 'negsh') {
+            const flatData = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+            if(!flatData.length) {
+                tree.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:16px 4px;">No hymns yet — click + Hymn above.</div>';
+                return;
+            }
+            flatData.forEach((hymn, hyi) => {
+                const row = document.createElement('div');
+                row.className = 'studio-tree-month';
+                const isSelected = studioSelectedMonth === hyi && studioSelectedHoliday === null;
+                row.innerHTML = `
+                    <div class="studio-tree-month-header ${isSelected ? 'selected' : ''}" style="cursor:pointer;">
+                        <span style="font-family:'Abyssinica SIL',serif; flex:1;">${hymn.displayTitle || hymn.title}</span>
+                        <span style="color:var(--muted); font-size:0.7rem;">${[hymn.kum?.length?'ቁም':'', hymn.aqu?.tach?.length?'አቋቋም':''].filter(Boolean).join(' · ')}</span>
+                    </div>
+                `;
+                row.querySelector('.studio-tree-month-header').onclick = () => {
+                    studioSelectedMonth = hyi;
+                    studioSelectedHoliday = null;
+                    studioRenderTree();
+                    studioEditFlatHymn(hyi);
+                };
+                tree.appendChild(row);
+            });
+            return;
+        }
+
         studioData.forEach((month, mi) => {
             const block = document.createElement('div');
             block.className = 'studio-tree-month';
@@ -2218,7 +2819,12 @@ function renderQueue(){
             month.holidays.forEach((h, hi) => {
                 const hRow = document.createElement('div');
                 hRow.className = 'studio-tree-holiday' + (studioSelectedMonth === mi && studioSelectedHoliday === hi ? ' selected' : '');
+                hRow.draggable = true;
                 hRow.innerHTML = `<span>${h.name}</span><span style="font-size:0.7rem;color:var(--muted);">${h.hymns.length} hymns</span>`;
+                hRow.addEventListener('dragstart', (e) => studioDragStart(e,'holiday',mi,null,hi));
+                hRow.addEventListener('dragover',  studioDragOver);
+                hRow.addEventListener('dragleave', studioDragLeave);
+                hRow.addEventListener('drop',      (e) => studioDrop(e,'holiday',mi,null,hi));
                 hRow.onclick = (e) => {
                     e.stopPropagation();
                     studioSelectedMonth = mi;
@@ -2289,7 +2895,11 @@ function renderQueue(){
     function studioShowHolidayDetail(mi, hi) {
         const holiday = studioData[mi].holidays[hi];
         const hymnsHtml = holiday.hymns.map((hymn, hyi) => `
-            <div class="studio-hymn-row">
+            <div class="studio-hymn-row" draggable="true" data-hyi="${hyi}"
+                ondragstart="studioDragStart(event,'hymn',${mi},${hi},${hyi})"
+                ondragover="studioDragOver(event)"
+                ondragleave="studioDragLeave(event)"
+                ondrop="studioDrop(event,'hymn',${mi},${hi},${hyi})">
                 <div style="flex:1;">
                     <div style="font-size:0.85rem; font-family:'Abyssinica SIL',serif;">${hymn.title}</div>
                     <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">
@@ -2412,38 +3022,14 @@ function renderQueue(){
                 <hr class="studio-section-divider">
 
                 <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
-                <label class="studio-field-label">Audio file</label>
-                <div class="studio-drop-zone" id="dz_kumAudio">
-                    <input type="file" accept="audio/*" style="display:none" id="fi_kumAudio">
-                    🎵 Drop MP3 here or click to pick
-                    <span id="dz_kumAudio_status" style="display:block;font-size:0.7rem;"></span>
-                </div>
-                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}" placeholder="or paste audio URL">
-                <label class="studio-field-label">Chanter</label>
-                <input class="studio-input" id="sKumChanter" value="${kumVer?.chanter || ''}">
-                <label class="studio-field-label">Duration (MM:SS)</label>
-                <input class="studio-input" id="sKumDuration" value="${kumVer?.duration || ''}" style="width:120px;">
-                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
-                <div id="sKumTimestamps">${tsRowsHtml(hymn.kum, 'kum')}</div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('kum')">+ Timestamp</button>
+                <div id="sKumVersions"></div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddKumVersion(${mi},${hi},${hyi})">+ Add ቤት</button>
 
                 <hr class="studio-section-divider">
 
                 <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም ታች Recording</div>
-                <label class="studio-field-label">Audio file</label>
-                <div class="studio-drop-zone" id="dz_aquAudio">
-                    <input type="file" accept="audio/*" style="display:none" id="fi_aquAudio">
-                    🎵 Drop MP3 here or click to pick
-                    <span id="dz_aquAudio_status" style="display:block;font-size:0.7rem;"></span>
-                </div>
-                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}" placeholder="or paste audio URL">
-                <label class="studio-field-label">Chanter</label>
-                <input class="studio-input" id="sAquTachChanter" value="${aquTachVer?.chanter || ''}">
-                <label class="studio-field-label">Duration (MM:SS)</label>
-                <input class="studio-input" id="sAquTachDuration" value="${aquTachVer?.duration || ''}" style="width:120px;">
-                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
-                <div id="sAquTachTimestamps">${tsRowsHtml(hymn.aqu?.tach, 'aqutach')}</div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('aqutach')">+ Timestamp</button>
+                <div id="sAquVersions"></div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddAquVersion(${mi},${hi},${hyi})">+ Add ቤት</button>
 
                 <hr class="studio-section-divider">
 
@@ -2453,9 +3039,8 @@ function renderQueue(){
 
         window._studioEditCtx = { mi, hi, hyi };
         setTimeout(() => {
-            studioBindDropZone('dz_img',      'fi_img',      'dz_img_status',      'sHymnImage', 'images/');
-            studioBindDropZone('dz_kumAudio', 'fi_kumAudio', 'dz_kumAudio_status', 'sKumSrc',    'audio/');
-            studioBindDropZone('dz_aquAudio', 'fi_aquAudio', 'dz_aquAudio_status', 'sAquTachSrc','audio/');
+            studioBindDropZone('dz_img', 'fi_img', 'dz_img_status', 'sHymnImage', 'images/');
+            studioRenderVersions(hymn, mi, hi, hyi);
         }, 0);
     }
 
@@ -2502,31 +3087,295 @@ function renderQueue(){
             return result;
         }
 
-        const kumSrc = document.getElementById('sKumSrc').value.trim();
-        if(kumSrc) {
-            hymn.kum = [{ src: kumSrc, chanter: document.getElementById('sKumChanter').value.trim(), duration: document.getElementById('sKumDuration').value.trim(), timestamps: collectTimestamps('kum') }];
-        } else {
-            hymn.kum = [];
+        function collectVersions(type) {
+            const versions = [];
+            let vi = 0;
+            while(document.getElementById(`ver-src-${type}-${vi}`) !== null) {
+                const src = document.getElementById(`ver-src-${type}-${vi}`).value.trim();
+                const tsContainer = document.getElementById(`ts-${type}-${vi}`);
+                const timestamps = [];
+                if(tsContainer) {
+                    tsContainer.querySelectorAll('.studio-timestamp-row').forEach(row => {
+                        const tsi = row.id.split('-').pop();
+                        const time = document.getElementById(`ts-time-${type}${vi}-${tsi}`)?.value.trim();
+                        const label = document.getElementById(`ts-label-${type}${vi}-${tsi}`)?.value.trim();
+                        if(time && label) timestamps.push({ time, label });
+                    });
+                }
+                versions.push({
+                    beat: document.getElementById(`ver-beat-${type}-${vi}`)?.value.trim() || '',
+                    src,
+                    chanter: document.getElementById(`ver-chanter-${type}-${vi}`)?.value.trim() || '',
+                    duration: document.getElementById(`ver-duration-${type}-${vi}`)?.value.trim() || '',
+                    timestamps
+                });
+                vi++;
+            }
+            return versions;
         }
 
-        const aquSrc = document.getElementById('sAquTachSrc').value.trim();
-        if(aquSrc) {
-            hymn.aqu = { tach: [{ src: aquSrc, chanter: document.getElementById('sAquTachChanter').value.trim(), duration: document.getElementById('sAquTachDuration').value.trim(), timestamps: collectTimestamps('aqutach') }], lay: [] };
-        } else {
-            hymn.aqu = hymn.aqu || { tach: [], lay: [] };
-        }
+        hymn.kum = collectVersions('kum');
+        hymn.aqu = { tach: collectVersions('aqutach'), lay: hymn.aqu?.lay || [] };
 
         studioSetStatus('Hymn saved ✓');
         studioSwitchTab('structure');
         studioShowHolidayDetail(mi, hi);
     }
 
+    // --- flat hymn (ቅኔ / ነግሥ) ---
+    function studioAddFlatHymn() {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        data.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
+        studioSelectedMonth = data.length - 1;
+        studioSelectedHoliday = null;
+        studioRenderTree();
+        studioEditFlatHymn(studioSelectedMonth);
+        studioSwitchTab('editor');
+    }
+
+    function studioEditFlatHymn(hyi) {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        if(!hymn) return;
+        studioSwitchTab('editor');
+
+        const kumVer = hymn.kum?.[0] || null;
+        const aquTachVer = hymn.aqu?.tach?.[0] || null;
+
+        function tsRowsHtml(versions, type) {
+            if(!versions?.length) return '<div style="color:var(--muted);font-size:0.75rem;">No recording yet</div>';
+            const ver = versions[0];
+            const rows = (ver.timestamps || []).map((ts, tsi) =>
+                `<div class="studio-timestamp-row" id="tsrow-${type}-${tsi}">
+                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}-${tsi}">
+                    <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" value="${ts.label}" id="ts-label-${type}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
+                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
+                </div>`
+            ).join('');
+            return rows || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:8px;">No timestamps yet</div>';
+        }
+
+        const pageLabel = studioActivePage === 'qine' ? 'ቅኔ' : 'ነግሥ';
+
+        document.getElementById('studioTabEditor').querySelector('div').innerHTML = `
+            <div style="max-width:640px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                    <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
+                    <span style="font-size:1rem; font-weight:500; color:var(--gold); font-family:'Abyssinica SIL',serif;">${pageLabel} · Hymn Editor</span>
+                </div>
+
+                <label class="studio-field-label">Title (Ge'ez)</label>
+                <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
+
+                <label class="studio-field-label">Display title (override, optional)</label>
+                <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+
+                <label class="studio-field-label">Artwork image</label>
+                <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:90px;"` : ''}>
+                    <input type="file" accept="image/*" style="display:none" id="fi_img">
+                    🖼 Drop image here or click to pick
+                    <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL" style="margin-top:4px;">
+
+                <label class="studio-field-label">Lyrics (Ge'ez)</label>
+                <textarea class="studio-textarea" id="sHymnLyrics" rows="5">${hymn.lyrics || ''}</textarea>
+
+                <label class="studio-field-label">Translation (English)</label>
+                <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit;" rows="5">${hymn.translation || ''}</textarea>
+
+                <hr class="studio-section-divider">
+
+                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
+                <div class="studio-drop-zone" id="dz_kumAudio">
+                    <input type="file" accept="audio/*" style="display:none" id="fi_kumAudio">
+                    🎵 Drop MP3 here or click to pick
+                    <span id="dz_kumAudio_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}" placeholder="or paste audio URL">
+                <label class="studio-field-label">Chanter</label>
+                <input class="studio-input" id="sKumChanter" value="${kumVer?.chanter || ''}">
+                <label class="studio-field-label">Duration (MM:SS)</label>
+                <input class="studio-input" id="sKumDuration" value="${kumVer?.duration || ''}" style="width:120px;">
+                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
+                <div id="sKumTimestamps">${tsRowsHtml(hymn.kum, 'kum')}</div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('kum')">+ Timestamp</button>
+
+                <hr class="studio-section-divider">
+
+                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም Recording</div>
+                <div class="studio-drop-zone" id="dz_aquAudio">
+                    <input type="file" accept="audio/*" style="display:none" id="fi_aquAudio">
+                    🎵 Drop MP3 here or click to pick
+                    <span id="dz_aquAudio_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}" placeholder="or paste audio URL">
+                <label class="studio-field-label">Chanter</label>
+                <input class="studio-input" id="sAquTachChanter" value="${aquTachVer?.chanter || ''}">
+                <label class="studio-field-label">Duration (MM:SS)</label>
+                <input class="studio-input" id="sAquTachDuration" value="${aquTachVer?.duration || ''}" style="width:120px;">
+                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
+                <div id="sAquTachTimestamps">${tsRowsHtml(hymn.aqu?.tach, 'aqutach')}</div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('aqutach')">+ Timestamp</button>
+
+                <hr class="studio-section-divider">
+
+                <div style="display:flex; gap:10px;">
+                    <button class="studio-add-btn" onclick="studioSaveFlatHymn(${hyi})" style="padding:10px 24px; font-size:0.85rem;">Save hymn</button>
+                    <button class="studio-delete-btn" onclick="studioDeleteFlatHymn(${hyi})">Delete hymn</button>
+                </div>
+            </div>
+        `;
+
+        window._studioEditCtx = { hyi };
+        setTimeout(() => {
+            studioBindDropZone('dz_img',      'fi_img',      'dz_img_status',      'sHymnImage', 'images/');
+            studioBindDropZone('dz_kumAudio', 'fi_kumAudio', 'dz_kumAudio_status', 'sKumSrc',    'audio/');
+            studioBindDropZone('dz_aquAudio', 'fi_aquAudio', 'dz_aquAudio_status', 'sAquTachSrc','audio/');
+        }, 0);
+    }
+
+    function studioSaveFlatHymn(hyi) {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        hymn.title = document.getElementById('sHymnTitle').value.trim();
+        hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
+        hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
+        hymn.lyrics = document.getElementById('sHymnLyrics').value;
+        hymn.translation = document.getElementById('sHymnTranslation').value;
+
+        function collectTimestamps(type) {
+            const rows = document.querySelectorAll(`.studio-timestamp-row[id^="tsrow-${type}-"]`);
+            const result = [];
+            rows.forEach(row => {
+                const tIdx = row.id.split('-').pop();
+                const time = document.getElementById(`ts-time-${type}-${tIdx}`)?.value.trim();
+                const label = document.getElementById(`ts-label-${type}-${tIdx}`)?.value.trim();
+                if(time && label) result.push({ time, label });
+            });
+            return result;
+        }
+
+        const kumSrc = document.getElementById('sKumSrc').value.trim();
+        hymn.kum = kumSrc ? [{ src: kumSrc, chanter: document.getElementById('sKumChanter').value.trim(), duration: document.getElementById('sKumDuration').value.trim(), timestamps: collectTimestamps('kum') }] : [];
+
+        const aquSrc = document.getElementById('sAquTachSrc').value.trim();
+        hymn.aqu = aquSrc ? { tach: [{ src: aquSrc, chanter: document.getElementById('sAquTachChanter').value.trim(), duration: document.getElementById('sAquTachDuration').value.trim(), timestamps: collectTimestamps('aqutach') }], lay: [] } : { tach: [], lay: [] };
+
+        studioSetStatus('Hymn saved ✓');
+        studioSwitchTab('structure');
+        studioRenderTree();
+    }
+
+    function studioDeleteFlatHymn(hyi) {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        if(!confirm('Delete this hymn?')) return;
+        data.splice(hyi, 1);
+        studioSelectedMonth = null;
+        studioRenderTree();
+        document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select an item from the list</div>';
+        studioSwitchTab('structure');
+    }
+
+    // --- multi-version (ቤት) helpers ---
+    function studioRenderVersions(hymn, mi, hi, hyi) {
+        const kumEl = document.getElementById('sKumVersions');
+        const aquEl = document.getElementById('sAquVersions');
+        if(!kumEl || !aquEl) return;
+
+        function versionBlock(ver, vi, type) {
+            const tsId = `ts-${type}-${vi}`;
+            const tsHtml = (ver.timestamps||[]).map((ts, tsi) =>
+                `<div class="studio-timestamp-row" id="tsrow-${type}${vi}-${tsi}">
+                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}${vi}-${tsi}">
+                    <input class="studio-timestamp-label" placeholder="Label" value="${ts.label}" id="ts-label-${type}${vi}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
+                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
+                </div>`
+            ).join('') || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:4px;">No timestamps yet</div>';
+
+            return `
+                <div class="studio-hymn-row" style="flex-direction:column; align-items:stretch; gap:10px;" id="ver-block-${type}-${vi}">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:0.75rem; font-weight:500; color:var(--gold);">ቤት ${vi+1}</span>
+                        <button class="studio-delete-btn" onclick="studioDeleteVersion('${type}',${vi},${mi},${hi},${hyi})">Delete</button>
+                    </div>
+                    <label class="studio-field-label" style="margin-top:0;">ቤት / Beat name (e.g. ዕዝል)</label>
+                    <input class="studio-input" id="ver-beat-${type}-${vi}" value="${ver.beat||''}" style="font-family:'Abyssinica SIL',serif;" placeholder="e.g. ዕዝል, ዓራራይ">
+                    <label class="studio-field-label">Audio file</label>
+                    <div class="studio-drop-zone" id="dz_ver_${type}_${vi}">
+                        <input type="file" accept="audio/*" style="display:none" id="fi_ver_${type}_${vi}">
+                        🎵 Drop MP3 or click
+                        <span id="dz_ver_${type}_${vi}_status" style="display:block;font-size:0.7rem;"></span>
+                    </div>
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <input class="studio-input" id="ver-src-${type}-${vi}" value="${ver.src||''}" placeholder="or paste audio URL" style="flex:1;">
+                        <button class="studio-add-btn" onclick="studioTestAudio('ver-src-${type}-${vi}')">▶ Test</button>
+                    </div>
+                    <label class="studio-field-label">Chanter</label>
+                    <input class="studio-input" id="ver-chanter-${type}-${vi}" value="${ver.chanter||''}">
+                    <label class="studio-field-label">Duration (MM:SS)</label>
+                    <input class="studio-input" id="ver-duration-${type}-${vi}" value="${ver.duration||''}" style="width:120px;">
+                    <label class="studio-field-label">Timestamps</label>
+                    <div id="${tsId}">${tsHtml}</div>
+                    <button class="studio-add-btn" onclick="studioAddVersionTimestamp('${type}',${vi})">+ Timestamp</button>
+                </div>`;
+        }
+
+        kumEl.innerHTML = (hymn.kum||[]).map((v,vi) => versionBlock(v, vi, 'kum')).join('') ||
+            '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No ቁም ዜማ versions yet</div>';
+        aquEl.innerHTML = (hymn.aqu?.tach||[]).map((v,vi) => versionBlock(v, vi, 'aqutach')).join('') ||
+            '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No አቋቋም versions yet</div>';
+
+        // bind drop zones
+        (hymn.kum||[]).forEach((v,vi) => {
+            setTimeout(() => studioBindDropZone(`dz_ver_kum_${vi}`, `fi_ver_kum_${vi}`, `dz_ver_kum_${vi}_status`, `ver-src-kum-${vi}`, 'audio/'), 0);
+        });
+        (hymn.aqu?.tach||[]).forEach((v,vi) => {
+            setTimeout(() => studioBindDropZone(`dz_ver_aqutach_${vi}`, `fi_ver_aqutach_${vi}`, `dz_ver_aqutach_${vi}_status`, `ver-src-aqutach-${vi}`, 'audio/'), 0);
+        });
+    }
+
+    function studioAddKumVersion(mi, hi, hyi) {
+        studioData[mi].holidays[hi].hymns[hyi].kum = studioData[mi].holidays[hi].hymns[hyi].kum || [];
+        studioData[mi].holidays[hi].hymns[hyi].kum.push({ beat:'', src:'', chanter:'', duration:'', timestamps:[] });
+        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
+    }
+    function studioAddAquVersion(mi, hi, hyi) {
+        studioData[mi].holidays[hi].hymns[hyi].aqu = studioData[mi].holidays[hi].hymns[hyi].aqu || { tach:[], lay:[] };
+        studioData[mi].holidays[hi].hymns[hyi].aqu.tach = studioData[mi].holidays[hi].hymns[hyi].aqu.tach || [];
+        studioData[mi].holidays[hi].hymns[hyi].aqu.tach.push({ beat:'', src:'', chanter:'', duration:'', timestamps:[] });
+        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
+    }
+    function studioDeleteVersion(type, vi, mi, hi, hyi) {
+        if(!confirm('Delete this version?')) return;
+        if(type === 'kum') studioData[mi].holidays[hi].hymns[hyi].kum.splice(vi, 1);
+        else studioData[mi].holidays[hi].hymns[hyi].aqu.tach.splice(vi, 1);
+        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
+    }
+    function studioAddVersionTimestamp(type, vi) {
+        const container = document.getElementById(`ts-${type}-${vi}`);
+        if(!container) return;
+        const existing = container.querySelectorAll('.studio-timestamp-row').length;
+        const row = document.createElement('div');
+        row.className = 'studio-timestamp-row';
+        row.id = `tsrow-${type}${vi}-${existing}`;
+        row.innerHTML = `
+            <input class="studio-timestamp-time" placeholder="00:00" id="ts-time-${type}${vi}-${existing}">
+            <input class="studio-timestamp-label" placeholder="Label" id="ts-label-${type}${vi}-${existing}" style="font-family:'Abyssinica SIL',serif;">
+            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
+        const placeholder = container.querySelector('div');
+        if(placeholder) placeholder.remove();
+        container.appendChild(row);
+    }
+
     // --- export / import ---
     function studioRefreshExport() {
-        document.getElementById('studioJsonPreview').value = JSON.stringify(studioData, null, 2);
+        const payload = { months: studioData, qine: QINE_DATA, negsh: NEGSH_DATA };
+        document.getElementById('studioJsonPreview').value = JSON.stringify(payload, null, 2);
     }
     function studioDownloadJson() {
-        const blob = new Blob([JSON.stringify(studioData, null, 2)], { type: 'application/json' });
+        const payload = { months: studioData, qine: QINE_DATA, negsh: NEGSH_DATA };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'recs.json';
@@ -2542,13 +3391,19 @@ function renderQueue(){
         reader.onload = (e) => {
             try {
                 const parsed = JSON.parse(e.target.result);
-                if(!Array.isArray(parsed)) throw new Error('Expected array');
-                studioData = parsed;
+                if(Array.isArray(parsed)) {
+                    studioData = parsed;
+                } else if(parsed && typeof parsed === 'object') {
+                    if(Array.isArray(parsed.months)) studioData = parsed.months;
+                    if(Array.isArray(parsed.qine))  { QINE_DATA.length=0;  parsed.qine.forEach(h=>QINE_DATA.push(h));  }
+                    if(Array.isArray(parsed.negsh)) { NEGSH_DATA.length=0; parsed.negsh.forEach(h=>NEGSH_DATA.push(h)); }
+                } else { throw new Error('Unrecognized format'); }
                 studioSelectedMonth = null;
                 studioSelectedHoliday = null;
                 studioRenderTree();
                 studioSwitchTab('structure');
                 studioSetStatus('JSON imported ✓');
+                searchIndex = buildSearchIndex();
             } catch(err) {
                 alert('Invalid JSON file: ' + err.message);
             }
@@ -2562,6 +3417,11 @@ function renderQueue(){
         MONTHS_DATA.length = 0;
         studioData.forEach(m => MONTHS_DATA.push(m));
         renderMonths();
+        // re-render whichever flat page is active so live data updates too
+        if(activeTab === 'qine') renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
+        if(activeTab === 'negsh') renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
+        sessionStorage.removeItem('gistCache');
+        sessionStorage.removeItem('gistCacheTs');
         studioSetStatus('Saving...');
         const ok = await studioPushToGist();
         if(ok) studioSetStatus('Saved + Gist updated ✓');
@@ -2578,19 +3438,41 @@ function renderQueue(){
     // ============================================================
 
     async function loadFromGist() {
-        try {
-            const r = await fetch(`https://gist.githubusercontent.com/${GIST_USERNAME}/${GIST_ID}/raw/recs.json?t=${Date.now()}`);
-            if(!r.ok) throw new Error('fetch failed');
-            const data = await r.json();
-            if(Array.isArray(data) && data.length > 0) {
-                MONTHS_DATA.length = 0;
-                data.forEach(m => MONTHS_DATA.push(m));
-            }
-        } catch(e) {
-            console.warn('Gist load failed, using built-in data');
+    const CACHE_KEY = 'gistCache', CACHE_TS = 'gistCacheTs';
+    const cached = sessionStorage.getItem(CACHE_KEY);
+    const cacheAge = Date.now() - parseInt(sessionStorage.getItem(CACHE_TS) || 0);
+    if (cached && cacheAge < 5 * 60 * 1000) {
+        const data = JSON.parse(cached);
+        if (Array.isArray(data)) {
+            if (data.length > 0) { MONTHS_DATA.length = 0; data.forEach(m => MONTHS_DATA.push(m)); }
+        } else if (data && typeof data === 'object') {
+            if (Array.isArray(data.months) && data.months.length > 0) { MONTHS_DATA.length = 0; data.months.forEach(m => MONTHS_DATA.push(m)); }
+            if (Array.isArray(data.qine))  { QINE_DATA.length  = 0; data.qine.forEach(h  => QINE_DATA.push(h));  }
+            if (Array.isArray(data.negsh)) { NEGSH_DATA.length = 0; data.negsh.forEach(h => NEGSH_DATA.push(h)); }
         }
         renderMonths();
+        searchIndex = buildSearchIndex();
+        return;
     }
+    try {
+        const r = await fetch(`https://gist.githubusercontent.com/${GIST_USERNAME}/${GIST_ID}/raw/recs.json?t=${Date.now()}`);
+        if (!r.ok) throw new Error('fetch failed');
+        const data = await r.json();
+        if (Array.isArray(data)) {
+            if (data.length > 0) { MONTHS_DATA.length = 0; data.forEach(m => MONTHS_DATA.push(m)); }
+        } else if (data && typeof data === 'object') {
+            if (Array.isArray(data.months) && data.months.length > 0) { MONTHS_DATA.length = 0; data.months.forEach(m => MONTHS_DATA.push(m)); }
+            if (Array.isArray(data.qine))  { QINE_DATA.length  = 0; data.qine.forEach(h  => QINE_DATA.push(h));  }
+            if (Array.isArray(data.negsh)) { NEGSH_DATA.length = 0; data.negsh.forEach(h => NEGSH_DATA.push(h)); }
+        }
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));   // ← inside try
+        sessionStorage.setItem(CACHE_TS, Date.now());              // ← inside try
+    } catch (e) {
+        console.warn('Gist load failed, using built-in data');
+    }
+    renderMonths();
+    searchIndex = buildSearchIndex();
+}
     loadFromGist();
 </script>
 </body>
