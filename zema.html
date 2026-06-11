@@ -59,13 +59,13 @@
             background: rgba(245,249,255,0.98);
         }
 
-        body.light-mode .player-overlay {
+        body.light-mode .player-controls-side {
             background: rgba(245,249,255,0.98);
         }
 
         body.light-mode .player-left-panel,
         body.light-mode .player-right-panel {
-            background: rgba(184,134,11,0.04);
+            background: #eef4fc;
         }
 
         body.light-mode .btn-play-lg {
@@ -485,15 +485,13 @@
             color: #000;
         }
 
-        /* full player overlay */
+        /* full player overlay — 60 / 40 split */
         .player-overlay {
             position: fixed;
             inset: 0;
-            background: rgba(0, 0, 0, 0.96);
-            backdrop-filter: blur(20px);
             z-index: 1000;
             display: flex;
-            flex-direction: column;
+            flex-direction: row;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
@@ -501,6 +499,31 @@
         .player-overlay.open {
             opacity: 1;
             pointer-events: auto;
+        }
+        .player-image-side {
+            flex: 0 0 60%;
+            position: relative;
+            overflow: hidden;
+            background: #06060a;
+        }
+        .player-big-image {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: background-image 0.5s ease;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200"><rect width="200" height="200" fill="%2306060a"/><text x="50%25" y="52%25" font-size="32" text-anchor="middle" dominant-baseline="middle" fill="%23fef08a" opacity="0.18" font-family="serif">ዜማ ወአቋቋም</text></svg>');
+        }
+        .player-controls-side {
+            flex: 0 0 40%;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+            background: rgba(9,9,11,0.97);
+            border-left: 1px solid var(--border);
+            backdrop-filter: blur(20px);
         }
         .player-container {
             flex: 1;
@@ -512,53 +535,38 @@
             overflow: hidden;
         }
         .center-stage {
-            max-width: 480px;
+            max-width: 360px;
             width: 100%;
             text-align: center;
-            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
-            z-index: 2;
+            z-index: 1;
         }
         .player-left-panel {
             position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 360px;
-            background: rgba(255,255,255,0.03);
-            border-right: 1px solid var(--border);
+            left: 0; top: 0; bottom: 0;
+            width: 100%;
+            background: rgba(9,9,11,0.98);
             transform: translateX(-100%);
-            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             overflow-y: auto;
-            padding: 28px 20px;
-            z-index: 1;
+            padding: 24px 20px;
+            z-index: 3;
         }
         .player-right-panel {
             position: absolute;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            width: 360px;
-            background: rgba(255,255,255,0.03);
-            border-left: 1px solid var(--border);
+            right: 0; top: 0; bottom: 0;
+            width: 100%;
+            background: rgba(9,9,11,0.98);
             transform: translateX(100%);
-            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             overflow-y: auto;
-            padding: 28px 20px;
-            z-index: 1;
+            padding: 24px 20px;
+            z-index: 3;
         }
-        .player-container.timestamps-open .player-left-panel {
-            transform: translateX(0);
-        }
-        .player-container.timestamps-open .center-stage {
-            transform: translateX(180px);
-        }
-        .player-container.queue-open .player-right-panel {
-            transform: translateX(0);
-        }
-        .player-container.queue-open .center-stage {
-            transform: translateX(-180px);
-        }
+        .player-container.timestamps-open .player-left-panel { transform: translateX(0); }
+        .player-container.timestamps-open .center-stage { transform: none; }
+        .player-container.queue-open .player-right-panel { transform: translateX(0); }
+        .player-container.queue-open .center-stage { transform: none; }
         .panel-toggle-btn {
             background: transparent;
             border: 1px solid var(--border);
@@ -724,16 +732,16 @@
         }
 
         @media (max-width: 800px) {
-            .player-left-panel, .player-right-panel { width: 100%; top: auto; bottom: 0; height: 55vh; border-radius: 28px 28px 0 0; border: none; border-top: 1px solid var(--border); }
-            .player-left-panel { left: 0; right: 0; transform: translateY(100%); }
-            .player-right-panel { left: 0; right: 0; transform: translateY(100%); }
-            .player-container.timestamps-open .player-left-panel { transform: translateY(0); }
-            .player-container.timestamps-open .center-stage { transform: translateY(-40px); }
-            .player-container.queue-open .player-right-panel { transform: translateY(0); }
-            .player-container.queue-open .center-stage { transform: translateY(-40px); }
+            .player-overlay { flex-direction: column; }
+            .player-image-side { flex: 0 0 38%; }
+            .player-controls-side { flex: 1; border-left: none; border-top: 1px solid var(--border); }
+            .player-left-panel { transform: translateX(-100%); }
+            .player-right-panel { transform: translateX(100%); }
+            .player-container.timestamps-open .player-left-panel { transform: translateX(0); }
+            .player-container.queue-open .player-right-panel { transform: translateX(0); }
             .app-container { padding: 16px; }
             .mini-progress { width: 100px; }
-            .player-container { padding: 16px; align-items: flex-start; padding-top: 80px; }
+            .player-container { padding: 16px 12px; align-items: center; padding-top: 50px; }
         }
         @media (max-width: 550px) {
             .drawer-actions { flex-direction: column; gap: 12px; }
@@ -938,6 +946,22 @@
         .studio-timestamp-label {
             flex: 1;
         }
+        .studio-drop-zone {
+            border: 2px dashed var(--border);
+            border-radius: 14px;
+            padding: 20px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: border-color 0.2s, background 0.2s;
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-bottom: 6px;
+        }
+        .studio-drop-zone:hover, .studio-drop-zone.drag-over {
+            border-color: var(--gold);
+            background: rgba(254,240,138,0.04);
+            color: var(--gold);
+        }
     </style>
 </head>
 <body>
@@ -974,13 +998,11 @@
 
     <!-- month grid view -->
     <div class="category-tabs" id="categoryTabs">
-  <button class="category-tab active" data-filter="all">All</button>
-  <button class="category-tab" data-filter="feasts">Feasts</button>
-  <button class="category-tab" data-filter="saints">Saints</button>
-  <button class="category-tab" data-filter="fasts">Fasts</button>
-  <button class="category-tab" data-filter="seasonal">Seasonal</button>
-  <button class="category-tab" data-filter="recent">Recently Played</button>
-</div>
+        <button class="category-tab active" data-filter="all">All</button>
+        <button class="category-tab" data-filter="upcoming">Upcoming Months</button>
+        <button class="category-tab" data-filter="recent">Recently Played</button>
+    </div>
+
 
 <div id="monthView" class="month-grid"></div>
 
@@ -994,60 +1016,74 @@
     </div>
 </div>
 
-<!-- full player overlay -->
+<!-- full player overlay — 60/40 split -->
 <div id="fullPlayer" class="player-overlay">
-    <div style="position: absolute; top: 20px; right: 28px; z-index: 10; display: flex; gap: 10px;">
-        <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
-        <button class="panel-toggle-btn" id="queueToggleBtn">≡ Queue</button>
-        <button id="closePlayerBtn" style="background: none; border: 1px solid var(--border); border-radius: 40px; padding: 6px 16px; color: var(--muted); font-size: 0.9rem; cursor: pointer;">✕</button>
+
+    <!-- Image side 60% -->
+    <div class="player-image-side">
+        <div id="playerBigImage" class="player-big-image"></div>
+        <button id="closePlayerBtn" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:7px 18px;color:#fff;font-size:0.85rem;cursor:pointer;z-index:5;">✕ Close</button>
     </div>
-    <div class="player-container" id="playerContainer">
 
-        <!-- Left panel: timestamps -->
-        <div class="player-left-panel" id="timestampsPanelWrap">
-            <div class="panel-section-title">Timestamps</div>
-            <div id="timestampsPanel"></div>
+    <!-- Controls side 40% -->
+    <div class="player-controls-side">
+        <div style="position:absolute;top:16px;right:16px;z-index:10;display:flex;gap:8px;">
+            <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
+            <button class="panel-toggle-btn" id="queueToggleBtn">≡ Queue</button>
         </div>
+        <div class="player-container" id="playerContainer">
 
-        <!-- Center stage -->
-        <div class="center-stage">
-            <div class="center-player">
-                <div class="player-art" id="playerArt"></div>
-                <div style="margin-bottom: 24px;">
-                    <strong id="playerTrackTitle" style="font-size: 1.1rem;">-</strong><br>
-                    <span id="playerChanter" style="font-size: 0.8rem; color: var(--muted);"></span>
+            <!-- Timestamps panel -->
+            <div class="player-left-panel" id="timestampsPanelWrap">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div class="panel-section-title" style="margin:0;">Timestamps</div>
+                    <button class="panel-toggle-btn" onclick="document.getElementById('playerContainer').classList.remove('timestamps-open');document.getElementById('tsToggleBtn').classList.remove('active');">✕</button>
                 </div>
-                <!-- Visualizer -->
-                <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
-                <div class="controls-grid">
-                    <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
-                    <button id="playerPlayPause" class="btn-play-lg">▶</button>
-                    <button id="playerNextBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏭</button>
-                </div>
-                <div class="progress-bar" id="playerProgress"><div class="progress-fill" id="playerProgressFill"></div></div>
-                <div class="time-row"><span id="currentTimeLabel">0:00</span><span id="durationLabel">0:00</span></div>
-                <div style="display: flex; justify-content: center; gap: 16px; margin-top: 18px; flex-wrap: wrap;">
-                    <button id="loopBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); cursor:pointer;">🔁</button>
-                    <select id="speedSelect" style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border);">
-                        <option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
-                    </select>
-                    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:90px; accent-color:var(--gold);">
+                <div id="timestampsPanel"></div>
+            </div>
+
+            <!-- Center stage -->
+            <div class="center-stage">
+                <div class="center-player">
+                    <div style="margin-bottom:24px; margin-top:36px;">
+                        <strong id="playerTrackTitle" style="font-size:1.1rem;">-</strong><br>
+                        <span id="playerChanter" style="font-size:0.8rem; color:var(--muted);"></span>
+                    </div>
+                    <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
+                    <div class="controls-grid">
+                        <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
+                        <button id="playerPlayPause" class="btn-play-lg">▶</button>
+                        <button id="playerNextBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏭</button>
+                    </div>
+                    <div class="progress-bar" id="playerProgress"><div class="progress-fill" id="playerProgressFill"></div></div>
+                    <div class="time-row"><span id="currentTimeLabel">0:00</span><span id="durationLabel">0:00</span></div>
+                    <div style="display:flex; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap;">
+                        <button id="loopBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); cursor:pointer;">🔁</button>
+                        <select id="speedSelect" style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border);">
+                            <option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
+                        </select>
+                        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);">
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Right panel: queue + lyrics -->
-        <div class="player-right-panel" id="rightPanelWrap">
-            <div class="panel-section-title">Now playing queue</div>
-            <div id="queuePanel"></div>
-            <div class="panel-section-title">Recently played</div>
-            <div id="recentPanel"></div>
-            <div class="panel-section-title">Lyrics</div>
-            <div id="lyricsPanel" style="font-family:'Abyssinica SIL',serif; font-size:1rem; line-height:2; color:var(--text); white-space:pre-wrap;">Select a chant</div>
-            <div class="panel-section-title">Translation</div>
-            <div id="translationPanel" style="font-size:0.85rem; line-height:1.8; color:var(--muted); white-space:pre-wrap;">Translation appears here</div>
-        </div>
+            <!-- Queue + Lyrics panel -->
+            <div class="player-right-panel" id="rightPanelWrap">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                    <div class="panel-section-title" style="margin:0;">Queue & Lyrics</div>
+                    <button class="panel-toggle-btn" onclick="document.getElementById('playerContainer').classList.remove('queue-open');document.getElementById('queueToggleBtn').classList.remove('active');">✕</button>
+                </div>
+                <div class="panel-section-title">Now playing</div>
+                <div id="queuePanel"></div>
+                <div class="panel-section-title">Recently played</div>
+                <div id="recentPanel"></div>
+                <div class="panel-section-title">Lyrics</div>
+                <div id="lyricsPanel" style="font-family:'Abyssinica SIL',serif; font-size:1rem; line-height:2; color:var(--text); white-space:pre-wrap;">Select a chant</div>
+                <div class="panel-section-title">Translation</div>
+                <div id="translationPanel" style="font-size:0.85rem; line-height:1.8; color:var(--muted); white-space:pre-wrap;">Translation appears here</div>
+            </div>
 
+        </div>
     </div>
 </div>
 
@@ -1195,15 +1231,40 @@
     let clipStartSec = 0, clipEndSec = 0;
     let currentHymnTitle = "";
 
-    // helpers
+        // helpers
     function parseTimeToSec(t) { if(!t) return 0; let p=t.split(':'); return p.length===2 ? parseInt(p[0])*60+parseFloat(p[1]) : (p.length===3 ? parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]) : 0); }
     function formatSec(sec) { let m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}:${s<10?'0'+s:s}`; }
 
-    // render months
-    function renderMonths() {
+    // Ethiopian month helper (returns 1-13)
+    function getCurrentEthiopianMonth() {
+        const now = new Date();
+        const year = now.getFullYear();
+        
+        // Find if the current Gregorian year contains an Ethiopian leap year transition (Sept 12)
+        // Ethiopian leap year happens when the next Ethiopian year (or current Gregorian year + 7) % 4 === 3
+        const isLeapCurrent = ((year + 7) % 4 === 3);
+        const newYearDay = isLeapCurrent ? 12 : 11;
+        const newYearDate = new Date(year, 8, newYearDay);
+        
+        let daysDiff;
+        if (now < newYearDate) {
+            // Prior to Sept 11/12, calculate days from the previous Gregorian year's Sept transition
+            const isLeapPrev = ((year - 1 + 7) % 4 === 3);
+            const prevNewYear = new Date(year - 1, 8, isLeapPrev ? 12 : 11);
+            daysDiff = Math.floor((now - prevNewYear) / (1000 * 60 * 60 * 24));
+        } else {
+            daysDiff = Math.floor((now - newYearDate) / (1000 * 60 * 60 * 24));
+        }
+        
+        return Math.min(13, Math.floor(daysDiff / 30) + 1);
+    }
+
+
+        // render months (accept optional months array, defaults to MONTHS_DATA)
+    function renderMonths(monthsToRender = MONTHS_DATA) {
         const container = document.getElementById('monthView');
         container.innerHTML = '';
-        MONTHS_DATA.forEach(m => {
+        monthsToRender.forEach(m => {
             const card = document.createElement('div');
             card.className = 'month-card';
             card.innerHTML = `<div class="month-number">${String(m.id).padStart(2,'0')}</div><div class="month-amharic">${m.amharic}</div><div class="month-name">${m.name}</div>`;
@@ -1339,7 +1400,7 @@
 
     function syncPlayerUI() {
         updateMediaSession();
-        loadArtwork(currentMonth, currentHoliday);
+        loadArtwork(currentMonth, currentHoliday, currentTrackObj.hymn);
         document.getElementById('playerTrackTitle').innerText = currentHymnTitle;
         document.getElementById('playerChanter').innerText = currentTrackObj.version.chanter || '';
         document.getElementById('miniTitle').innerText = currentHymnTitle.slice(0, 32);
@@ -1660,7 +1721,7 @@ function renderQueue(){
         hero.style.opacity = Math.max(0, 1 - scrolled / fadeOver);
     }, { passive: true });
 
-    document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
+        document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
         const btn = e.target.closest('.category-tab');
         if(!btn) return;
         document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
@@ -1670,16 +1731,33 @@ function renderQueue(){
             document.getElementById('monthView').innerHTML = recentlyPlayed.length
                 ? recentlyPlayed.map(item => `<div class="month-card" style="text-align:left;padding:20px 24px;"><div class="month-name" style="margin-bottom:8px;">Recently played</div><div style="font-size:1.1rem;">${item.title}</div></div>`).join('')
                 : '<div style="color:var(--muted);padding:40px 0;">Nothing played yet.</div>';
+        } else if(filter === 'upcoming') {
+            const currentMonthId = getCurrentEthiopianMonth();
+            // Sort months: current first, then future months, then past months
+            const sortedMonths = [...MONTHS_DATA].sort((a, b) => {
+                let adjA = a.id >= currentMonthId ? a.id - currentMonthId : a.id + 13 - currentMonthId;
+                let adjB = b.id >= currentMonthId ? b.id - currentMonthId : b.id + 13 - currentMonthId;
+                return adjA - adjB;
+            });
+            renderMonths(sortedMonths);
         } else {
-            renderMonths();
+            renderMonths(); // 'all' filter
         }
     });
-    // Artwork loader
-    function loadArtwork(month, holiday) {
-        if(!month || !holiday) return;
+
+    // Artwork loader — updates the big 60% image panel
+    function loadArtwork(month, holiday, hymn) {
+        const bigEl = document.getElementById('playerBigImage');
+        if(!bigEl) return;
+        // Hymn-specific image takes priority
+        if(hymn && hymn.image) {
+            bigEl.style.backgroundImage = `url('${hymn.image}')`;
+            return;
+        }
+        // Path-based fallback
+        if(!month || !holiday) { bigEl.style.backgroundImage = ''; return; }
         const mf = month.name.toLowerCase();
         const hf = holiday.folder || holiday.name.toLowerCase().replace(/\s+/g, '-');
-        const fallbackSvg = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50%" y="55%" font-size="40" text-anchor="middle" fill="%23fef08a" font-family="Abyssinica SIL">ዜማ</text></svg>')`;
         const candidates = [
             `/monthrecs/${mf}/${hf}/${hf}.png`,
             `/monthrecs/${mf}/${hf}/icon.png`,
@@ -1687,14 +1765,9 @@ function renderQueue(){
         ];
         let idx = 0;
         function tryNext() {
-            if(idx >= candidates.length) {
-                document.getElementById('playerArt').style.backgroundImage = fallbackSvg;
-                return;
-            }
+            if(idx >= candidates.length) { bigEl.style.backgroundImage = ''; return; }
             const img = new Image();
-            img.onload = () => {
-                document.getElementById('playerArt').style.backgroundImage = `url('${candidates[idx]}')`;
-            };
+            img.onload = () => { bigEl.style.backgroundImage = `url('${candidates[idx]}')`; };
             img.onerror = () => { idx++; tryNext(); };
             img.src = candidates[idx];
         }
@@ -1758,7 +1831,7 @@ function renderQueue(){
     // ============================================================
     // STUDIO
     // ============================================================
-    const STUDIO_PASSWORD = 'zema2024';
+    const STUDIO_PASSWORD = 'zema2026';
     let studioUnlocked = false;
     let studioData = JSON.parse(JSON.stringify(MONTHS_DATA)); // deep clone
     let studioSelectedMonth = null;
@@ -1825,6 +1898,76 @@ function renderQueue(){
             const saved = localStorage.getItem('zemaStudioToken');
             const inp = document.getElementById('studioTokenInput');
             if(inp) inp.placeholder = saved ? '••••••••••••••  (token saved)' : 'ghp_xxxxxxxxxxxxxxxxxxxx';
+        }
+    }
+
+    // --- GitHub file upload ---
+    const GITHUB_OWNER = 'miliketstudio';
+    const GITHUB_REPO  = 'MiliketStudio';
+
+    async function studioUploadFile(file, destPath) {
+        const token = localStorage.getItem('zemaStudioToken');
+        if(!token) { studioSetStatus('⚠ Add token in Settings'); return null; }
+        const base64 = await new Promise((res, rej) => {
+            const r = new FileReader();
+            r.onload = () => res(r.result.split(',')[1]);
+            r.onerror = rej;
+            r.readAsDataURL(file);
+        });
+        let sha = null;
+        try {
+            const chk = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${destPath}`, { headers: { 'Authorization': `token ${token}` } });
+            if(chk.ok) { const ex = await chk.json(); sha = ex.sha; }
+        } catch(e) {}
+        const body = { message: `Upload ${destPath}`, content: base64 };
+        if(sha) body.sha = sha;
+        const r = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${destPath}`, {
+            method: 'PUT',
+            headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if(!r.ok) throw new Error(`Upload ${r.status}`);
+        const data = await r.json();
+        return data.content.download_url;
+    }
+
+    function studioBindDropZone(zoneId, fileInputId, statusId, targetInputId, uploadPath) {
+        const zone = document.getElementById(zoneId);
+        const fi   = document.getElementById(fileInputId);
+        if(!zone || !fi) return;
+        zone.addEventListener('click', () => fi.click());
+        zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault(); zone.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
+        });
+        fi.addEventListener('change', () => {
+            const file = fi.files[0];
+            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
+            fi.value = '';
+        });
+    }
+
+    async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath) {
+        const statusEl = document.getElementById(statusId);
+        const targetEl = document.getElementById(targetInputId);
+        const zone     = document.getElementById(zoneId);
+        if(file.type.startsWith('image/') && zone) {
+            const prev = URL.createObjectURL(file);
+            zone.style.backgroundImage = `url('${prev}')`;
+            zone.style.backgroundSize  = 'cover';
+            zone.style.backgroundPosition = 'center';
+        }
+        if(statusEl) { statusEl.innerText = 'Uploading…'; statusEl.style.color = 'var(--muted)'; }
+        try {
+            const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+            const url = await studioUploadFile(file, `${uploadPath}${safeName}`);
+            if(url && targetEl) targetEl.value = url;
+            if(statusEl) { statusEl.innerText = '✓ Uploaded'; statusEl.style.color = 'var(--gold)'; }
+        } catch(err) {
+            if(statusEl) { statusEl.innerText = '⚠ ' + err.message; statusEl.style.color = '#f87171'; }
         }
     }
 
@@ -2083,6 +2226,14 @@ function renderQueue(){
                 <label class="studio-field-label">Display title (override, optional)</label>
                 <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
 
+                <label class="studio-field-label">Artwork image</label>
+                <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:90px;"` : ''}>
+                    <input type="file" accept="image/*" style="display:none" id="fi_img">
+                    🖼 Drop image here or click to pick
+                    <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL" style="margin-top:4px;">
+
                 <label class="studio-field-label">Lyrics (Ge'ez)</label>
                 <textarea class="studio-textarea" id="sHymnLyrics" rows="5">${hymn.lyrics || ''}</textarea>
 
@@ -2092,8 +2243,13 @@ function renderQueue(){
                 <hr class="studio-section-divider">
 
                 <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
-                <label class="studio-field-label">Audio src URL</label>
-                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}">
+                <label class="studio-field-label">Audio file</label>
+                <div class="studio-drop-zone" id="dz_kumAudio">
+                    <input type="file" accept="audio/*" style="display:none" id="fi_kumAudio">
+                    🎵 Drop MP3 here or click to pick
+                    <span id="dz_kumAudio_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}" placeholder="or paste audio URL">
                 <label class="studio-field-label">Chanter</label>
                 <input class="studio-input" id="sKumChanter" value="${kumVer?.chanter || ''}">
                 <label class="studio-field-label">Duration (MM:SS)</label>
@@ -2105,8 +2261,13 @@ function renderQueue(){
                 <hr class="studio-section-divider">
 
                 <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም ታች Recording</div>
-                <label class="studio-field-label">Audio src URL</label>
-                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}">
+                <label class="studio-field-label">Audio file</label>
+                <div class="studio-drop-zone" id="dz_aquAudio">
+                    <input type="file" accept="audio/*" style="display:none" id="fi_aquAudio">
+                    🎵 Drop MP3 here or click to pick
+                    <span id="dz_aquAudio_status" style="display:block;font-size:0.7rem;"></span>
+                </div>
+                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}" placeholder="or paste audio URL">
                 <label class="studio-field-label">Chanter</label>
                 <input class="studio-input" id="sAquTachChanter" value="${aquTachVer?.chanter || ''}">
                 <label class="studio-field-label">Duration (MM:SS)</label>
@@ -2122,6 +2283,11 @@ function renderQueue(){
         `;
 
         window._studioEditCtx = { mi, hi, hyi };
+        setTimeout(() => {
+            studioBindDropZone('dz_img',      'fi_img',      'dz_img_status',      'sHymnImage', 'images/');
+            studioBindDropZone('dz_kumAudio', 'fi_kumAudio', 'dz_kumAudio_status', 'sKumSrc',    'audio/');
+            studioBindDropZone('dz_aquAudio', 'fi_aquAudio', 'dz_aquAudio_status', 'sAquTachSrc','audio/');
+        }, 0);
     }
 
     function studioAddTimestamp(type) {
@@ -2151,6 +2317,7 @@ function renderQueue(){
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
+        hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
         hymn.lyrics = document.getElementById('sHymnLyrics').value;
         hymn.translation = document.getElementById('sHymnTranslation').value;
 
