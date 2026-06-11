@@ -24,6 +24,72 @@
             --transition: 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
         }
 
+        body.light-mode {
+            --bg: #f5f9ff;
+            --card: #ffffff;
+            --border: #b8d4ee;
+            --text: #1a2a3a;
+            --muted: #4a6a96;
+            --gold: #b8860b;
+            --gold-dark: #a07608;
+        }
+
+        body.light-mode .logo h1 {
+            background: linear-gradient(135deg, #b8860b 0%, #a07608 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+        }
+
+        body.light-mode .hero-section {
+            background:
+                radial-gradient(circle at top right, rgba(184,134,11,.12), transparent 45%),
+                radial-gradient(circle at bottom left, rgba(184,134,11,.04), transparent 55%),
+                var(--card);
+        }
+
+        body.light-mode .month-card:hover {
+            box-shadow: 0 8px 24px rgba(184,134,11,0.15);
+        }
+
+        body.light-mode .search-input {
+            background: #ffffff;
+        }
+
+        body.light-mode .mini-player {
+            background: rgba(245,249,255,0.98);
+        }
+
+        body.light-mode .player-overlay {
+            background: rgba(245,249,255,0.98);
+        }
+
+        body.light-mode .player-left-panel,
+        body.light-mode .player-right-panel {
+            background: rgba(184,134,11,0.04);
+        }
+
+        body.light-mode .btn-play-lg {
+            background: #b8860b;
+        }
+
+        body.light-mode .progress-bar {
+            background: #ddeeff;
+        }
+
+        body.light-mode .category-tab {
+            background: #ffffff;
+            color: #1a2a3a;
+        }
+
+        body.light-mode .category-tab.active {
+            background: #b8860b;
+            color: #ffffff;
+        }
+
+        body.light-mode #studioOverlay {
+            background: #f5f9ff;
+        }
+
         body {
             background: var(--bg);
             color: var(--text);
@@ -885,6 +951,7 @@
             <input type="text" id="globalSearch" class="search-input" placeholder="Search hymns, feasts...">
             <div id="searchResults" class="search-results"></div>
         </div>
+        <button id="themeToggleBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">☀ Light</button>
         <button id="studioTrigger" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;" onmouseenter="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙ Studio</button>
     </div>
     
@@ -1664,6 +1731,29 @@ function renderQueue(){
         const bars = vizEl ? vizEl.querySelectorAll('div') : [];
         bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.2'; });
     }
+
+    // ============================================================
+    // THEME TOGGLE
+    // ============================================================
+    function applyTheme(mode) {
+        if (mode === 'light') {
+            document.body.classList.add('light-mode');
+            document.getElementById('themeToggleBtn').innerText = '☾ Dark';
+        } else {
+            document.body.classList.remove('light-mode');
+            document.getElementById('themeToggleBtn').innerText = '☀ Light';
+        }
+    }
+    localStorage.removeItem('zemaTheme');   // delete any saved theme
+    applyTheme('light');                    // force light mode now
+    const savedTheme = localStorage.getItem('zemaTheme') || 'light';
+    applyTheme(savedTheme);
+    document.getElementById('themeToggleBtn').addEventListener('click', () => {
+        const isLight = document.body.classList.contains('light-mode');
+        const newTheme = isLight ? 'dark' : 'light';
+        localStorage.setItem('zemaTheme', newTheme);
+        applyTheme(newTheme);
+    });
 
     // ============================================================
     // STUDIO
