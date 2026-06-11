@@ -1026,7 +1026,7 @@
         </div>
     </div>
     <div style="text-align:right;">
-        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px;">System / Device Calendar</div>
+        <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px;">Local Date</div>
                 <div id="userSystemDate" style="font-size:1.05rem; font-weight:500; color:var(--gold);">---</div>
     </div>
 </div>
@@ -2309,6 +2309,10 @@ function renderQueue(){
                 <label class="studio-field-label">Holiday name</label>
                 <input class="studio-input" id="sHolName" value="${holiday.name}">
                 <label class="studio-field-label">Folder slug (used in file paths)</label>
+                <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">
+                    Allowed: a–z 0–9 _ - . &nbsp;&nbsp;|&nbsp;&nbsp;
+                    Not allowed: spaces / \\ : ; , ? ! &amp; @ # % * + = &lt; &gt; [ ] { } | " ' and non‑English letters
+                </div>
                 <input class="studio-input" id="sHolFolder" value="${holiday.folder || ''}">
                 <hr class="studio-section-divider">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
