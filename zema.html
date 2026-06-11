@@ -1003,27 +1003,37 @@
         .studio-timestamp-row {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-bottom: 8px;
+            gap: 6px;
+            margin-bottom: 6px;
+            width: 100%;
+            min-width: 0;
         }
         .studio-timestamp-row input {
             background: var(--card);
             border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 6px 10px;
+            padding: 5px 8px;
             color: var(--text);
-            font-size: 0.8rem;
+            font-size: 0.75rem;
             outline: none;
             font-family: inherit;
+            min-width: 0;
         }
         .studio-timestamp-row input:focus {
             border-color: var(--gold);
         }
         .studio-timestamp-time {
-            width: 80px;
+            width: 64px;
+            flex-shrink: 0;
         }
         .studio-timestamp-label {
             flex: 1;
+            min-width: 0;
+        }
+        .studio-timestamp-row .studio-delete-btn {
+            flex-shrink: 0;
+            padding: 4px 8px;
+            font-size: 0.65rem;
         }
         .studio-drop-zone {
             border: 2px dashed var(--border);
@@ -1288,8 +1298,6 @@
                 <div id="queuePanel"></div>
                 <div class="panel-section-title">Recently played</div>
                 <div id="recentPanel"></div>
-                <div class="panel-section-title">Lyrics</div>
-                <div id="lyricsPanel" style="font-family:'Abyssinica SIL',serif; font-size:1rem; line-height:2; color:var(--text); white-space:pre-wrap;">Select a chant</div>
                 <div class="panel-section-title">Translation</div>
                 <div id="translationPanel" style="font-size:0.85rem; line-height:1.8; color:var(--muted); white-space:pre-wrap;">Translation appears here</div>
             </div>
@@ -1347,8 +1355,8 @@
         </div>
 
         <!-- Editor tab -->
-        <div id="studioTabEditor" class="studio-tab-content" style="flex:1; display:none; overflow:hidden; flex-direction:column;">
-            <div style="padding:28px 32px; flex:1; overflow-y:auto;">
+        <div id="studioTabEditor" class="studio-tab-content" style="flex:1; display:none; overflow-y:auto; flex-direction:column;">
+            <div style="padding:28px 32px;">
                 <div style="color:var(--muted); font-size:0.85rem; margin-top:40px; text-align:center;">Select a hymn from the Structure tab to edit it here</div>
             </div>
         </div>
@@ -1702,8 +1710,6 @@
             audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e=>console.warn(e));
             buildPlaylistFromHoliday();
             renderQueue();
-            document.getElementById('lyricsPanel').innerText =
-            currentTrackObj.hymn.lyrics || '';
             document.getElementById('translationPanel').innerText =
             currentTrackObj.hymn.translation || '';
         };
@@ -1731,9 +1737,6 @@
         document.getElementById('miniTitle').innerText = currentHymnTitle.slice(0, 32);
         document.getElementById('miniArtist').innerText = currentTrackObj.version.chanter || '';
         updateNowPlayingIndicator();
-        document.getElementById('lyricsPanel').innerText =
-        currentTrackObj.hymn.lyrics || 'No lyrics available';
-
         document.getElementById('translationPanel').innerText =
         currentTrackObj.hymn.translation || 'No translation available';
         // timestamps panel
@@ -2976,95 +2979,249 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         studioSwitchTab('editor');
 
-        const kumVer = hymn.kum?.[0] || null;
-        const aquTachVer = hymn.aqu?.tach?.[0] || null;
-
-        function tsRowsHtml(versions, type) {
-            if(!versions?.length) return '<div style="color:var(--muted);font-size:0.75rem;">No recording yet — add a src URL below</div>';
-            const ver = versions[0];
-            const rows = (ver.timestamps || []).map((ts, tsi) =>
-                `<div class="studio-timestamp-row" id="tsrow-${type}-${tsi}">
-                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}-${tsi}">
-                    <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" value="${ts.label}" id="ts-label-${type}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
-                    <button class="studio-delete-btn" onclick="studioRemoveTimestamp('${type}',${tsi})">✕</button>
-                </div>`
-            ).join('');
-            return rows || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:8px;">No timestamps yet</div>';
-        }
-
         document.getElementById('studioTabEditor').querySelector('div').innerHTML = `
-            <div style="max-width:640px;">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+            <div style="display:flex; flex-direction:column; gap:0;">
+
+                <!-- top bar -->
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-shrink:0;">
                     <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
                     <span style="font-size:1rem; font-weight:500; color:var(--gold);">${studioData[mi].holidays[hi].name} · Hymn Editor</span>
+                    <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="margin-left:auto; background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
                 </div>
 
-                <label class="studio-field-label">Title (Ge'ez)</label>
-                <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
+                <!-- two-column top section -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px; flex-shrink:0;">
 
-                <label class="studio-field-label">Display title (override, optional)</label>
-                <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+                    <!-- LEFT: metadata -->
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label class="studio-field-label" style="margin-top:0;">Title (Ge'ez)</label>
+                        <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
 
-                <label class="studio-field-label">Artwork image</label>
-                <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:90px;"` : ''}>
-                    <input type="file" accept="image/*" style="display:none" id="fi_img">
-                    🖼 Drop image here or click to pick
-                    <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                        <label class="studio-field-label">Display title (override)</label>
+                        <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+
+                        <label class="studio-field-label">Artwork</label>
+                        <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:80px;"` : 'style="min-height:80px;"'}>
+                            <input type="file" accept="image/*" style="display:none" id="fi_img">
+                            🖼 Drop image or click
+                            <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                        </div>
+                        <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL">
+
+                        <label class="studio-field-label">Translation</label>
+                        <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit; flex:1; min-height:90px;" rows="4">${hymn.translation || ''}</textarea>
+                    </div>
+
+                    <!-- RIGHT: add new recording -->
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label class="studio-field-label" style="margin-top:0;">Label (e.g. ዕዝል, አቋቋም, ዓራራይ)</label>
+                        <input class="studio-input" id="sNewVerBeat" style="font-family:'Abyssinica SIL',serif;" placeholder="e.g. ዕዝል">
+
+                        <label class="studio-field-label">Artist / Chanter</label>
+                        <input class="studio-input" id="sNewVerChanter" placeholder="e.g. መምህር አለሙ">
+
+                        <label class="studio-field-label">Duration (MM:SS)</label>
+                        <input class="studio-input" id="sNewVerDuration" placeholder="e.g. 03:45" style="width:120px;">
+
+                        <label class="studio-field-label">Audio file</label>
+                        <div class="studio-drop-zone" id="dz_new_audio" style="min-height:60px;">
+                            <input type="file" accept="audio/*" style="display:none" id="fi_new_audio">
+                            🎵 Drop MP3 or click
+                            <span id="dz_new_audio_status" style="display:block;font-size:0.7rem;"></span>
+                        </div>
+                        <input class="studio-input" id="sNewVerSrc" placeholder="or paste audio URL">
+
+                        <label class="studio-field-label">Timestamps</label>
+                        <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
+                        <button class="studio-add-btn" onclick="studioAddNewVerTimestamp()">+ Timestamp</button>
+
+                        <button class="studio-add-btn" onclick="studioCommitNewVersion(${mi},${hi},${hyi})" style="margin-top:4px; background:var(--gold); color:#000; border-color:var(--gold);">+ Add Recording</button>
+                    </div>
                 </div>
-                <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL" style="margin-top:4px;">
 
-                <label class="studio-field-label">Lyrics (Ge'ez)</label>
-                <textarea class="studio-textarea" id="sHymnLyrics" rows="5">${hymn.lyrics || ''}</textarea>
-
-                <label class="studio-field-label">Translation (English)</label>
-                <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit;" rows="5">${hymn.translation || ''}</textarea>
-
-                <hr class="studio-section-divider">
-
-                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
-                <div id="sKumVersions"></div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddKumVersion(${mi},${hi},${hyi})">+ Add ቤት</button>
-
-                <hr class="studio-section-divider">
-
-                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም ታች Recording</div>
-                <div id="sAquVersions"></div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddAquVersion(${mi},${hi},${hyi})">+ Add ቤት</button>
-
-                <hr class="studio-section-divider">
-
-                <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="padding:10px 24px; font-size:0.85rem;">Save hymn</button>
+                <!-- bottom: existing recordings grid -->
+                <hr class="studio-section-divider" style="margin:20px 0 16px;">
+                <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin-bottom:12px;">Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})</div>
+                <div id="sRecordingsGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; padding-bottom:24px;"></div>
             </div>
         `;
 
         window._studioEditCtx = { mi, hi, hyi };
         setTimeout(() => {
             studioBindDropZone('dz_img', 'fi_img', 'dz_img_status', 'sHymnImage', 'images/');
-            studioRenderVersions(hymn, mi, hi, hyi);
+            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
+            studioRenderRecordingsGrid(mi, hi, hyi);
         }, 0);
     }
 
-    function studioAddTimestamp(type) {
-        const containerId = type === 'kum' ? 'sKumTimestamps' : 'sAquTachTimestamps';
-        const container = document.getElementById(containerId);
-        const existing = container.querySelectorAll('.studio-timestamp-row').length;
-        const newRow = document.createElement('div');
-        newRow.className = 'studio-timestamp-row';
-        newRow.id = `tsrow-${type}-${existing}`;
-        newRow.innerHTML = `
-            <input class="studio-timestamp-time" placeholder="00:00" id="ts-time-${type}-${existing}">
-            <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" id="ts-label-${type}-${existing}" style="font-family:'Abyssinica SIL',serif;">
-            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
-        `;
-        // remove the "no timestamps" placeholder if present
-        const placeholder = container.querySelector('div');
-        if(placeholder) placeholder.remove();
-        container.appendChild(newRow);
+    function studioAddNewVerTimestamp() {
+        const container = document.getElementById('sNewVerTimestamps');
+        if(!container) return;
+        const idx = container.querySelectorAll('.studio-timestamp-row').length;
+        const row = document.createElement('div');
+        row.className = 'studio-timestamp-row';
+        row.innerHTML = `
+            <input class="studio-timestamp-time" placeholder="00:00" id="nts-time-${idx}">
+            <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" id="nts-label-${idx}" style="font-family:'Abyssinica SIL',serif;">
+            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
+        container.appendChild(row);
     }
 
-    function studioRemoveTimestamp(type, idx) {
-        const row = document.getElementById(`tsrow-${type}-${idx}`);
-        if(row) row.remove();
+    function studioCommitNewVersion(mi, hi, hyi) {
+        const src = document.getElementById('sNewVerSrc')?.value.trim();
+        if(!src) { alert('Paste or drop an audio URL first.'); return; }
+        const beat = document.getElementById('sNewVerBeat')?.value.trim();
+        const chanter = document.getElementById('sNewVerChanter')?.value.trim();
+        const duration = document.getElementById('sNewVerDuration')?.value.trim();
+        const tsRows = document.getElementById('sNewVerTimestamps')?.querySelectorAll('.studio-timestamp-row') || [];
+        const timestamps = [];
+        tsRows.forEach((row, i) => {
+            const time = document.getElementById(`nts-time-${i}`)?.value.trim();
+            const label = document.getElementById(`nts-label-${i}`)?.value.trim();
+            if(time && label) timestamps.push({ time, label });
+        });
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        hymn.kum = hymn.kum || [];
+        hymn.kum.push({ beat, src, chanter, duration, timestamps });
+        // clear form
+        ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+        const tsContainer = document.getElementById('sNewVerTimestamps');
+        if(tsContainer) tsContainer.innerHTML = '';
+        // update grid count label
+        const countEl = document.querySelector('#sRecordingsGrid')?.previousElementSibling;
+        if(countEl) countEl.innerText = `Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})`;
+        studioRenderRecordingsGrid(mi, hi, hyi);
+    }
+
+    function studioRenderRecordingsGrid(mi, hi, hyi) {
+        const grid = document.getElementById('sRecordingsGrid');
+        if(!grid) return;
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        if(!allVersions.length) {
+            grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;grid-column:1/-1;padding:20px 0;">No recordings yet — add one above.</div>';
+            return;
+        }
+        grid.innerHTML = allVersions.map((v, flatIdx) => {
+            const tsHtml = (v.timestamps||[]).map((ts, tsi) => `
+                <div class="studio-timestamp-row" id="gts-row-${flatIdx}-${tsi}">
+                    <input class="studio-timestamp-time" value="${ts.time}" placeholder="00:00" id="gts-time-${flatIdx}-${tsi}">
+                    <input class="studio-timestamp-label" value="${ts.label}" placeholder="Label" id="gts-label-${flatIdx}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
+                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
+                </div>`).join('');
+            return `
+            <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
+                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
+                ondragstart="studioGridDragStart(event,${flatIdx})"
+                ondragover="studioDragOver(event)"
+                ondragleave="studioDragLeave(event)"
+                ondrop="studioGridDrop(event,${mi},${hi},${hyi},${flatIdx})">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
+                    <div style="display:flex;gap:6px;">
+                        <button class="studio-add-btn" onclick="studioTestAudio('grec-src-${flatIdx}')">▶</button>
+                        <button class="studio-delete-btn" onclick="studioDeleteGridVersion(${mi},${hi},${hyi},${flatIdx})">✕</button>
+                    </div>
+                </div>
+                <input class="studio-input" id="grec-beat-${flatIdx}" value="${v.beat||''}" placeholder="Label (e.g. ዕዝል)" style="font-family:'Abyssinica SIL',serif;">
+                <input class="studio-input" id="grec-chanter-${flatIdx}" value="${v.chanter||''}" placeholder="Artist name">
+                <input class="studio-input" id="grec-duration-${flatIdx}" value="${v.duration||''}" placeholder="Duration MM:SS" style="width:110px;">
+                <div class="studio-drop-zone" id="gdz-${flatIdx}" style="min-height:48px; padding:8px 12px; font-size:0.75rem;">
+                    <input type="file" accept="audio/*" style="display:none" id="gfi-${flatIdx}">
+                    🎵 Replace audio
+                    <span id="gdz-${flatIdx}-status" style="display:block;font-size:0.65rem;"></span>
+                </div>
+                <input class="studio-input" id="grec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL">
+                <div id="gts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
+                <button class="studio-add-btn" onclick="studioAddGridTimestamp(${flatIdx})">+ Timestamp</button>
+                <button class="studio-add-btn" onclick="studioSaveGridVersion(${mi},${hi},${hyi},${flatIdx})" style="background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold);">Save</button>
+            </div>`;
+        }).join('');
+
+        // bind drop zones for each card
+        allVersions.forEach((v, flatIdx) => {
+            setTimeout(() => studioBindDropZone(`gdz-${flatIdx}`, `gfi-${flatIdx}`, `gdz-${flatIdx}-status`, `grec-src-${flatIdx}`, 'audio/'), 0);
+        });
+    }
+
+    let gridDragSrcIdx = null;
+    function studioGridDragStart(e, flatIdx) {
+        gridDragSrcIdx = flatIdx;
+        e.dataTransfer.effectAllowed = 'move';
+        e.currentTarget.style.opacity = '0.4';
+    }
+    function studioGridDrop(e, mi, hi, hyi, targetIdx) {
+        e.preventDefault();
+        e.currentTarget.style.outline = '';
+        e.currentTarget.style.opacity = '';
+        if(gridDragSrcIdx === null || gridDragSrcIdx === targetIdx) return;
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const [moved] = allVersions.splice(gridDragSrcIdx, 1);
+        allVersions.splice(targetIdx, 0, moved);
+        hymn.kum = allVersions.filter(v => v._vtype === 'kum').map(({_vtype,_vi,...rest}) => rest);
+        hymn.aqu = hymn.aqu || { tach:[], lay:[] };
+        hymn.aqu.tach = allVersions.filter(v => v._vtype === 'aqutach').map(({_vtype,_vi,...rest}) => rest);
+        gridDragSrcIdx = null;
+        studioRenderRecordingsGrid(mi, hi, hyi);
+    }
+    function studioAddGridTimestamp(flatIdx) {
+        const container = document.getElementById(`gts-container-${flatIdx}`);
+        if(!container) return;
+        const idx = container.querySelectorAll('.studio-timestamp-row').length;
+        const row = document.createElement('div');
+        row.className = 'studio-timestamp-row';
+        row.id = `gts-row-${flatIdx}-${idx}`;
+        row.innerHTML = `
+            <input class="studio-timestamp-time" placeholder="00:00" id="gts-time-${flatIdx}-${idx}">
+            <input class="studio-timestamp-label" placeholder="Label" id="gts-label-${flatIdx}-${idx}" style="font-family:'Abyssinica SIL',serif;">
+            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
+        container.appendChild(row);
+    }
+    function studioSaveGridVersion(mi, hi, hyi, flatIdx) {
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const v = allVersions[flatIdx];
+        if(!v) return;
+        const tsRows = document.getElementById(`gts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
+        const timestamps = [];
+        tsRows.forEach((row, tsi) => {
+            const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
+            const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
+            if(time && label) timestamps.push({ time, label });
+        });
+        const updated = {
+            beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
+            src: document.getElementById(`grec-src-${flatIdx}`)?.value.trim() || '',
+            chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
+            duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
+            timestamps
+        };
+        if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+        else hymn.aqu.tach[v._vi] = updated;
+        studioSetStatus('Recording saved ✓');
+    }
+    function studioDeleteGridVersion(mi, hi, hyi, flatIdx) {
+        if(!confirm('Delete this recording?')) return;
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const v = allVersions[flatIdx];
+        if(!v) return;
+        if(v._vtype === 'kum') hymn.kum.splice(v._vi, 1);
+        else hymn.aqu.tach.splice(v._vi, 1);
+        studioRenderRecordingsGrid(mi, hi, hyi);
     }
 
     function studioSaveHymn(mi, hi, hyi) {
@@ -3072,50 +3229,33 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
         hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
-        hymn.lyrics = document.getElementById('sHymnLyrics').value;
         hymn.translation = document.getElementById('sHymnTranslation').value;
 
-        function collectTimestamps(type) {
-            const rows = document.querySelectorAll(`.studio-timestamp-row[id^="tsrow-${type}-"]`);
-            const result = [];
-            rows.forEach(row => {
-                const tIdx = row.id.split('-').pop();
-                const time = document.getElementById(`ts-time-${type}-${tIdx}`)?.value.trim();
-                const label = document.getElementById(`ts-label-${type}-${tIdx}`)?.value.trim();
-                if(time && label) result.push({ time, label });
+        // collect all recording cards from the grid
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        allVersions.forEach((v, flatIdx) => {
+            const srcEl = document.getElementById(`grec-src-${flatIdx}`);
+            if(!srcEl) return;
+            const tsRows = document.getElementById(`gts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
+            const timestamps = [];
+            tsRows.forEach((row, tsi) => {
+                const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
+                const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
+                if(time && label) timestamps.push({ time, label });
             });
-            return result;
-        }
-
-        function collectVersions(type) {
-            const versions = [];
-            let vi = 0;
-            while(document.getElementById(`ver-src-${type}-${vi}`) !== null) {
-                const src = document.getElementById(`ver-src-${type}-${vi}`).value.trim();
-                const tsContainer = document.getElementById(`ts-${type}-${vi}`);
-                const timestamps = [];
-                if(tsContainer) {
-                    tsContainer.querySelectorAll('.studio-timestamp-row').forEach(row => {
-                        const tsi = row.id.split('-').pop();
-                        const time = document.getElementById(`ts-time-${type}${vi}-${tsi}`)?.value.trim();
-                        const label = document.getElementById(`ts-label-${type}${vi}-${tsi}`)?.value.trim();
-                        if(time && label) timestamps.push({ time, label });
-                    });
-                }
-                versions.push({
-                    beat: document.getElementById(`ver-beat-${type}-${vi}`)?.value.trim() || '',
-                    src,
-                    chanter: document.getElementById(`ver-chanter-${type}-${vi}`)?.value.trim() || '',
-                    duration: document.getElementById(`ver-duration-${type}-${vi}`)?.value.trim() || '',
-                    timestamps
-                });
-                vi++;
-            }
-            return versions;
-        }
-
-        hymn.kum = collectVersions('kum');
-        hymn.aqu = { tach: collectVersions('aqutach'), lay: hymn.aqu?.lay || [] };
+            const updated = {
+                beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
+                src: srcEl.value.trim(),
+                chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
+                duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
+                timestamps
+            };
+            if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+            else hymn.aqu.tach[v._vi] = updated;
+        });
 
         studioSetStatus('Hymn saved ✓');
         studioSwitchTab('structure');
@@ -3123,116 +3263,245 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     // --- flat hymn (ቅኔ / ነግሥ) ---
-    function studioAddFlatHymn() {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
-        data.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
-        studioSelectedMonth = data.length - 1;
-        studioSelectedHoliday = null;
-        studioRenderTree();
-        studioEditFlatHymn(studioSelectedMonth);
-        studioSwitchTab('editor');
-    }
-
     function studioEditFlatHymn(hyi) {
         const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
         const hymn = data[hyi];
         if(!hymn) return;
         studioSwitchTab('editor');
-
-        const kumVer = hymn.kum?.[0] || null;
-        const aquTachVer = hymn.aqu?.tach?.[0] || null;
-
-        function tsRowsHtml(versions, type) {
-            if(!versions?.length) return '<div style="color:var(--muted);font-size:0.75rem;">No recording yet</div>';
-            const ver = versions[0];
-            const rows = (ver.timestamps || []).map((ts, tsi) =>
-                `<div class="studio-timestamp-row" id="tsrow-${type}-${tsi}">
-                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}-${tsi}">
-                    <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" value="${ts.label}" id="ts-label-${type}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
-                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
-                </div>`
-            ).join('');
-            return rows || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:8px;">No timestamps yet</div>';
-        }
-
         const pageLabel = studioActivePage === 'qine' ? 'ቅኔ' : 'ነግሥ';
 
         document.getElementById('studioTabEditor').querySelector('div').innerHTML = `
-            <div style="max-width:640px;">
-                <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+            <div style="display:flex; flex-direction:column; gap:0;">
+
+                <!-- top bar -->
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-shrink:0;">
                     <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
                     <span style="font-size:1rem; font-weight:500; color:var(--gold); font-family:'Abyssinica SIL',serif;">${pageLabel} · Hymn Editor</span>
+                    <button class="studio-add-btn" onclick="studioSaveFlatHymn(${hyi})" style="margin-left:auto; background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
                 </div>
 
-                <label class="studio-field-label">Title (Ge'ez)</label>
-                <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
+                <!-- two-column top section -->
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:28px; flex-shrink:0;">
 
-                <label class="studio-field-label">Display title (override, optional)</label>
-                <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+                    <!-- LEFT: metadata -->
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label class="studio-field-label" style="margin-top:0;">Title (Ge'ez)</label>
+                        <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
 
-                <label class="studio-field-label">Artwork image</label>
-                <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:90px;"` : ''}>
-                    <input type="file" accept="image/*" style="display:none" id="fi_img">
-                    🖼 Drop image here or click to pick
-                    <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                        <label class="studio-field-label">Display title (override)</label>
+                        <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+
+                        <label class="studio-field-label">Artwork</label>
+                        <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:80px;"` : 'style="min-height:80px;"'}>
+                            <input type="file" accept="image/*" style="display:none" id="fi_img">
+                            🖼 Drop image or click
+                            <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
+                        </div>
+                        <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL">
+
+                        <label class="studio-field-label">Translation</label>
+                        <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit; min-height:90px;" rows="4">${hymn.translation || ''}</textarea>
+                    </div>
+
+                    <!-- RIGHT: add new recording -->
+                    <div style="display:flex; flex-direction:column; gap:10px;">
+                        <label class="studio-field-label" style="margin-top:0;">Label (e.g. ዕዝል, አቋቋም, ዓራራይ)</label>
+                        <input class="studio-input" id="sNewVerBeat" style="font-family:'Abyssinica SIL',serif;" placeholder="e.g. ዕዝል">
+
+                        <label class="studio-field-label">Artist / Chanter</label>
+                        <input class="studio-input" id="sNewVerChanter" placeholder="e.g. መምህር አለሙ">
+
+                        <label class="studio-field-label">Duration (MM:SS)</label>
+                        <input class="studio-input" id="sNewVerDuration" placeholder="e.g. 03:45" style="width:120px;">
+
+                        <label class="studio-field-label">Audio file</label>
+                        <div class="studio-drop-zone" id="dz_new_audio" style="min-height:60px;">
+                            <input type="file" accept="audio/*" style="display:none" id="fi_new_audio">
+                            🎵 Drop MP3 or click
+                            <span id="dz_new_audio_status" style="display:block;font-size:0.7rem;"></span>
+                        </div>
+                        <input class="studio-input" id="sNewVerSrc" placeholder="or paste audio URL">
+
+                        <label class="studio-field-label">Timestamps</label>
+                        <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
+                        <button class="studio-add-btn" onclick="studioAddNewVerTimestamp()">+ Timestamp</button>
+
+                        <button class="studio-add-btn" onclick="studioCommitFlatVersion(${hyi})" style="margin-top:4px; background:var(--gold); color:#000; border-color:var(--gold);">+ Add Recording</button>
+                    </div>
                 </div>
-                <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL" style="margin-top:4px;">
 
-                <label class="studio-field-label">Lyrics (Ge'ez)</label>
-                <textarea class="studio-textarea" id="sHymnLyrics" rows="5">${hymn.lyrics || ''}</textarea>
+                <!-- bottom: existing recordings grid -->
+                <hr class="studio-section-divider" style="margin:20px 0 16px;">
+                <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin-bottom:12px;">Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})</div>
+                <div id="sFlatRecordingsGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; padding-bottom:24px;"></div>
 
-                <label class="studio-field-label">Translation (English)</label>
-                <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit;" rows="5">${hymn.translation || ''}</textarea>
-
-                <hr class="studio-section-divider">
-
-                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
-                <div class="studio-drop-zone" id="dz_kumAudio">
-                    <input type="file" accept="audio/*" style="display:none" id="fi_kumAudio">
-                    🎵 Drop MP3 here or click to pick
-                    <span id="dz_kumAudio_status" style="display:block;font-size:0.7rem;"></span>
-                </div>
-                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}" placeholder="or paste audio URL">
-                <label class="studio-field-label">Chanter</label>
-                <input class="studio-input" id="sKumChanter" value="${kumVer?.chanter || ''}">
-                <label class="studio-field-label">Duration (MM:SS)</label>
-                <input class="studio-input" id="sKumDuration" value="${kumVer?.duration || ''}" style="width:120px;">
-                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
-                <div id="sKumTimestamps">${tsRowsHtml(hymn.kum, 'kum')}</div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('kum')">+ Timestamp</button>
-
-                <hr class="studio-section-divider">
-
-                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም Recording</div>
-                <div class="studio-drop-zone" id="dz_aquAudio">
-                    <input type="file" accept="audio/*" style="display:none" id="fi_aquAudio">
-                    🎵 Drop MP3 here or click to pick
-                    <span id="dz_aquAudio_status" style="display:block;font-size:0.7rem;"></span>
-                </div>
-                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}" placeholder="or paste audio URL">
-                <label class="studio-field-label">Chanter</label>
-                <input class="studio-input" id="sAquTachChanter" value="${aquTachVer?.chanter || ''}">
-                <label class="studio-field-label">Duration (MM:SS)</label>
-                <input class="studio-input" id="sAquTachDuration" value="${aquTachVer?.duration || ''}" style="width:120px;">
-                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
-                <div id="sAquTachTimestamps">${tsRowsHtml(hymn.aqu?.tach, 'aqutach')}</div>
-                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('aqutach')">+ Timestamp</button>
-
-                <hr class="studio-section-divider">
-
-                <div style="display:flex; gap:10px;">
-                    <button class="studio-add-btn" onclick="studioSaveFlatHymn(${hyi})" style="padding:10px 24px; font-size:0.85rem;">Save hymn</button>
-                    <button class="studio-delete-btn" onclick="studioDeleteFlatHymn(${hyi})">Delete hymn</button>
-                </div>
+                <!-- delete -->
+                <hr class="studio-section-divider" style="margin:8px 0 16px;">
+                <button class="studio-delete-btn" onclick="studioDeleteFlatHymn(${hyi})">Delete hymn</button>
             </div>
         `;
 
         window._studioEditCtx = { hyi };
         setTimeout(() => {
-            studioBindDropZone('dz_img',      'fi_img',      'dz_img_status',      'sHymnImage', 'images/');
-            studioBindDropZone('dz_kumAudio', 'fi_kumAudio', 'dz_kumAudio_status', 'sKumSrc',    'audio/');
-            studioBindDropZone('dz_aquAudio', 'fi_aquAudio', 'dz_aquAudio_status', 'sAquTachSrc','audio/');
+            studioBindDropZone('dz_img', 'fi_img', 'dz_img_status', 'sHymnImage', 'images/');
+            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
+            studioRenderFlatRecordingsGrid(hyi);
         }, 0);
+    }
+
+    function studioCommitFlatVersion(hyi) {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        const src = document.getElementById('sNewVerSrc')?.value.trim();
+        if(!src) { alert('Paste or drop an audio URL first.'); return; }
+        const beat = document.getElementById('sNewVerBeat')?.value.trim();
+        const chanter = document.getElementById('sNewVerChanter')?.value.trim();
+        const duration = document.getElementById('sNewVerDuration')?.value.trim();
+        const tsRows = document.getElementById('sNewVerTimestamps')?.querySelectorAll('.studio-timestamp-row') || [];
+        const timestamps = [];
+        tsRows.forEach((row, i) => {
+            const time = document.getElementById(`nts-time-${i}`)?.value.trim();
+            const label = document.getElementById(`nts-label-${i}`)?.value.trim();
+            if(time && label) timestamps.push({ time, label });
+        });
+        hymn.kum = hymn.kum || [];
+        hymn.kum.push({ beat, src, chanter, duration, timestamps });
+        ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+        const tsContainer = document.getElementById('sNewVerTimestamps');
+        if(tsContainer) tsContainer.innerHTML = '';
+        const countEl = document.querySelector('#sFlatRecordingsGrid')?.previousElementSibling;
+        if(countEl) countEl.innerText = `Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})`;
+        studioRenderFlatRecordingsGrid(hyi);
+    }
+
+    function studioRenderFlatRecordingsGrid(hyi) {
+        const grid = document.getElementById('sFlatRecordingsGrid');
+        if(!grid) return;
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        if(!allVersions.length) {
+            grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;grid-column:1/-1;padding:20px 0;">No recordings yet — add one above.</div>';
+            return;
+        }
+        grid.innerHTML = allVersions.map((v, flatIdx) => {
+            const tsHtml = (v.timestamps||[]).map((ts, tsi) => `
+                <div class="studio-timestamp-row" id="fgts-row-${flatIdx}-${tsi}">
+                    <input class="studio-timestamp-time" value="${ts.time}" placeholder="00:00" id="fgts-time-${flatIdx}-${tsi}">
+                    <input class="studio-timestamp-label" value="${ts.label}" placeholder="Label" id="fgts-label-${flatIdx}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
+                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
+                </div>`).join('');
+            return `
+            <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
+                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
+                ondragstart="studioGridDragStart(event,${flatIdx})"
+                ondragover="studioDragOver(event)"
+                ondragleave="studioDragLeave(event)"
+                ondrop="studioFlatGridDrop(event,${hyi},${flatIdx})">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
+                    <div style="display:flex;gap:6px;">
+                        <button class="studio-add-btn" onclick="studioTestAudio('fgrec-src-${flatIdx}')">▶</button>
+                        <button class="studio-delete-btn" onclick="studioDeleteFlatGridVersion(${hyi},${flatIdx})">✕</button>
+                    </div>
+                </div>
+                <input class="studio-input" id="fgrec-beat-${flatIdx}" value="${v.beat||''}" placeholder="Label (e.g. ዕዝል)" style="font-family:'Abyssinica SIL',serif;">
+                <input class="studio-input" id="fgrec-chanter-${flatIdx}" value="${v.chanter||''}" placeholder="Artist name">
+                <input class="studio-input" id="fgrec-duration-${flatIdx}" value="${v.duration||''}" placeholder="Duration MM:SS" style="width:110px;">
+                <div class="studio-drop-zone" id="fgdz-${flatIdx}" style="min-height:48px; padding:8px 12px; font-size:0.75rem;">
+                    <input type="file" accept="audio/*" style="display:none" id="fgfi-${flatIdx}">
+                    🎵 Replace audio
+                    <span id="fgdz-${flatIdx}-status" style="display:block;font-size:0.65rem;"></span>
+                </div>
+                <input class="studio-input" id="fgrec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL">
+                <div id="fgts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
+                <button class="studio-add-btn" onclick="studioAddFlatGridTimestamp(${flatIdx})">+ Timestamp</button>
+                <button class="studio-add-btn" onclick="studioSaveFlatGridVersion(${hyi},${flatIdx})" style="background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold);">Save</button>
+            </div>`;
+        }).join('');
+        allVersions.forEach((v, flatIdx) => {
+            setTimeout(() => studioBindDropZone(`fgdz-${flatIdx}`, `fgfi-${flatIdx}`, `fgdz-${flatIdx}-status`, `fgrec-src-${flatIdx}`, 'audio/'), 0);
+        });
+    }
+
+    function studioAddFlatGridTimestamp(flatIdx) {
+        const container = document.getElementById(`fgts-container-${flatIdx}`);
+        if(!container) return;
+        const idx = container.querySelectorAll('.studio-timestamp-row').length;
+        const row = document.createElement('div');
+        row.className = 'studio-timestamp-row';
+        row.id = `fgts-row-${flatIdx}-${idx}`;
+        row.innerHTML = `
+            <input class="studio-timestamp-time" placeholder="00:00" id="fgts-time-${flatIdx}-${idx}">
+            <input class="studio-timestamp-label" placeholder="Label" id="fgts-label-${flatIdx}-${idx}" style="font-family:'Abyssinica SIL',serif;">
+            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
+        container.appendChild(row);
+    }
+
+    function studioSaveFlatGridVersion(hyi, flatIdx) {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const v = allVersions[flatIdx];
+        if(!v) return;
+        const tsRows = document.getElementById(`fgts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
+        const timestamps = [];
+        tsRows.forEach((row, tsi) => {
+            const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
+            const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
+            if(time && label) timestamps.push({ time, label });
+        });
+        const updated = {
+            beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
+            src: document.getElementById(`fgrec-src-${flatIdx}`)?.value.trim() || '',
+            chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
+            duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
+            timestamps
+        };
+        if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+        else hymn.aqu.tach[v._vi] = updated;
+        studioSetStatus('Recording saved ✓');
+    }
+
+    function studioDeleteFlatGridVersion(hyi, flatIdx) {
+        if(!confirm('Delete this recording?')) return;
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const v = allVersions[flatIdx];
+        if(!v) return;
+        if(v._vtype === 'kum') hymn.kum.splice(v._vi, 1);
+        else hymn.aqu.tach.splice(v._vi, 1);
+        studioRenderFlatRecordingsGrid(hyi);
+    }
+
+    function studioFlatGridDrop(e, hyi, targetIdx) {
+        e.preventDefault();
+        e.currentTarget.style.outline = '';
+        e.currentTarget.style.opacity = '';
+        if(gridDragSrcIdx === null || gridDragSrcIdx === targetIdx) return;
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        const [moved] = allVersions.splice(gridDragSrcIdx, 1);
+        allVersions.splice(targetIdx, 0, moved);
+        hymn.kum = allVersions.filter(v => v._vtype === 'kum').map(({_vtype,_vi,...rest}) => rest);
+        hymn.aqu = hymn.aqu || { tach:[], lay:[] };
+        hymn.aqu.tach = allVersions.filter(v => v._vtype === 'aqutach').map(({_vtype,_vi,...rest}) => rest);
+        gridDragSrcIdx = null;
+        studioRenderFlatRecordingsGrid(hyi);
     }
 
     function studioSaveFlatHymn(hyi) {
@@ -3241,26 +3510,33 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
         hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
-        hymn.lyrics = document.getElementById('sHymnLyrics').value;
         hymn.translation = document.getElementById('sHymnTranslation').value;
 
-        function collectTimestamps(type) {
-            const rows = document.querySelectorAll(`.studio-timestamp-row[id^="tsrow-${type}-"]`);
-            const result = [];
-            rows.forEach(row => {
-                const tIdx = row.id.split('-').pop();
-                const time = document.getElementById(`ts-time-${type}-${tIdx}`)?.value.trim();
-                const label = document.getElementById(`ts-label-${type}-${tIdx}`)?.value.trim();
-                if(time && label) result.push({ time, label });
+        // collect all recording cards from the grid
+        const allVersions = [
+            ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+        ];
+        allVersions.forEach((v, flatIdx) => {
+            const srcEl = document.getElementById(`fgrec-src-${flatIdx}`);
+            if(!srcEl) return;
+            const tsRows = document.getElementById(`fgts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
+            const timestamps = [];
+            tsRows.forEach((row, tsi) => {
+                const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
+                const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
+                if(time && label) timestamps.push({ time, label });
             });
-            return result;
-        }
-
-        const kumSrc = document.getElementById('sKumSrc').value.trim();
-        hymn.kum = kumSrc ? [{ src: kumSrc, chanter: document.getElementById('sKumChanter').value.trim(), duration: document.getElementById('sKumDuration').value.trim(), timestamps: collectTimestamps('kum') }] : [];
-
-        const aquSrc = document.getElementById('sAquTachSrc').value.trim();
-        hymn.aqu = aquSrc ? { tach: [{ src: aquSrc, chanter: document.getElementById('sAquTachChanter').value.trim(), duration: document.getElementById('sAquTachDuration').value.trim(), timestamps: collectTimestamps('aqutach') }], lay: [] } : { tach: [], lay: [] };
+            const updated = {
+                beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
+                src: srcEl.value.trim(),
+                chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
+                duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
+                timestamps
+            };
+            if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+            else hymn.aqu.tach[v._vi] = updated;
+        });
 
         studioSetStatus('Hymn saved ✓');
         studioSwitchTab('structure');
@@ -3275,97 +3551,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         studioRenderTree();
         document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select an item from the list</div>';
         studioSwitchTab('structure');
-    }
-
-    // --- multi-version (ቤት) helpers ---
-    function studioRenderVersions(hymn, mi, hi, hyi) {
-        const kumEl = document.getElementById('sKumVersions');
-        const aquEl = document.getElementById('sAquVersions');
-        if(!kumEl || !aquEl) return;
-
-        function versionBlock(ver, vi, type) {
-            const tsId = `ts-${type}-${vi}`;
-            const tsHtml = (ver.timestamps||[]).map((ts, tsi) =>
-                `<div class="studio-timestamp-row" id="tsrow-${type}${vi}-${tsi}">
-                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}${vi}-${tsi}">
-                    <input class="studio-timestamp-label" placeholder="Label" value="${ts.label}" id="ts-label-${type}${vi}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
-                    <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
-                </div>`
-            ).join('') || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:4px;">No timestamps yet</div>';
-
-            return `
-                <div class="studio-hymn-row" style="flex-direction:column; align-items:stretch; gap:10px;" id="ver-block-${type}-${vi}">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-size:0.75rem; font-weight:500; color:var(--gold);">ቤት ${vi+1}</span>
-                        <button class="studio-delete-btn" onclick="studioDeleteVersion('${type}',${vi},${mi},${hi},${hyi})">Delete</button>
-                    </div>
-                    <label class="studio-field-label" style="margin-top:0;">ቤት / Beat name (e.g. ዕዝል)</label>
-                    <input class="studio-input" id="ver-beat-${type}-${vi}" value="${ver.beat||''}" style="font-family:'Abyssinica SIL',serif;" placeholder="e.g. ዕዝል, ዓራራይ">
-                    <label class="studio-field-label">Audio file</label>
-                    <div class="studio-drop-zone" id="dz_ver_${type}_${vi}">
-                        <input type="file" accept="audio/*" style="display:none" id="fi_ver_${type}_${vi}">
-                        🎵 Drop MP3 or click
-                        <span id="dz_ver_${type}_${vi}_status" style="display:block;font-size:0.7rem;"></span>
-                    </div>
-                    <div style="display:flex; gap:8px; align-items:center;">
-                        <input class="studio-input" id="ver-src-${type}-${vi}" value="${ver.src||''}" placeholder="or paste audio URL" style="flex:1;">
-                        <button class="studio-add-btn" onclick="studioTestAudio('ver-src-${type}-${vi}')">▶ Test</button>
-                    </div>
-                    <label class="studio-field-label">Chanter</label>
-                    <input class="studio-input" id="ver-chanter-${type}-${vi}" value="${ver.chanter||''}">
-                    <label class="studio-field-label">Duration (MM:SS)</label>
-                    <input class="studio-input" id="ver-duration-${type}-${vi}" value="${ver.duration||''}" style="width:120px;">
-                    <label class="studio-field-label">Timestamps</label>
-                    <div id="${tsId}">${tsHtml}</div>
-                    <button class="studio-add-btn" onclick="studioAddVersionTimestamp('${type}',${vi})">+ Timestamp</button>
-                </div>`;
-        }
-
-        kumEl.innerHTML = (hymn.kum||[]).map((v,vi) => versionBlock(v, vi, 'kum')).join('') ||
-            '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No ቁም ዜማ versions yet</div>';
-        aquEl.innerHTML = (hymn.aqu?.tach||[]).map((v,vi) => versionBlock(v, vi, 'aqutach')).join('') ||
-            '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No አቋቋም versions yet</div>';
-
-        // bind drop zones
-        (hymn.kum||[]).forEach((v,vi) => {
-            setTimeout(() => studioBindDropZone(`dz_ver_kum_${vi}`, `fi_ver_kum_${vi}`, `dz_ver_kum_${vi}_status`, `ver-src-kum-${vi}`, 'audio/'), 0);
-        });
-        (hymn.aqu?.tach||[]).forEach((v,vi) => {
-            setTimeout(() => studioBindDropZone(`dz_ver_aqutach_${vi}`, `fi_ver_aqutach_${vi}`, `dz_ver_aqutach_${vi}_status`, `ver-src-aqutach-${vi}`, 'audio/'), 0);
-        });
-    }
-
-    function studioAddKumVersion(mi, hi, hyi) {
-        studioData[mi].holidays[hi].hymns[hyi].kum = studioData[mi].holidays[hi].hymns[hyi].kum || [];
-        studioData[mi].holidays[hi].hymns[hyi].kum.push({ beat:'', src:'', chanter:'', duration:'', timestamps:[] });
-        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
-    }
-    function studioAddAquVersion(mi, hi, hyi) {
-        studioData[mi].holidays[hi].hymns[hyi].aqu = studioData[mi].holidays[hi].hymns[hyi].aqu || { tach:[], lay:[] };
-        studioData[mi].holidays[hi].hymns[hyi].aqu.tach = studioData[mi].holidays[hi].hymns[hyi].aqu.tach || [];
-        studioData[mi].holidays[hi].hymns[hyi].aqu.tach.push({ beat:'', src:'', chanter:'', duration:'', timestamps:[] });
-        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
-    }
-    function studioDeleteVersion(type, vi, mi, hi, hyi) {
-        if(!confirm('Delete this version?')) return;
-        if(type === 'kum') studioData[mi].holidays[hi].hymns[hyi].kum.splice(vi, 1);
-        else studioData[mi].holidays[hi].hymns[hyi].aqu.tach.splice(vi, 1);
-        studioRenderVersions(studioData[mi].holidays[hi].hymns[hyi], mi, hi, hyi);
-    }
-    function studioAddVersionTimestamp(type, vi) {
-        const container = document.getElementById(`ts-${type}-${vi}`);
-        if(!container) return;
-        const existing = container.querySelectorAll('.studio-timestamp-row').length;
-        const row = document.createElement('div');
-        row.className = 'studio-timestamp-row';
-        row.id = `tsrow-${type}${vi}-${existing}`;
-        row.innerHTML = `
-            <input class="studio-timestamp-time" placeholder="00:00" id="ts-time-${type}${vi}-${existing}">
-            <input class="studio-timestamp-label" placeholder="Label" id="ts-label-${type}${vi}-${existing}" style="font-family:'Abyssinica SIL',serif;">
-            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
-        const placeholder = container.querySelector('div');
-        if(placeholder) placeholder.remove();
-        container.appendChild(row);
     }
 
     // --- export / import ---
