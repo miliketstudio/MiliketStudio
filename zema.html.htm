@@ -1,0 +1,2171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>ዜማ ወአቋቋም · Zema & Aquaquam Player</title>
+    <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        :root {
+            --bg: #09090b;
+            --card: #18181b;
+            --border: #27272a;
+            --text: #fafafa;
+            --muted: #a1a1aa;
+            --gold: #fef08a;
+            --gold-dark: #eab308;
+            --transition: 0.2s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Lexend', system-ui, -apple-system, sans-serif;
+            overflow-x: hidden;
+        }
+
+        /* ethiopic script */
+        .amharic, [lang="am"] {
+            font-family: 'Abyssinica SIL', 'Noto Sans Ethiopic', serif;
+        }
+
+        /* ----- layout ----- */
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px 24px 40px;
+        }
+
+        /* top bar */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 40px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .logo h1 {
+            font-size: 1.6rem;
+            font-weight: 500;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, var(--gold) 0%, #facc15 100%);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+        .logo p {
+            font-size: 0.7rem;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+        }
+        .search-wrap {
+            position: relative;
+            width: 280px;
+        }
+        .search-input {
+            width: 100%;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 60px;
+            padding: 10px 18px;
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            transition: var(--transition);
+        }
+        .search-input:focus {
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(254, 240, 138, 0.2);
+        }
+        .search-results {
+            position: absolute;
+            top: 110%;
+            right: 0;
+            left: 0;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            max-height: 360px;
+            overflow-y: auto;
+            z-index: 200;
+            display: none;
+        }
+        .search-results.show {
+            display: block;
+        }
+        .search-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.85rem;
+            transition: background 0.1s;
+        }
+        .search-item:last-child {
+            border-bottom: none;
+        }
+        .search-item:hover {
+            background: rgba(254, 240, 138, 0.08);
+        }
+
+.hero-section{
+    margin-bottom:40px;
+    padding:60px;
+    border-radius:40px;
+    background:
+        radial-gradient(circle at top right, rgba(234,179,8,.18), transparent 45%),
+        radial-gradient(circle at bottom left, rgba(234,179,8,.06), transparent 55%),
+        var(--card);
+    border:1px solid var(--border);
+    transition: opacity 0.2s ease;
+}
+
+.hero-badge{
+    display:inline-block;
+    padding:8px 18px;
+    border-radius:999px;
+    background:rgba(255,255,255,.05);
+    font-size:.75rem;
+    color:var(--gold);
+}
+
+.hero-title{
+    margin-top:18px;
+    font-size:4rem;
+    line-height:1;
+}
+
+.hero-subtitle{
+    margin-top:16px;
+    max-width:700px;
+    color:var(--muted);
+}
+
+.category-tabs{
+    display:flex;
+    gap:12px;
+    overflow:auto;
+    margin-bottom:24px;
+}
+
+.category-tab{
+    border:none;
+    cursor:pointer;
+    white-space:nowrap;
+    padding:12px 20px;
+    border-radius:999px;
+    background:var(--card);
+    color:var(--text);
+}
+
+.category-tab.active{
+    background:var(--gold);
+    color:#000;
+}
+
+        /* month grid */
+        .month-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 28px;
+            margin-top: 16px;
+        }
+        .month-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px 16px;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .month-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--gold);
+        }
+        .month-number {
+            font-size: 0.85rem;
+            font-weight: 300;
+            opacity: 0.55;
+            letter-spacing: 2px;
+        }
+        .month-amharic {
+            font-size: 2.2rem;
+            font-weight: 500;
+            margin: 12px 0 6px;
+            font-family: 'Abyssinica SIL', serif;
+        }
+        .month-name {
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.2em;
+            color: var(--muted);
+        }
+
+        /* holiday picker modal */
+        .holiday-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            backdrop-filter: blur(16px);
+            z-index: 300;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        .holiday-modal-content {
+            background: var(--card);
+            border-radius: 32px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 28px;
+            border: 1px solid var(--border);
+        }
+        .holiday-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .holiday-option {
+            padding: 14px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.1s;
+            border: 1px solid transparent;
+            font-weight: 500;
+        }
+        .holiday-option:hover {
+            border-color: var(--gold);
+            background: rgba(254,240,138,0.05);
+        }
+
+        /* recording list (unified rows) */
+        .back-bar {
+            margin-bottom: 28px;
+        }
+        .back-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 8px 20px;
+            color: var(--gold);
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: var(--transition);
+        }
+        .back-btn:hover {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+        .holiday-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin: 20px 0 8px;
+            color: var(--gold);
+        }
+        .recording-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .holiday-row {
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+            transition: border 0.2s;
+        }
+        .holiday-row:hover {
+            border-color: var(--gold);
+        }
+        .row-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 22px;
+            cursor: pointer;
+        }
+        .row-title h3 {
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        .row-meta {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            margin-top: 4px;
+            letter-spacing: 0.3px;
+        }
+        .drawer {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: rgba(0, 0, 0, 0.2);
+            border-top: 1px solid transparent;
+        }
+        .holiday-row.open .drawer {
+            max-height: 140px;
+            border-top-color: var(--border);
+        }
+        .drawer-actions {
+            display: flex;
+            gap: 28px;
+            padding: 16px 22px;
+            flex-wrap: wrap;
+        }
+        .action-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .action-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .btn-play {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 6px 18px;
+            color: var(--text);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-play:hover {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+        /* split button */
+        .aqu-split {
+            position: relative;
+            display: inline-flex;
+        }
+        .split-default {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 6px 18px;
+            cursor: pointer;
+            transition: 0.2s;
+            color: var(--text);
+            font-size: 0.8rem;
+        }
+        .split-hover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            background: var(--card);
+            border-radius: 40px;
+            display: flex;
+            gap: 6px;
+            padding: 4px;
+            border: 1px solid var(--gold);
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        @media (hover: hover) {
+            .aqu-split:hover .split-default {
+                opacity: 0;
+                pointer-events: none;
+            }
+            .aqu-split:hover .split-hover {
+                opacity: 1;
+                pointer-events: auto;
+            }
+        }
+        .aqu-split.tap-open .split-default {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .aqu-split.tap-open .split-hover {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .split-segment {
+            background: transparent;
+            border: none;
+            padding: 4px 14px;
+            border-radius: 30px;
+            cursor: pointer;
+            color: var(--text);
+            font-size: 0.75rem;
+            font-family: inherit;
+        }
+        .split-segment:hover {
+            background: var(--gold);
+            color: #000;
+        }
+
+        /* full player overlay */
+        .player-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.96);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s cubic-bezier(0.2, 0.9, 0.4, 1);
+        }
+        .player-overlay.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .player-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .center-stage {
+            max-width: 480px;
+            width: 100%;
+            text-align: center;
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            z-index: 2;
+        }
+        .player-left-panel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 360px;
+            background: rgba(255,255,255,0.03);
+            border-right: 1px solid var(--border);
+            transform: translateX(-100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            padding: 28px 20px;
+            z-index: 1;
+        }
+        .player-right-panel {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 360px;
+            background: rgba(255,255,255,0.03);
+            border-left: 1px solid var(--border);
+            transform: translateX(100%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow-y: auto;
+            padding: 28px 20px;
+            z-index: 1;
+        }
+        .player-container.timestamps-open .player-left-panel {
+            transform: translateX(0);
+        }
+        .player-container.timestamps-open .center-stage {
+            transform: translateX(180px);
+        }
+        .player-container.queue-open .player-right-panel {
+            transform: translateX(0);
+        }
+        .player-container.queue-open .center-stage {
+            transform: translateX(-180px);
+        }
+        .panel-toggle-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 6px 16px;
+            color: var(--muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .panel-toggle-btn:hover, .panel-toggle-btn.active {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        .panel-section-title {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            color: var(--muted);
+            margin: 20px 0 10px;
+        }
+        .panel-section-title:first-child {
+            margin-top: 0;
+        }
+        .timestamp-item {
+            padding: 10px 14px;
+            margin: 4px 0;
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.15s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .timestamp-item:hover {
+            background: var(--gold);
+            color: #000;
+        }
+        .timestamp-time {
+            font-size: 0.7rem;
+            opacity: 0.5;
+            font-variant-numeric: tabular-nums;
+        }
+        .timestamp-item:hover .timestamp-time {
+            opacity: 0.6;
+        }
+        .center-player {
+            text-align: center;
+        }
+        .player-card {
+            display: none;
+        }
+        .timestamps-panel, .book-panel {
+            display: none;
+        }
+        .player-art {
+            width: 130px;
+            height: 130px;
+            background: #2a2a2e;
+            border-radius: 32px;
+            margin: 0 auto 20px;
+            background-size: cover;
+            background-position: center;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50%" y="55%" font-size="40" text-anchor="middle" fill="%23fef08a" font-family="Abyssinica SIL">ዜማ</text></svg>');
+            transition: background-image 0.3s ease;
+        }
+        .controls-grid {
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            align-items: center;
+            margin: 28px 0;
+        }
+        .btn-play-lg {
+            width: 74px;
+            height: 74px;
+            border-radius: 40px;
+            background: var(--gold);
+            border: none;
+            font-size: 2.2rem;
+            cursor: pointer;
+            color: #000;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.1s;
+        }
+        .btn-play-lg:active { transform: scale(0.96); }
+        .progress-bar {
+            background: #2c2c30;
+            height: 6px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 18px 0 8px;
+        }
+        .progress-fill {
+            background: var(--gold);
+            width: 0%;
+            height: 100%;
+            border-radius: 6px;
+        }
+        .time-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            color: var(--muted);
+        }
+
+        /* mini player */
+        .mini-player {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(150%);
+            background: rgba(20, 20, 23, 0.98);
+            backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: 80px;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            z-index: 1100;
+            transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+            width: auto;
+            max-width: 90%;
+        }
+        .mini-player.visible {
+            transform: translateX(-50%) translateY(0);
+        }
+        .mini-info {
+            min-width: 140px;
+        }
+        .mini-info strong {
+            font-size: 0.85rem;
+        }
+        .mini-progress {
+            width: 160px;
+            background: #2c2c30;
+            height: 4px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .mini-progress-fill {
+            background: var(--gold);
+            width: 0%;
+            height: 100%;
+            border-radius: 4px;
+        }
+        .mini-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        .mini-btn {
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        @media (max-width: 800px) {
+            .player-left-panel, .player-right-panel { width: 100%; top: auto; bottom: 0; height: 55vh; border-radius: 28px 28px 0 0; border: none; border-top: 1px solid var(--border); }
+            .player-left-panel { left: 0; right: 0; transform: translateY(100%); }
+            .player-right-panel { left: 0; right: 0; transform: translateY(100%); }
+            .player-container.timestamps-open .player-left-panel { transform: translateY(0); }
+            .player-container.timestamps-open .center-stage { transform: translateY(-40px); }
+            .player-container.queue-open .player-right-panel { transform: translateY(0); }
+            .player-container.queue-open .center-stage { transform: translateY(-40px); }
+            .app-container { padding: 16px; }
+            .mini-progress { width: 100px; }
+            .player-container { padding: 16px; align-items: flex-start; padding-top: 80px; }
+        }
+        @media (max-width: 550px) {
+            .drawer-actions { flex-direction: column; gap: 12px; }
+            .holiday-row.open .drawer { max-height: 220px; }
+            .hero-title { font-size: 2.4rem; }
+            .hero-section { padding: 36px 28px; }
+        }
+        button {
+            font-family: inherit;
+        }
+
+        /* studio */
+        .studio-tab {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 6px 16px;
+            color: var(--muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+        }
+        .studio-tab.active {
+            background: var(--gold);
+            color: #000;
+            border-color: var(--gold);
+        }
+        .studio-add-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 5px 14px;
+            color: var(--text);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.2s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+        .studio-add-btn:hover {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        .studio-tree-month {
+            margin-bottom: 8px;
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        .studio-tree-month-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 14px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: background 0.15s;
+            gap: 8px;
+        }
+        .studio-tree-month-header:hover {
+            background: rgba(255,255,255,0.04);
+        }
+        .studio-tree-month-header.selected {
+            background: rgba(254,240,138,0.08);
+            color: var(--gold);
+        }
+        .studio-tree-holidays {
+            border-top: 1px solid var(--border);
+            display: none;
+        }
+        .studio-tree-month.open .studio-tree-holidays {
+            display: block;
+        }
+        .studio-tree-holiday {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 9px 14px 9px 24px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            color: var(--muted);
+            transition: background 0.15s;
+            border-bottom: 1px solid var(--border);
+            gap: 8px;
+        }
+        .studio-tree-holiday:last-child {
+            border-bottom: none;
+        }
+        .studio-tree-holiday:hover {
+            background: rgba(255,255,255,0.03);
+            color: var(--text);
+        }
+        .studio-tree-holiday.selected {
+            background: rgba(254,240,138,0.08);
+            color: var(--gold);
+        }
+        .studio-field-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--muted);
+            margin-bottom: 6px;
+            margin-top: 20px;
+            display: block;
+        }
+        .studio-field-label:first-child {
+            margin-top: 0;
+        }
+        .studio-input {
+            width: 100%;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s;
+        }
+        .studio-input:focus {
+            border-color: var(--gold);
+        }
+        .studio-textarea {
+            width: 100%;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 10px 14px;
+            color: var(--text);
+            font-size: 0.85rem;
+            outline: none;
+            font-family: 'Abyssinica SIL', serif;
+            resize: vertical;
+            min-height: 100px;
+            transition: border-color 0.2s;
+            line-height: 1.8;
+        }
+        .studio-textarea:focus {
+            border-color: var(--gold);
+        }
+        .studio-hymn-row {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+        .studio-hymn-row:hover {
+            border-color: var(--gold);
+        }
+        .studio-delete-btn {
+            background: transparent;
+            border: 1px solid #3f1f1f;
+            border-radius: 40px;
+            padding: 4px 12px;
+            color: #f87171;
+            font-size: 0.7rem;
+            cursor: pointer;
+            font-family: inherit;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .studio-delete-btn:hover {
+            background: #f87171;
+            color: #000;
+            border-color: #f87171;
+        }
+        .studio-section-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 24px 0;
+        }
+        .studio-timestamp-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+        .studio-timestamp-row input {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 6px 10px;
+            color: var(--text);
+            font-size: 0.8rem;
+            outline: none;
+            font-family: inherit;
+        }
+        .studio-timestamp-row input:focus {
+            border-color: var(--gold);
+        }
+        .studio-timestamp-time {
+            width: 80px;
+        }
+        .studio-timestamp-label {
+            flex: 1;
+        }
+    </style>
+</head>
+<body>
+<div class="app-container" id="app">
+    <div class="top-bar">
+        <div class="logo">
+            <h1>ዜማ ወአቋቋም</h1>
+            <p>Zema · Aquaquam · Timestamps</p>
+        </div>
+        <div class="search-wrap">
+            <input type="text" id="globalSearch" class="search-input" placeholder="Search hymns, feasts...">
+            <div id="searchResults" class="search-results"></div>
+        </div>
+        <button id="studioTrigger" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;" onmouseenter="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseleave="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">⚙ Studio</button>
+    </div>
+    
+    <section class="hero-section">
+    <div class="hero-content">
+        <span class="hero-badge">
+            Ethiopian Orthodox Chant Archive
+        </span>
+
+        <h1 class="hero-title amharic">
+            ዜማ ወአቋቋም
+        </h1>
+
+        <p class="hero-subtitle">
+            Search chants, explore feast days, study lyrics,
+            follow timestamps, and listen to recordings.
+        </p>
+    </div>
+</section>
+
+    <!-- month grid view -->
+    <div class="category-tabs" id="categoryTabs">
+  <button class="category-tab active" data-filter="all">All</button>
+  <button class="category-tab" data-filter="feasts">Feasts</button>
+  <button class="category-tab" data-filter="saints">Saints</button>
+  <button class="category-tab" data-filter="fasts">Fasts</button>
+  <button class="category-tab" data-filter="seasonal">Seasonal</button>
+  <button class="category-tab" data-filter="recent">Recently Played</button>
+</div>
+
+<div id="monthView" class="month-grid"></div>
+
+    <!-- holiday detail view (hidden initially) -->
+    <div id="holidayView" style="display: none;">
+        <div class="back-bar">
+            <button class="back-btn" id="backToMonthsBtn">← Back to months</button>
+        </div>
+        <div id="holidayHeader"></div>
+        <div id="recordingList" class="recording-list"></div>
+    </div>
+</div>
+
+<!-- full player overlay -->
+<div id="fullPlayer" class="player-overlay">
+    <div style="position: absolute; top: 20px; right: 28px; z-index: 10; display: flex; gap: 10px;">
+        <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
+        <button class="panel-toggle-btn" id="queueToggleBtn">≡ Queue</button>
+        <button id="closePlayerBtn" style="background: none; border: 1px solid var(--border); border-radius: 40px; padding: 6px 16px; color: var(--muted); font-size: 0.9rem; cursor: pointer;">✕</button>
+    </div>
+    <div class="player-container" id="playerContainer">
+
+        <!-- Left panel: timestamps -->
+        <div class="player-left-panel" id="timestampsPanelWrap">
+            <div class="panel-section-title">Timestamps</div>
+            <div id="timestampsPanel"></div>
+        </div>
+
+        <!-- Center stage -->
+        <div class="center-stage">
+            <div class="center-player">
+                <div class="player-art" id="playerArt"></div>
+                <div style="margin-bottom: 24px;">
+                    <strong id="playerTrackTitle" style="font-size: 1.1rem;">-</strong><br>
+                    <span id="playerChanter" style="font-size: 0.8rem; color: var(--muted);"></span>
+                </div>
+                <!-- Visualizer -->
+                <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
+                <div class="controls-grid">
+                    <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
+                    <button id="playerPlayPause" class="btn-play-lg">▶</button>
+                    <button id="playerNextBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏭</button>
+                </div>
+                <div class="progress-bar" id="playerProgress"><div class="progress-fill" id="playerProgressFill"></div></div>
+                <div class="time-row"><span id="currentTimeLabel">0:00</span><span id="durationLabel">0:00</span></div>
+                <div style="display: flex; justify-content: center; gap: 16px; margin-top: 18px; flex-wrap: wrap;">
+                    <button id="loopBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); cursor:pointer;">🔁</button>
+                    <select id="speedSelect" style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border);">
+                        <option value="0.75">0.75x</option><option value="1" selected>1x</option><option value="1.25">1.25x</option><option value="1.5">1.5x</option><option value="2">2x</option>
+                    </select>
+                    <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:90px; accent-color:var(--gold);">
+                </div>
+            </div>
+        </div>
+
+        <!-- Right panel: queue + lyrics -->
+        <div class="player-right-panel" id="rightPanelWrap">
+            <div class="panel-section-title">Now playing queue</div>
+            <div id="queuePanel"></div>
+            <div class="panel-section-title">Recently played</div>
+            <div id="recentPanel"></div>
+            <div class="panel-section-title">Lyrics</div>
+            <div id="lyricsPanel" style="font-family:'Abyssinica SIL',serif; font-size:1rem; line-height:2; color:var(--text); white-space:pre-wrap;">Select a chant</div>
+            <div class="panel-section-title">Translation</div>
+            <div id="translationPanel" style="font-size:0.85rem; line-height:1.8; color:var(--muted); white-space:pre-wrap;">Translation appears here</div>
+        </div>
+
+    </div>
+</div>
+
+<!-- studio overlay -->
+<div id="studioOverlay" style="display:none; position:fixed; inset:0; background:var(--bg); z-index:2000; overflow:hidden; flex-direction:column;">
+
+    <!-- studio top bar -->
+    <div style="display:flex; justify-content:space-between; align-items:center; padding:16px 28px; border-bottom:1px solid var(--border); flex-shrink:0;">
+        <div style="display:flex; align-items:center; gap:16px;">
+            <span style="font-size:1rem; font-weight:500; color:var(--gold);">⚙ Miliket Studio</span>
+            <div style="display:flex; gap:8px;" id="studioTabs">
+                <button class="studio-tab active" data-tab="structure">Structure</button>
+                <button class="studio-tab" data-tab="editor">Editor</button>
+                <button class="studio-tab" data-tab="export">Export</button>
+                <button class="studio-tab" data-tab="settings">⚙ Settings</button>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <span id="studioSaveStatus" style="font-size:0.75rem; color:var(--muted);"></span>
+            <button id="studioSaveBtn" style="background:var(--gold); border:none; border-radius:40px; padding:8px 20px; font-size:0.8rem; cursor:pointer; color:#000; font-family:inherit;">Save JSON</button>
+            <button id="studioCloseBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 16px; color:var(--muted); cursor:pointer; font-size:0.85rem; font-family:inherit;">✕ Close</button>
+        </div>
+    </div>
+
+    <!-- studio body -->
+    <div style="flex:1; overflow:hidden; display:flex;">
+
+        <!-- Structure tab -->
+        <div id="studioTabStructure" class="studio-tab-content" style="flex:1; display:flex; overflow:hidden;">
+            <!-- left: tree -->
+            <div style="width:340px; border-right:1px solid var(--border); overflow-y:auto; padding:20px 16px; flex-shrink:0;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--muted);">Months & Holidays</span>
+                    <button class="studio-add-btn" onclick="studioAddMonth()">+ Month</button>
+                </div>
+                <div id="studioTree"></div>
+            </div>
+            <!-- right: detail panel -->
+            <div style="flex:1; overflow-y:auto; padding:28px 32px;" id="studioDetail">
+                <div style="color:var(--muted); font-size:0.85rem; margin-top:40px; text-align:center;">Select a month or holiday from the tree</div>
+            </div>
+        </div>
+
+        <!-- Editor tab -->
+        <div id="studioTabEditor" class="studio-tab-content" style="flex:1; display:none; overflow:hidden; flex-direction:column;">
+            <div style="padding:28px 32px; flex:1; overflow-y:auto;">
+                <div style="color:var(--muted); font-size:0.85rem; margin-top:40px; text-align:center;">Select a hymn from the Structure tab to edit it here</div>
+            </div>
+        </div>
+
+        <!-- Export tab -->
+        <div id="studioTabExport" class="studio-tab-content" style="flex:1; display:none; overflow-y:auto; padding:28px 32px;">
+            <div style="max-width:700px;">
+                <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.15em; color:var(--muted); margin-bottom:16px;">JSON Preview</div>
+                <textarea id="studioJsonPreview" style="width:100%; height:400px; background:var(--card); border:1px solid var(--border); border-radius:16px; padding:16px; color:var(--text); font-family:monospace; font-size:0.75rem; resize:vertical; outline:none;"></textarea>
+                <div style="display:flex; gap:12px; margin-top:16px;">
+                    <button class="studio-add-btn" onclick="studioDownloadJson()">⬇ Download JSON</button>
+                    <button class="studio-add-btn" onclick="studioImportJson()">⬆ Import JSON</button>
+                    <input type="file" id="studioImportInput" accept=".json" style="display:none;" onchange="studioHandleImport(this)">
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings tab -->
+        <div id="studioTabSettings" class="studio-tab-content" style="flex:1; display:none; overflow-y:auto; padding:28px 32px;">
+            <div style="max-width:500px;">
+                <div style="font-size:1rem; font-weight:500; color:var(--gold); margin-bottom:24px;">Studio Settings</div>
+                <label class="studio-field-label">GitHub Personal Access Token</label>
+                <div style="display:flex; gap:10px;">
+                    <input type="password" class="studio-input" id="studioTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1;">
+                    <button class="studio-add-btn" onclick="studioSaveToken()">Save token</button>
+                </div>
+                <div style="font-size:0.7rem; color:var(--muted); margin-top:8px;">Stored in your browser only. Never sent anywhere except GitHub's API.</div>
+                <hr class="studio-section-divider">
+                <div class="studio-field-label">Gist ID</div>
+                <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-family:monospace; font-size:0.75rem; color:var(--muted);">b070b16ccb4d0eb452d48c3530c32e1c</div>
+                <hr class="studio-section-divider">
+                <button class="studio-add-btn" onclick="studioTestConnection()" id="studioTestBtn">Test connection</button>
+                <span id="studioTestStatus" style="font-size:0.75rem; color:var(--muted); margin-left:12px;"></span>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- studio auth modal -->
+<div id="studioAuthModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); backdrop-filter:blur(16px); z-index:3000; align-items:center; justify-content:center;">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:32px; padding:40px; width:360px; text-align:center;">
+        <div style="font-size:1.2rem; font-weight:500; color:var(--gold); margin-bottom:8px;">Studio Access</div>
+        <div style="font-size:0.8rem; color:var(--muted); margin-bottom:24px;">Enter studio password to continue</div>
+        <input type="password" id="studioPasswordInput" placeholder="Password" style="width:100%; background:var(--bg); border:1px solid var(--border); border-radius:40px; padding:12px 20px; color:var(--text); font-size:0.85rem; outline:none; margin-bottom:12px; font-family:inherit;">
+        <div id="studioAuthError" style="font-size:0.75rem; color:#f87171; margin-bottom:12px; display:none;">Incorrect password</div>
+        <div style="display:flex; gap:10px; justify-content:center;">
+            <button onclick="studioAuthCancel()" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:10px 24px; color:var(--muted); cursor:pointer; font-family:inherit;">Cancel</button>
+            <button onclick="studioAuthSubmit()" style="background:var(--gold); border:none; border-radius:40px; padding:10px 24px; color:#000; cursor:pointer; font-family:inherit; font-weight:500;">Enter</button>
+        </div>
+    </div>
+</div>
+
+<!-- mini player -->
+<div id="miniPlayer" class="mini-player">
+    <div class="mini-info"><strong id="miniTitle">-</strong><br><span id="miniArtist" style="font-size:0.7rem;"></span></div>
+    <div class="mini-progress" id="miniProgressBar"><div class="mini-progress-fill" id="miniProgressFill"></div></div>
+    <div class="mini-controls">
+        <button class="mini-btn" id="miniPrev">⏮</button>
+        <button class="mini-btn" id="miniPlayPause">▶</button>
+        <button class="mini-btn" id="miniNext">⏭</button>
+        <button class="mini-btn" id="miniExpand">🗕</button>
+        <button class="mini-btn" id="miniClose">✕</button>
+    </div>
+</div>
+
+<script>
+    // ---------- MOCK DATA (UI shell, real data later) ----------
+    const MONTHS_DATA = [
+        { id:1, name:"Meskerem", amharic:"መስከረም", holidays: [
+            { name:"Enkutatash", folder:"enkutatash", hymns: [
+                { title:"ዋዜማ", displayTitle:"ዋዜማ", lyrics:"ዋዜማ ዘቅዱሳን\nዋዜማ ዘመላእክት", translation:"Vigil hymn of the saints.\nVigil hymn of the angels.", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", chanter:"መምህር አለሙ", duration:"03:45", timestamps:[{time:"00:00",label:"ዝማሜ"},{time:"01:20",label:"ቁም"}] }],
+                    aqu:{ tach:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", chanter:"ዲያቆን ተስፋዬ", duration:"04:20", timestamps:[{time:"00:00",label:"ዝማሜ"},{time:"02:10",label:"ቁም"},{time:"03:30",label:"መረግድ"}] }] } },
+                { title:"ሰላም ምልጣን", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", chanter:"መምህር ዘሪሁን", duration:"02:55", timestamps:[] }] }
+            ] },
+            { name:"Kidane Mehret", folder:"kidane-mehret", hymns:[{ title:"ዋዜማ", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", chanter:"ተስፋዬ", duration:"05:10", timestamps:[{time:"00:00",label:"ዝማሜ"},{time:"03:05",label:"ቁም"}] }] }] }
+        ] },
+        { id:2, name:"Tikimt", amharic:"ጥቅምት", holidays:[{ name:"Meskel", folder:"meskel", hymns:[{ title:"ዋዜማ", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", chanter:"አበባ", duration:"04:00", timestamps:[] }] }] }] },
+        { id:3, name:"Hidar", amharic:"ኅዳር", holidays:[{ name:"Beale Michael", folder:"michael", hymns:[{ title:"ሰላም", kum:[{ src:"https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", chanter:"ዲያቆን ዮሴፍ", duration:"03:20", timestamps:[{time:"00:00",label:"ዝማሜ"}] }] }] }] }
+    ];
+
+    let currentMonth = null, currentHoliday = null;
+    let audio = new Audio();
+    audio.volume = 0.8;
+    let currentTrackObj = null;      // { hymn, type, version, clipStart, clipEnd, timestamps }
+    let playlist = [];
+    let recentlyPlayed = [];
+    try{
+        recentlyPlayed =
+        JSON.parse(
+            localStorage.getItem('recentlyPlayed')
+        ) || [];
+    }catch{
+        recentlyPlayed = [];
+    }
+    let playlistIndex = -1;
+    let loopState = 0; // 0 off, 1 all, 2 once
+    let isPlaying = false;
+    let clipStartSec = 0, clipEndSec = 0;
+    let currentHymnTitle = "";
+
+    // helpers
+    function parseTimeToSec(t) { if(!t) return 0; let p=t.split(':'); return p.length===2 ? parseInt(p[0])*60+parseFloat(p[1]) : (p.length===3 ? parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]) : 0); }
+    function formatSec(sec) { let m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}:${s<10?'0'+s:s}`; }
+
+    // render months
+    function renderMonths() {
+        const container = document.getElementById('monthView');
+        container.innerHTML = '';
+        MONTHS_DATA.forEach(m => {
+            const card = document.createElement('div');
+            card.className = 'month-card';
+            card.innerHTML = `<div class="month-number">${String(m.id).padStart(2,'0')}</div><div class="month-amharic">${m.amharic}</div><div class="month-name">${m.name}</div>`;
+            card.onclick = () => showHolidayPicker(m);
+            container.appendChild(card);
+        });
+    }
+
+    function showHolidayPicker(month) {
+        const modal = document.createElement('div');
+        modal.className = 'holiday-modal';
+        modal.innerHTML = `<div class="holiday-modal-content"><h3 style="color:var(--gold);">${month.amharic} · ${month.name}</h3><div class="holiday-grid" id="holidayGridModal"></div><button class="back-btn" style="margin-top:16px;" onclick="this.closest('.holiday-modal').remove()">Close</button></div>`;
+        document.body.appendChild(modal);
+        const grid = modal.querySelector('#holidayGridModal');
+        month.holidays.forEach(h => {
+            const opt = document.createElement('div');
+            opt.className = 'holiday-option';
+            opt.innerText = h.name;
+            opt.onclick = () => { modal.remove(); openHolidayView(month, h); };
+            grid.appendChild(opt);
+        });
+        modal.style.display = 'flex';
+    }
+
+    function openHolidayView(month, holiday) {
+        sessionStorage.setItem('monthScrollY', window.scrollY);
+        currentMonth = month;
+        currentHoliday = holiday;
+        document.getElementById('monthView').style.display = 'none';
+        document.getElementById('holidayView').style.display = 'block';
+        document.getElementById('holidayHeader').innerHTML = `<div class="holiday-title">${month.amharic} · ${holiday.name}</div>`;
+        renderHolidayRows(holiday);
+    }
+
+    function renderHolidayRows(holiday) {
+        const container = document.getElementById('recordingList');
+        container.innerHTML = '';
+        holiday.hymns.forEach((hymn, idx) => {
+            const hasKum = hymn.kum && hymn.kum.length;
+            const hasAqu = hymn.aqu && (hymn.aqu.tach?.length || hymn.aqu.lay?.length);
+            const kumVer = hasKum ? hymn.kum[0] : null;
+            const aquVer = hasAqu ? (hymn.aqu.tach?.[0] || hymn.aqu.lay?.[0]) : null;
+            const row = document.createElement('div');
+            row.className = 'holiday-row';
+            row.innerHTML = `
+                <div class="row-main">
+                    <div class="row-title"><h3>${hymn.displayTitle || hymn.title}</h3><div class="row-meta">${hasKum ? 'ቁም ዜማ' : ''} ${hasAqu ? 'አቋቋም' : ''}</div></div>
+                </div>
+                <div class="drawer">
+                    <div class="drawer-actions">
+                        ${hasKum ? `<div class="action-group"><span class="action-label">ቁም ዜማ</span><button class="btn-play" data-type="kum" data-idx="${idx}">▶ ${kumVer.duration || '--'}</button></div>` : ''}
+                        ${hasAqu ? `<div class="action-group"><span class="action-label">አቋቋም</span><div class="aqu-split"><div class="split-default" data-type="aqu" data-idx="${idx}">▶ ${aquVer.duration || '--'}</div><div class="split-hover" data-type="aqu" data-idx="${idx}">${(aquVer.timestamps||[]).map(ts=>`<button class="split-segment" data-seek="${ts.time}">${ts.label}</button>`).join('')}</div></div></div>` : ''}
+                    </div>
+                </div>
+            `;
+            row.querySelector('.row-main').onclick = () => {
+            row.classList.toggle('open');
+            };
+
+            container.appendChild(row);
+            // attach events
+            row.querySelectorAll('[data-type="kum"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); playHymn(hymn, 'kum', 0, null); });
+            row.querySelectorAll('.split-default[data-type="aqu"]').forEach(btn => btn.onclick = (e) => { e.stopPropagation(); playHymn(hymn, 'aqu', 0, null); });
+            row.querySelectorAll('.split-segment').forEach(seg => seg.onclick = (e) => { e.stopPropagation(); const seek = seg.dataset.seek; playHymn(hymn, 'aqu', 0, seek); });
+        });
+    }
+
+    function playHymn(hymn, type, versionIdx, seekTime = null) {
+        let version = null;
+        if(type === 'kum') version = hymn.kum[versionIdx];
+        else version = hymn.aqu?.tach?.[versionIdx] || hymn.aqu?.lay?.[versionIdx];
+        if(!version) return;
+        currentHymnTitle = hymn.displayTitle || hymn.title;
+        clipStartSec = parseTimeToSec(version.clipStart);
+        clipEndSec = parseTimeToSec(version.clipEnd) || parseTimeToSec(version.duration) || 0;
+        // 0 means "use real audio duration" — resolved in onloadedmetadata below
+        currentTrackObj = { hymn, type, version, clipStart: clipStartSec, clipEnd: clipEndSec, timestamps: version.timestamps || [] };
+        audio.src = version.src;
+        audio.load();
+        recentlyPlayed.unshift({
+            title: currentHymnTitle,
+            time: Date.now(),
+            monthId: currentMonth ? currentMonth.id : null,
+            holidayName: currentHoliday ? currentHoliday.name : null,
+            type: type
+        });
+        const seen = new Set();
+
+        recentlyPlayed =
+        recentlyPlayed.filter(item => {
+        if(seen.has(item.title)) return false;
+        seen.add(item.title);
+        return true;
+        }).slice(0,15);
+
+        renderRecent();
+        localStorage.setItem(
+            'recentlyPlayed',
+            JSON.stringify(recentlyPlayed)
+        );
+        audio.playbackRate = parseFloat(document.getElementById('speedSelect').value);
+        audio.onloadedmetadata = () => {
+            if(clipEndSec <= clipStartSec) clipEndSec = audio.duration || clipStartSec + 3600;
+            document.getElementById('durationLabel').innerText = formatSec(clipEndSec - clipStartSec);
+            let startPos = clipStartSec;
+            if(seekTime) startPos = clipStartSec + parseTimeToSec(seekTime);
+            audio.currentTime = Math.min(startPos, clipEndSec - 0.1);
+            audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e=>console.warn(e));
+            buildPlaylistFromHoliday();
+            renderQueue();
+            syncPlayerUI();
+            openFullPlayer();
+            document.getElementById('miniPlayer').classList.add('visible');
+            document.getElementById('lyricsPanel').innerText =
+            currentTrackObj.hymn.lyrics || '';
+
+            document.getElementById('translationPanel').innerText =
+            currentTrackObj.hymn.translation || '';
+        };
+        audio.onerror = () => console.warn("audio mock error, using mock");
+    }
+
+    function buildPlaylistFromHoliday() {
+        if(!currentHoliday) return;
+        playlist = [];
+        currentHoliday.hymns.forEach(h => {
+            if(h.kum?.length) playlist.push({ hymn:h, type:'kum', version:h.kum[0] });
+            if(h.aqu?.tach?.length) playlist.push({ hymn:h, type:'aqu', version:h.aqu.tach[0] });
+            else if(h.aqu?.lay?.length) playlist.push({ hymn:h, type:'aqu', version:h.aqu.lay[0] });
+        });
+        playlistIndex = playlist.findIndex(p => p.version === currentTrackObj.version);
+    }
+
+    function syncPlayerUI() {
+        updateMediaSession();
+        loadArtwork(currentMonth, currentHoliday);
+        document.getElementById('playerTrackTitle').innerText = currentHymnTitle;
+        document.getElementById('playerChanter').innerText = currentTrackObj.version.chanter || '';
+        document.getElementById('miniTitle').innerText = currentHymnTitle.slice(0, 32);
+        document.getElementById('miniArtist').innerText = currentTrackObj.version.chanter || '';
+        document.getElementById('lyricsPanel').innerText =
+        currentTrackObj.hymn.lyrics || 'No lyrics available';
+
+        document.getElementById('translationPanel').innerText =
+        currentTrackObj.hymn.translation || 'No translation available';
+        // timestamps panel
+        const tsPanel = document.getElementById('timestampsPanel');
+        const timestamps = currentTrackObj.timestamps || [];
+        if(!timestamps.length) {
+            tsPanel.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No timestamps for this recording.</div>';
+        } else {
+            tsPanel.innerHTML = timestamps.map(ts =>
+                `<div class="timestamp-item" data-seek="${ts.time}">
+                    <span>${ts.label}</span>
+                    <span class="timestamp-time">${ts.time}</span>
+                </div>`
+            ).join('');
+            tsPanel.querySelectorAll('.timestamp-item').forEach(el => {
+                el.onclick = () => {
+                    const t = parseTimeToSec(el.dataset.seek);
+                    if(!isNaN(t)) seekTo(t);
+                    tsPanel.querySelectorAll('.timestamp-item').forEach(x => x.style.background = '');
+                    el.style.background = 'var(--gold)';
+                    el.style.color = '#000';
+                };
+            });
+        }
+    }
+
+    function seekTo(seconds) { let newAbs = clipStartSec + Math.min(Math.max(0, seconds), clipEndSec - clipStartSec); audio.currentTime = newAbs; }
+    function updatePlayUI() {
+        const playBtn = document.getElementById('playerPlayPause');
+        if(playBtn) playBtn.innerHTML = isPlaying ? '⏸' : '▶';
+        const miniBtn = document.getElementById('miniPlayPause');
+        if(miniBtn) miniBtn.innerHTML = isPlaying ? '⏸' : '▶';
+        if(isPlaying) startVisualizer(); else stopVisualizer();
+    }
+    function togglePlayPause() {
+        if(isPlaying) {
+            audio.pause();
+            isPlaying = false;
+            updatePlayUI();
+        } else {
+            audio.play().then(() => {
+                isPlaying = true;
+                updatePlayUI();
+            }).catch(e => console.warn(e));
+        }
+    }
+    function nextTrack() {
+        if(playlistIndex+1 < playlist.length) { playlistIndex++; loadPlaylistTrack(); }
+        else { isPlaying = false; updatePlayUI(); }
+    }
+    function prevTrack() {
+        if(audio.currentTime - clipStartSec > 1.25) { audio.currentTime = clipStartSec; return; }
+        if(playlistIndex-1 >= 0) { playlistIndex--; loadPlaylistTrack(); }
+        else { audio.currentTime = clipStartSec; }
+    }
+    function loadPlaylistTrack() {
+        const p = playlist[playlistIndex];
+
+        if(p){
+            renderQueue();
+            playHymn(p.hymn, p.type, 0, null);
+        }
+    }
+
+    function handleClipEnd() {
+        if(loopState===1 || loopState===2) {
+            audio.currentTime = clipStartSec;
+            if(loopState===2) { loopState=0; updateLoopUI(); }
+            audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e=>console.warn(e));
+        } else {
+            nextTrack();
+        }
+    }
+    audio.addEventListener('timeupdate', () => {
+        let rel = audio.currentTime - clipStartSec;
+        if(rel<0) rel=0;
+        const total = clipEndSec - clipStartSec;
+        let percent = total > 0 ? (rel / total) * 100 : 0;
+        document.getElementById('playerProgressFill').style.width = percent+'%';
+        document.getElementById('miniProgressFill').style.width = percent+'%';
+        document.getElementById('currentTimeLabel').innerText = formatSec(rel);
+        if(audio.currentTime >= clipEndSec && clipEndSec>clipStartSec) {
+            handleClipEnd();
+        }
+    });
+    audio.addEventListener('ended', () => {
+        handleClipEnd();
+    });
+
+    function updateLoopUI() { const btn = document.getElementById('loopBtn'); btn.innerText = loopState===0?'🔁':(loopState===1?'🔁∞':'🔂1'); }
+    function toggleLoop() { loopState = (loopState+1)%3; updateLoopUI(); }
+    function setSpeed(val) { audio.playbackRate = parseFloat(val); }
+    document.getElementById('speedSelect')?.addEventListener('change', e => setSpeed(e.target.value));
+    document.getElementById('loopBtn')?.addEventListener('click', toggleLoop);
+    document.getElementById('playerPlayPause')?.addEventListener('click', togglePlayPause);
+    document.getElementById('miniPlayPause')?.addEventListener('click', togglePlayPause);
+    document.getElementById('playerPrevBtn')?.addEventListener('click', prevTrack);
+    document.getElementById('playerNextBtn')?.addEventListener('click', nextTrack);
+    document.getElementById('miniPrev')?.addEventListener('click', prevTrack);
+    document.getElementById('miniNext')?.addEventListener('click', nextTrack);
+    function openFullPlayer() {
+        document.getElementById('fullPlayer').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+    function closeFullPlayer() {
+        document.getElementById('fullPlayer').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+    document.getElementById('closePlayerBtn')?.addEventListener('click', () => {
+        audio.pause();
+        audio.currentTime = 0;
+        isPlaying = false;
+        updatePlayUI();
+        closeFullPlayer();
+        document.getElementById('miniPlayer').classList.remove('visible');
+    });
+    document.getElementById('miniClose')?.addEventListener('click', () => {
+        audio.pause();
+        audio.currentTime = 0;
+        isPlaying = false;
+        updatePlayUI();
+        closeFullPlayer();
+        document.getElementById('miniPlayer').classList.remove('visible');
+    });
+    document.getElementById('miniExpand')?.addEventListener('click', () => { openFullPlayer(); document.getElementById('miniPlayer').classList.remove('visible'); });
+    document.getElementById('volumeBtn')?.addEventListener('click', () => { let s=document.getElementById('volumeSlider'); s.style.display = s.style.display==='none'?'inline-block':'none'; });
+    document.getElementById('volumeSlider')?.addEventListener('input', e => audio.volume = parseFloat(e.target.value));
+    // progress scrubbing
+    const progBar = document.getElementById('playerProgress');
+    progBar.addEventListener('click', e => { let rect=progBar.getBoundingClientRect(); let frac=(e.clientX-rect.left)/rect.width; let newRel=frac*(clipEndSec-clipStartSec); audio.currentTime=clipStartSec+Math.min(Math.max(0,newRel),clipEndSec-clipStartSec); });
+    const miniProg = document.getElementById('miniProgressBar');
+    miniProg.addEventListener('click', e => { let rect=miniProg.getBoundingClientRect(); let frac=(e.clientX-rect.left)/rect.width; let newRel=frac*(clipEndSec-clipStartSec); audio.currentTime=clipStartSec+Math.min(Math.max(0,newRel),clipEndSec-clipStartSec); });
+    // search
+    function normalizeEthiopic(str) {
+        return str
+            .replace(/[ሐሓሒሑሔሕሖ]/g, 'ሀ')   // ha variants
+            .replace(/[ኀኁኂኃኄኅኆ]/g, 'ሀ')   // ha variants 2
+            .replace(/ፀ/g, 'ጸ')             // tse variant
+            .replace(/ሠ/g, 'ሰ')             // se variant
+            .replace(/[ዐዑዒዓዔዕዖ]/g, 'አ')   // glottal stop variant
+            .toLowerCase();
+    }
+    function buildSearchIndex() {
+        let idx = [];
+        MONTHS_DATA.forEach(m => {
+            m.holidays.forEach(h => {
+                h.hymns.forEach(hy => {
+                    const raw = `${m.name} ${m.amharic} ${h.name} ${hy.title} ${hy.displayTitle || ''}`;
+                    idx.push({ month: m, holiday: h, hymn: hy, text: raw.toLowerCase(), normalized: normalizeEthiopic(raw) });
+                });
+            });
+        });
+        return idx;
+    }
+    const searchIndex = buildSearchIndex();
+    const searchInput = document.getElementById('globalSearch');
+    const resultsDiv = document.getElementById('searchResults');
+    searchInput.addEventListener('input', () => {
+        let term = searchInput.value.trim().toLowerCase();
+        if(!term) { resultsDiv.classList.remove('show'); return; }
+        const termNorm = normalizeEthiopic(term);
+        let matches = searchIndex
+            .filter(item => item.text.includes(term) || item.normalized.includes(termNorm))
+            .slice(0, 12);
+        if(matches.length === 0) {
+            resultsDiv.innerHTML = '<div class="search-item" style="cursor:default;">No results</div>';
+            resultsDiv.classList.add('show');
+            return;
+        }
+        resultsDiv.innerHTML = matches.map(m => `<div class="search-item" data-month="${m.month.id}" data-holiday="${m.holiday.name}" data-hymn="${m.hymn.title}">${m.month.name} · ${m.holiday.name} · ${m.hymn.title}</div>`).join('');
+        resultsDiv.classList.add('show');
+        resultsDiv.querySelectorAll('.search-item').forEach(el => {
+            el.onclick = () => { const hName=el.dataset.holiday; const targetMonth=MONTHS_DATA.find(mo=>mo.id==parseInt(el.dataset.month)); const targetHol=targetMonth?.holidays.find(h=>h.name===hName); if(targetHol){ openHolidayView(targetMonth,targetHol);  setTimeout(() => {     const hymn =     targetHol.hymns.find(         h => h.title === el.dataset.hymn     );      if(hymn?.kum?.length){         playHymn(hymn,'kum',0);     } },50); searchInput.value=''; resultsDiv.classList.remove('show'); } };
+        });
+    });
+    document.addEventListener('click', (e) => { if(!e.target.closest('.search-wrap')) resultsDiv.classList.remove('show'); });
+    document.getElementById('backToMonthsBtn')?.addEventListener('click', () => {
+        const savedScroll = sessionStorage.getItem('monthScrollY') || 0;
+        renderMonths();
+        document.getElementById('monthView').style.display = 'block';
+        document.getElementById('holidayView').style.display = 'none';
+        requestAnimationFrame(() => window.scrollTo(0, parseInt(savedScroll)));
+    });
+
+function renderRecent(){
+    const panel = document.getElementById('recentPanel');
+    if(!panel) return;
+    if(!recentlyPlayed.length){
+        panel.innerHTML = '<div class="timestamp-item" style="cursor:default;">Nothing played yet</div>';
+        return;
+    }
+    panel.innerHTML = recentlyPlayed.map((item, i) =>
+        `<div class="timestamp-item" data-ri="${i}" style="cursor:pointer;">
+            ${item.title}
+            ${item.holidayName ? `<span style="font-size:0.7rem;opacity:0.5;margin-left:6px;">${item.holidayName}</span>` : ''}
+        </div>`
+    ).join('');
+    panel.querySelectorAll('[data-ri]').forEach(el => {
+        el.onclick = () => {
+            const item = recentlyPlayed[parseInt(el.dataset.ri)];
+            if(!item.monthId || !item.holidayName) return;
+            const targetMonth = MONTHS_DATA.find(m => m.id === item.monthId);
+            const targetHoliday = targetMonth?.holidays.find(h => h.name === item.holidayName);
+            if(!targetMonth || !targetHoliday) return;
+            closeFullPlayer();
+            document.getElementById('miniPlayer').classList.remove('visible');
+            document.body.style.overflow = '';
+            openHolidayView(targetMonth, targetHoliday);
+        };
+    });
+}
+
+function renderQueue(){
+    const panel = document.getElementById('queuePanel');
+    if(!panel) return;
+    panel.innerHTML = playlist.map((p,i) =>
+        `<div class="timestamp-item" style="${i===playlistIndex ? 'background:var(--gold);color:#000;' : ''}" data-qi="${i}">
+            ${i===playlistIndex ? '▶ ' : ''}${i+1}. ${p.hymn.title}
+        </div>`
+    ).join('');
+    panel.querySelectorAll('[data-qi]').forEach(el => {
+        el.onclick = () => { playlistIndex = parseInt(el.dataset.qi); loadPlaylistTrack(); };
+    });
+}
+    document.addEventListener('keydown', (e) => {
+        const playerOpen = document.getElementById('fullPlayer').classList.contains('open');
+        if(!playerOpen && e.code !== 'Escape') return;
+        switch(e.code) {
+            case 'Space':
+                e.preventDefault();
+                togglePlayPause();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                if(e.shiftKey) nextTrack();
+                else { let t = audio.currentTime + 10; audio.currentTime = Math.min(t, clipEndSec); }
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                if(e.shiftKey) prevTrack();
+                else { let t = audio.currentTime - 10; audio.currentTime = Math.max(t, clipStartSec); }
+                break;
+            case 'Escape':
+                if(playerOpen) closeFullPlayer();
+                document.getElementById('miniPlayer').classList.add('visible');
+                document.body.style.overflow = '';
+                break;
+        }
+    });
+
+    function updateMediaSession() {
+        if(!('mediaSession' in navigator) || !currentTrackObj) return;
+        navigator.mediaSession.metadata = new MediaMetadata({
+            title: currentHymnTitle,
+            artist: currentTrackObj.version.chanter || '',
+            album: currentHoliday ? currentHoliday.name : 'Zema',
+        });
+        navigator.mediaSession.setActionHandler('play', () => { audio.play(); isPlaying = true; updatePlayUI(); });
+        navigator.mediaSession.setActionHandler('pause', () => { audio.pause(); isPlaying = false; updatePlayUI(); });
+        navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
+        navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+        navigator.mediaSession.setActionHandler('seekbackward', ({ seekOffset }) => {
+            audio.currentTime = Math.max(clipStartSec, audio.currentTime - (seekOffset || 10));
+        });
+        navigator.mediaSession.setActionHandler('seekforward', ({ seekOffset }) => {
+            audio.currentTime = Math.min(clipEndSec, audio.currentTime + (seekOffset || 10));
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if(e.target.closest('.split-default')) {
+            const split = e.target.closest('.aqu-split');
+            if(!split) return;
+            const isTouch = window.matchMedia('(hover: none)').matches;
+            if(isTouch) {
+                e.stopPropagation();
+                document.querySelectorAll('.aqu-split.tap-open').forEach(s => { if(s !== split) s.classList.remove('tap-open'); });
+                split.classList.toggle('tap-open');
+                return;
+            }
+        }
+        if(!e.target.closest('.aqu-split')) {
+            document.querySelectorAll('.aqu-split.tap-open').forEach(s => s.classList.remove('tap-open'));
+        }
+    });
+
+    document.getElementById('tsToggleBtn')?.addEventListener('click', () => {
+        const pc = document.getElementById('playerContainer');
+        const btn = document.getElementById('tsToggleBtn');
+        const isOpen = pc.classList.contains('timestamps-open');
+        pc.classList.remove('timestamps-open', 'queue-open');
+        document.getElementById('tsToggleBtn').classList.remove('active');
+        document.getElementById('queueToggleBtn').classList.remove('active');
+        if(!isOpen) { pc.classList.add('timestamps-open'); btn.classList.add('active'); }
+    });
+    document.getElementById('queueToggleBtn')?.addEventListener('click', () => {
+        const pc = document.getElementById('playerContainer');
+        const btn = document.getElementById('queueToggleBtn');
+        const isOpen = pc.classList.contains('queue-open');
+        pc.classList.remove('timestamps-open', 'queue-open');
+        document.getElementById('tsToggleBtn').classList.remove('active');
+        document.getElementById('queueToggleBtn').classList.remove('active');
+        if(!isOpen) { pc.classList.add('queue-open'); btn.classList.add('active'); }
+    });
+
+    window.addEventListener('scroll', () => {
+        const hero = document.querySelector('.hero-section');
+        if(!hero) return;
+        const scrolled = window.scrollY;
+        const fadeOver = 320;
+        hero.style.opacity = Math.max(0, 1 - scrolled / fadeOver);
+    }, { passive: true });
+
+    document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
+        const btn = e.target.closest('.category-tab');
+        if(!btn) return;
+        document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const filter = btn.dataset.filter;
+        if(filter === 'recent') {
+            document.getElementById('monthView').innerHTML = recentlyPlayed.length
+                ? recentlyPlayed.map(item => `<div class="month-card" style="text-align:left;padding:20px 24px;"><div class="month-name" style="margin-bottom:8px;">Recently played</div><div style="font-size:1.1rem;">${item.title}</div></div>`).join('')
+                : '<div style="color:var(--muted);padding:40px 0;">Nothing played yet.</div>';
+        } else {
+            renderMonths();
+        }
+    });
+    // Artwork loader
+    function loadArtwork(month, holiday) {
+        if(!month || !holiday) return;
+        const mf = month.name.toLowerCase();
+        const hf = holiday.folder || holiday.name.toLowerCase().replace(/\s+/g, '-');
+        const fallbackSvg = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text x="50%" y="55%" font-size="40" text-anchor="middle" fill="%23fef08a" font-family="Abyssinica SIL">ዜማ</text></svg>')`;
+        const candidates = [
+            `/monthrecs/${mf}/${hf}/${hf}.png`,
+            `/monthrecs/${mf}/${hf}/icon.png`,
+            `/monthrecs/${mf}/icon.png`,
+        ];
+        let idx = 0;
+        function tryNext() {
+            if(idx >= candidates.length) {
+                document.getElementById('playerArt').style.backgroundImage = fallbackSvg;
+                return;
+            }
+            const img = new Image();
+            img.onload = () => {
+                document.getElementById('playerArt').style.backgroundImage = `url('${candidates[idx]}')`;
+            };
+            img.onerror = () => { idx++; tryNext(); };
+            img.src = candidates[idx];
+        }
+        tryNext();
+    }
+
+    // Visualizer setup
+    const vizEl = document.getElementById('visualizer');
+    let vizInterval = null;
+    if(vizEl) {
+        for(let i = 0; i < 30; i++) {
+            const bar = document.createElement('div');
+            bar.style.cssText = 'width:4px; background:var(--gold); border-radius:4px; height:4px; opacity:0.2; transition:height 0.1s ease;';
+            vizEl.appendChild(bar);
+        }
+    }
+    function startVisualizer() {
+        const bars = vizEl ? vizEl.querySelectorAll('div') : [];
+        if(!bars.length) return;
+        bars.forEach(b => { b.style.opacity = '1'; });
+        clearInterval(vizInterval);
+        vizInterval = setInterval(() => {
+            bars.forEach((bar, i) => {
+                const center = 15;
+                const dist = Math.abs(i - center) / center;
+                const maxH = 36 * (1 - dist * 0.5);
+                bar.style.height = (Math.random() * maxH + 4) + 'px';
+            });
+        }, 100);
+    }
+    function stopVisualizer() {
+        clearInterval(vizInterval);
+        vizInterval = null;
+        const bars = vizEl ? vizEl.querySelectorAll('div') : [];
+        bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.2'; });
+    }
+
+    // ============================================================
+    // STUDIO
+    // ============================================================
+    const STUDIO_PASSWORD = 'zema2024';
+    let studioUnlocked = false;
+    let studioData = JSON.parse(JSON.stringify(MONTHS_DATA)); // deep clone
+    let studioSelectedMonth = null;
+    let studioSelectedHoliday = null;
+
+    // --- auth ---
+    document.getElementById('studioTrigger').addEventListener('click', () => {
+        if(studioUnlocked) {
+            openStudio();
+        } else {
+            document.getElementById('studioAuthModal').style.display = 'flex';
+            setTimeout(() => document.getElementById('studioPasswordInput').focus(), 50);
+        }
+    });
+    document.getElementById('studioPasswordInput').addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') studioAuthSubmit();
+    });
+    function studioAuthSubmit() {
+        const val = document.getElementById('studioPasswordInput').value;
+        if(val === STUDIO_PASSWORD) {
+            studioUnlocked = true;
+            document.getElementById('studioAuthModal').style.display = 'none';
+            document.getElementById('studioPasswordInput').value = '';
+            document.getElementById('studioAuthError').style.display = 'none';
+            openStudio();
+        } else {
+            document.getElementById('studioAuthError').style.display = 'block';
+            document.getElementById('studioPasswordInput').value = '';
+            document.getElementById('studioPasswordInput').focus();
+        }
+    }
+    function studioAuthCancel() {
+        document.getElementById('studioAuthModal').style.display = 'none';
+        document.getElementById('studioPasswordInput').value = '';
+        document.getElementById('studioAuthError').style.display = 'none';
+    }
+
+    // --- open/close ---
+    function openStudio() {
+        studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
+        document.getElementById('studioOverlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        studioRenderTree();
+        studioSwitchTab('structure');
+    }
+    document.getElementById('studioCloseBtn').addEventListener('click', () => {
+        document.getElementById('studioOverlay').style.display = 'none';
+        document.body.style.overflow = '';
+    });
+
+    // --- tab switching ---
+    document.getElementById('studioTabs').addEventListener('click', (e) => {
+        const btn = e.target.closest('.studio-tab');
+        if(!btn) return;
+        studioSwitchTab(btn.dataset.tab);
+    });
+    function studioSwitchTab(tab) {
+        document.querySelectorAll('.studio-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+        document.querySelectorAll('.studio-tab-content').forEach(el => el.style.display = 'none');
+        const target = document.getElementById('studioTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
+        if(target) target.style.display = tab === 'editor' ? 'flex' : (tab === 'structure' ? 'flex' : 'block');
+        if(tab === 'export') studioRefreshExport();
+        if(tab === 'settings') {
+            const saved = localStorage.getItem('zemaStudioToken');
+            const inp = document.getElementById('studioTokenInput');
+            if(inp) inp.placeholder = saved ? '••••••••••••••  (token saved)' : 'ghp_xxxxxxxxxxxxxxxxxxxx';
+        }
+    }
+
+    // --- Gist sync ---
+    const GIST_ID = 'b070b16ccb4d0eb452d48c3530c32e1c';
+    const GIST_USERNAME = 'miliketstudio';
+
+    function studioSaveToken() {
+        const val = document.getElementById('studioTokenInput').value.trim();
+        if(!val) return;
+        localStorage.setItem('zemaStudioToken', val);
+        document.getElementById('studioTokenInput').value = '';
+        document.getElementById('studioTokenInput').placeholder = '••••••••••••••  (token saved)';
+        studioSetStatus('Token saved ✓');
+    }
+
+    async function studioPushToGist() {
+        const token = localStorage.getItem('zemaStudioToken');
+        if(!token) { studioSetStatus('⚠ Add your token in Settings first'); return false; }
+        try {
+            const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ files: { 'recs.json': { content: JSON.stringify(studioData, null, 2) } } })
+            });
+            if(!r.ok) throw new Error(`GitHub ${r.status}`);
+            return true;
+        } catch(err) {
+            studioSetStatus('⚠ Gist sync failed: ' + err.message);
+            return false;
+        }
+    }
+
+    async function studioTestConnection() {
+        const token = localStorage.getItem('zemaStudioToken');
+        const el = document.getElementById('studioTestStatus');
+        if(!token) { el.innerText = '⚠ No token saved'; return; }
+        el.innerText = 'Testing...';
+        el.style.color = 'var(--muted)';
+        try {
+            const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+                headers: { 'Authorization': `token ${token}` }
+            });
+            if(r.ok) { el.innerText = '✓ Connected to Gist'; el.style.color = 'var(--gold)'; }
+            else { el.innerText = `⚠ Error ${r.status} — check your token`; el.style.color = '#f87171'; }
+        } catch(e) { el.innerText = '⚠ Network error'; el.style.color = '#f87171'; }
+    }
+
+    // --- tree ---
+    function studioRenderTree() {
+        const tree = document.getElementById('studioTree');
+        tree.innerHTML = '';
+        studioData.forEach((month, mi) => {
+            const block = document.createElement('div');
+            block.className = 'studio-tree-month';
+            if(studioSelectedMonth === mi) block.classList.add('open');
+
+            const header = document.createElement('div');
+            header.className = 'studio-tree-month-header' + (studioSelectedMonth === mi && studioSelectedHoliday === null ? ' selected' : '');
+            header.innerHTML = `
+                <span style="font-family:'Abyssinica SIL',serif;">${month.amharic}</span>
+                <span style="color:var(--muted); font-size:0.7rem; flex:1; margin-left:8px;">${month.name}</span>
+                <span style="color:var(--muted); font-size:0.7rem;">${month.holidays.length} holidays</span>
+            `;
+            header.onclick = () => {
+                const isOpen = block.classList.contains('open');
+                document.querySelectorAll('.studio-tree-month').forEach(b => b.classList.remove('open'));
+                if(!isOpen) {
+                    block.classList.add('open');
+                    studioSelectedMonth = mi;
+                    studioSelectedHoliday = null;
+                    studioShowMonthDetail(mi);
+                } else {
+                    studioSelectedMonth = null;
+                    studioSelectedHoliday = null;
+                    document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select a month or holiday</div>';
+                }
+                studioRenderTree();
+            };
+
+            const holidayList = document.createElement('div');
+            holidayList.className = 'studio-tree-holidays';
+            month.holidays.forEach((h, hi) => {
+                const hRow = document.createElement('div');
+                hRow.className = 'studio-tree-holiday' + (studioSelectedMonth === mi && studioSelectedHoliday === hi ? ' selected' : '');
+                hRow.innerHTML = `<span>${h.name}</span><span style="font-size:0.7rem;color:var(--muted);">${h.hymns.length} hymns</span>`;
+                hRow.onclick = (e) => {
+                    e.stopPropagation();
+                    studioSelectedMonth = mi;
+                    studioSelectedHoliday = hi;
+                    studioRenderTree();
+                    studioShowHolidayDetail(mi, hi);
+                };
+                holidayList.appendChild(hRow);
+            });
+
+            // add holiday button
+            const addHolBtn = document.createElement('div');
+            addHolBtn.style.cssText = 'padding:8px 14px 8px 24px;';
+            addHolBtn.innerHTML = `<button class="studio-add-btn" onclick="studioAddHoliday(${mi})">+ Holiday</button>`;
+            holidayList.appendChild(addHolBtn);
+
+            block.appendChild(header);
+            block.appendChild(holidayList);
+            tree.appendChild(block);
+        });
+    }
+
+    // --- month detail ---
+    function studioShowMonthDetail(mi) {
+        const month = studioData[mi];
+        document.getElementById('studioDetail').innerHTML = `
+            <div style="max-width:560px;">
+                <div style="font-size:1rem; font-weight:500; margin-bottom:24px; color:var(--gold);">${month.amharic} · ${month.name}</div>
+                <label class="studio-field-label">English name</label>
+                <input class="studio-input" id="sMonthName" value="${month.name}">
+                <label class="studio-field-label">Amharic name</label>
+                <input class="studio-input" id="sMonthAmharic" style="font-family:'Abyssinica SIL',serif;" value="${month.amharic}">
+                <label class="studio-field-label">Month ID (1–13)</label>
+                <input class="studio-input" id="sMonthId" type="number" min="1" max="13" value="${month.id}" style="width:100px;">
+                <hr class="studio-section-divider">
+                <div style="display:flex; gap:10px;">
+                    <button class="studio-add-btn" onclick="studioSaveMonth(${mi})">Save month</button>
+                    <button class="studio-delete-btn" onclick="studioDeleteMonth(${mi})">Delete month</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function studioSaveMonth(mi) {
+        studioData[mi].name = document.getElementById('sMonthName').value.trim();
+        studioData[mi].amharic = document.getElementById('sMonthAmharic').value.trim();
+        studioData[mi].id = parseInt(document.getElementById('sMonthId').value);
+        studioRenderTree();
+        studioSetStatus('Month saved');
+    }
+    function studioDeleteMonth(mi) {
+        if(!confirm(`Delete "${studioData[mi].name}" and all its holidays?`)) return;
+        studioData.splice(mi, 1);
+        studioSelectedMonth = null;
+        studioSelectedHoliday = null;
+        studioRenderTree();
+        document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select a month or holiday</div>';
+    }
+    function studioAddMonth() {
+        studioData.push({ id: studioData.length + 1, name: 'New Month', amharic: 'አዲስ', slug: 'new-month', holidays: [] });
+        studioSelectedMonth = studioData.length - 1;
+        studioSelectedHoliday = null;
+        studioRenderTree();
+        studioShowMonthDetail(studioSelectedMonth);
+    }
+
+    // --- holiday detail ---
+    function studioShowHolidayDetail(mi, hi) {
+        const holiday = studioData[mi].holidays[hi];
+        const hymnsHtml = holiday.hymns.map((hymn, hyi) => `
+            <div class="studio-hymn-row">
+                <div style="flex:1;">
+                    <div style="font-size:0.85rem; font-family:'Abyssinica SIL',serif;">${hymn.title}</div>
+                    <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">
+                        ${hymn.kum?.length ? `ቁም ዜማ (${hymn.kum.length})` : ''}
+                        ${hymn.aqu?.tach?.length ? ` · አቋቋም ታች (${hymn.aqu.tach.length})` : ''}
+                        ${hymn.aqu?.lay?.length ? ` · አቋቋም ላይ (${hymn.aqu.lay.length})` : ''}
+                    </div>
+                </div>
+                <button class="studio-add-btn" onclick="studioEditHymn(${mi},${hi},${hyi})">Edit</button>
+                <button class="studio-delete-btn" onclick="studioDeleteHymn(${mi},${hi},${hyi})">Delete</button>
+            </div>
+        `).join('');
+
+        document.getElementById('studioDetail').innerHTML = `
+            <div style="max-width:600px;">
+                <div style="font-size:1rem; font-weight:500; margin-bottom:24px; color:var(--gold);">${holiday.name}</div>
+                <label class="studio-field-label">Holiday name</label>
+                <input class="studio-input" id="sHolName" value="${holiday.name}">
+                <label class="studio-field-label">Folder slug (used in file paths)</label>
+                <input class="studio-input" id="sHolFolder" value="${holiday.folder || ''}">
+                <hr class="studio-section-divider">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);">Hymns (${holiday.hymns.length})</span>
+                    <button class="studio-add-btn" onclick="studioAddHymn(${mi},${hi})">+ Hymn</button>
+                </div>
+                <div id="studioHymnList">${hymnsHtml || '<div style="color:var(--muted);font-size:0.8rem;">No hymns yet</div>'}</div>
+                <hr class="studio-section-divider">
+                <div style="display:flex; gap:10px;">
+                    <button class="studio-add-btn" onclick="studioSaveHoliday(${mi},${hi})">Save holiday</button>
+                    <button class="studio-delete-btn" onclick="studioDeleteHoliday(${mi},${hi})">Delete holiday</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function studioSaveHoliday(mi, hi) {
+        studioData[mi].holidays[hi].name = document.getElementById('sHolName').value.trim();
+        studioData[mi].holidays[hi].folder = document.getElementById('sHolFolder').value.trim();
+        studioRenderTree();
+        studioSetStatus('Holiday saved');
+    }
+    function studioDeleteHoliday(mi, hi) {
+        if(!confirm(`Delete "${studioData[mi].holidays[hi].name}"?`)) return;
+        studioData[mi].holidays.splice(hi, 1);
+        studioSelectedHoliday = null;
+        studioRenderTree();
+        studioShowMonthDetail(mi);
+    }
+    function studioAddHoliday(mi) {
+        studioData[mi].holidays.push({ name: 'New Holiday', folder: 'new-holiday', hymns: [] });
+        const hi = studioData[mi].holidays.length - 1;
+        studioSelectedMonth = mi;
+        studioSelectedHoliday = hi;
+        studioRenderTree();
+        studioShowHolidayDetail(mi, hi);
+    }
+
+    // --- hymn editor ---
+    function studioAddHymn(mi, hi) {
+        studioData[mi].holidays[hi].hymns.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
+        const hyi = studioData[mi].holidays[hi].hymns.length - 1;
+        studioEditHymn(mi, hi, hyi);
+    }
+    function studioDeleteHymn(mi, hi, hyi) {
+        if(!confirm('Delete this hymn?')) return;
+        studioData[mi].holidays[hi].hymns.splice(hyi, 1);
+        studioShowHolidayDetail(mi, hi);
+    }
+    function studioEditHymn(mi, hi, hyi) {
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        studioSwitchTab('editor');
+
+        const kumVer = hymn.kum?.[0] || null;
+        const aquTachVer = hymn.aqu?.tach?.[0] || null;
+
+        function tsRowsHtml(versions, type) {
+            if(!versions?.length) return '<div style="color:var(--muted);font-size:0.75rem;">No recording yet — add a src URL below</div>';
+            const ver = versions[0];
+            const rows = (ver.timestamps || []).map((ts, tsi) =>
+                `<div class="studio-timestamp-row" id="tsrow-${type}-${tsi}">
+                    <input class="studio-timestamp-time" placeholder="00:00" value="${ts.time}" id="ts-time-${type}-${tsi}">
+                    <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" value="${ts.label}" id="ts-label-${type}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
+                    <button class="studio-delete-btn" onclick="studioRemoveTimestamp('${type}',${tsi})">✕</button>
+                </div>`
+            ).join('');
+            return rows || '<div style="color:var(--muted);font-size:0.75rem;margin-bottom:8px;">No timestamps yet</div>';
+        }
+
+        document.getElementById('studioTabEditor').querySelector('div').innerHTML = `
+            <div style="max-width:640px;">
+                <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                    <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
+                    <span style="font-size:1rem; font-weight:500; color:var(--gold);">${studioData[mi].holidays[hi].name} · Hymn Editor</span>
+                </div>
+
+                <label class="studio-field-label">Title (Ge'ez)</label>
+                <input class="studio-input" id="sHymnTitle" style="font-family:'Abyssinica SIL',serif;" value="${hymn.title}">
+
+                <label class="studio-field-label">Display title (override, optional)</label>
+                <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
+
+                <label class="studio-field-label">Lyrics (Ge'ez)</label>
+                <textarea class="studio-textarea" id="sHymnLyrics" rows="5">${hymn.lyrics || ''}</textarea>
+
+                <label class="studio-field-label">Translation (English)</label>
+                <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit;" rows="5">${hymn.translation || ''}</textarea>
+
+                <hr class="studio-section-divider">
+
+                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">ቁም ዜማ Recording</div>
+                <label class="studio-field-label">Audio src URL</label>
+                <input class="studio-input" id="sKumSrc" value="${kumVer?.src || ''}">
+                <label class="studio-field-label">Chanter</label>
+                <input class="studio-input" id="sKumChanter" value="${kumVer?.chanter || ''}">
+                <label class="studio-field-label">Duration (MM:SS)</label>
+                <input class="studio-input" id="sKumDuration" value="${kumVer?.duration || ''}" style="width:120px;">
+                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
+                <div id="sKumTimestamps">${tsRowsHtml(hymn.kum, 'kum')}</div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('kum')">+ Timestamp</button>
+
+                <hr class="studio-section-divider">
+
+                <div style="font-size:0.75rem; font-weight:500; color:var(--text); margin-bottom:16px;">አቋቋም ታች Recording</div>
+                <label class="studio-field-label">Audio src URL</label>
+                <input class="studio-input" id="sAquTachSrc" value="${aquTachVer?.src || ''}">
+                <label class="studio-field-label">Chanter</label>
+                <input class="studio-input" id="sAquTachChanter" value="${aquTachVer?.chanter || ''}">
+                <label class="studio-field-label">Duration (MM:SS)</label>
+                <input class="studio-input" id="sAquTachDuration" value="${aquTachVer?.duration || ''}" style="width:120px;">
+                <label class="studio-field-label" style="margin-top:16px;">Timestamps</label>
+                <div id="sAquTachTimestamps">${tsRowsHtml(hymn.aqu?.tach, 'aqutach')}</div>
+                <button class="studio-add-btn" style="margin-top:8px;" onclick="studioAddTimestamp('aqutach')">+ Timestamp</button>
+
+                <hr class="studio-section-divider">
+
+                <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="padding:10px 24px; font-size:0.85rem;">Save hymn</button>
+            </div>
+        `;
+
+        window._studioEditCtx = { mi, hi, hyi };
+    }
+
+    function studioAddTimestamp(type) {
+        const containerId = type === 'kum' ? 'sKumTimestamps' : 'sAquTachTimestamps';
+        const container = document.getElementById(containerId);
+        const existing = container.querySelectorAll('.studio-timestamp-row').length;
+        const newRow = document.createElement('div');
+        newRow.className = 'studio-timestamp-row';
+        newRow.id = `tsrow-${type}-${existing}`;
+        newRow.innerHTML = `
+            <input class="studio-timestamp-time" placeholder="00:00" id="ts-time-${type}-${existing}">
+            <input class="studio-timestamp-label" placeholder="Label e.g. ዝማሜ" id="ts-label-${type}-${existing}" style="font-family:'Abyssinica SIL',serif;">
+            <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
+        `;
+        // remove the "no timestamps" placeholder if present
+        const placeholder = container.querySelector('div');
+        if(placeholder) placeholder.remove();
+        container.appendChild(newRow);
+    }
+
+    function studioRemoveTimestamp(type, idx) {
+        const row = document.getElementById(`tsrow-${type}-${idx}`);
+        if(row) row.remove();
+    }
+
+    function studioSaveHymn(mi, hi, hyi) {
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        hymn.title = document.getElementById('sHymnTitle').value.trim();
+        hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
+        hymn.lyrics = document.getElementById('sHymnLyrics').value;
+        hymn.translation = document.getElementById('sHymnTranslation').value;
+
+        function collectTimestamps(type) {
+            const rows = document.querySelectorAll(`.studio-timestamp-row[id^="tsrow-${type}-"]`);
+            const result = [];
+            rows.forEach(row => {
+                const tIdx = row.id.split('-').pop();
+                const time = document.getElementById(`ts-time-${type}-${tIdx}`)?.value.trim();
+                const label = document.getElementById(`ts-label-${type}-${tIdx}`)?.value.trim();
+                if(time && label) result.push({ time, label });
+            });
+            return result;
+        }
+
+        const kumSrc = document.getElementById('sKumSrc').value.trim();
+        if(kumSrc) {
+            hymn.kum = [{ src: kumSrc, chanter: document.getElementById('sKumChanter').value.trim(), duration: document.getElementById('sKumDuration').value.trim(), timestamps: collectTimestamps('kum') }];
+        } else {
+            hymn.kum = [];
+        }
+
+        const aquSrc = document.getElementById('sAquTachSrc').value.trim();
+        if(aquSrc) {
+            hymn.aqu = { tach: [{ src: aquSrc, chanter: document.getElementById('sAquTachChanter').value.trim(), duration: document.getElementById('sAquTachDuration').value.trim(), timestamps: collectTimestamps('aqutach') }], lay: [] };
+        } else {
+            hymn.aqu = hymn.aqu || { tach: [], lay: [] };
+        }
+
+        studioSetStatus('Hymn saved ✓');
+        studioSwitchTab('structure');
+        studioShowHolidayDetail(mi, hi);
+    }
+
+    // --- export / import ---
+    function studioRefreshExport() {
+        document.getElementById('studioJsonPreview').value = JSON.stringify(studioData, null, 2);
+    }
+    function studioDownloadJson() {
+        const blob = new Blob([JSON.stringify(studioData, null, 2)], { type: 'application/json' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'recs.json';
+        a.click();
+    }
+    function studioImportJson() {
+        document.getElementById('studioImportInput').click();
+    }
+    function studioHandleImport(input) {
+        const file = input.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if(!Array.isArray(parsed)) throw new Error('Expected array');
+                studioData = parsed;
+                studioSelectedMonth = null;
+                studioSelectedHoliday = null;
+                studioRenderTree();
+                studioSwitchTab('structure');
+                studioSetStatus('JSON imported ✓');
+            } catch(err) {
+                alert('Invalid JSON file: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+        input.value = '';
+    }
+
+    // --- save to live data ---
+    document.getElementById('studioSaveBtn').addEventListener('click', async () => {
+        MONTHS_DATA.length = 0;
+        studioData.forEach(m => MONTHS_DATA.push(m));
+        renderMonths();
+        studioSetStatus('Saving...');
+        const ok = await studioPushToGist();
+        if(ok) studioSetStatus('Saved + Gist updated ✓');
+    });
+
+    function studioSetStatus(msg) {
+        const el = document.getElementById('studioSaveStatus');
+        el.innerText = msg;
+        setTimeout(() => { el.innerText = ''; }, 3000);
+    }
+
+    // ============================================================
+    // END STUDIO
+    // ============================================================
+
+    async function loadFromGist() {
+        try {
+            const r = await fetch(`https://gist.githubusercontent.com/${GIST_USERNAME}/${GIST_ID}/raw/recs.json?t=${Date.now()}`);
+            if(!r.ok) throw new Error('fetch failed');
+            const data = await r.json();
+            if(Array.isArray(data) && data.length > 0) {
+                MONTHS_DATA.length = 0;
+                data.forEach(m => MONTHS_DATA.push(m));
+            }
+        } catch(e) {
+            console.warn('Gist load failed, using built-in data');
+        }
+        renderMonths();
+    }
+    loadFromGist();
+</script>
+</body>
+</html>
