@@ -1380,7 +1380,7 @@
                 <div style="font-size:1rem; font-weight:500; color:var(--gold); margin-bottom:24px;">Studio Settings</div>
                 <label class="studio-field-label">GitHub Personal Access Token</label>
                 <div style="display:flex; gap:10px;">
-                    <input type="password" class="studio-input" id="studioTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1;">
+                    <input type="password" class="studio-input" id="studioTokenInput" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" style="flex:1;" autocomplete="off" data-lpignore="true" data-form-type="other">
                     <button class="studio-add-btn" onclick="studioSaveToken()">Save token</button>
                 </div>
                 <div style="font-size:0.7rem; color:var(--muted); margin-top:8px;">Stored in your browser only. Never sent anywhere except GitHub's API.</div>
@@ -2447,13 +2447,32 @@ function stopVisualizer() {
         document.getElementById('studioPasswordInput').value = '';
         document.getElementById('studioAuthError').style.display = 'none';
     }
-    function studioTestAudio(inputId) {
+    let testAudioBtn = null;
+    function studioTestAudio(inputId, btn) {
         const src = document.getElementById(inputId)?.value.trim();
         if(!src) return;
-        if(testAudio) { testAudio.pause(); testAudio = null; }
+        // if clicking the same button that's currently playing, pause it
+        if(testAudio && testAudioBtn === btn && !testAudio.paused) {
+            testAudio.pause();
+            btn.innerText = '▶';
+            return;
+        }
+        // stop any other playing test audio
+        if(testAudio) {
+            testAudio.pause();
+            if(testAudioBtn) testAudioBtn.innerText = '▶';
+            testAudio = null;
+        }
         testAudio = new Audio(src);
-        testAudio.play().catch(e => studioSetStatus('⚠ Cannot play: ' + e.message));
-        testAudio.onended = () => testAudio = null;
+        testAudioBtn = btn;
+        testAudio.play().then(() => {
+            btn.innerText = '⏸';
+        }).catch(e => studioSetStatus('⚠ Cannot play: ' + e.message));
+        testAudio.onended = () => {
+            btn.innerText = '▶';
+            testAudio = null;
+            testAudioBtn = null;
+        };
     }
     function studioDragStart(e, type, mi, hi, idx) {
         dragSrcType = type;
@@ -2986,7 +3005,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-shrink:0;">
                     <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
                     <span style="font-size:1rem; font-weight:500; color:var(--gold);">${studioData[mi].holidays[hi].name} · Hymn Editor</span>
-                    <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="margin-left:auto; background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
+                    <button class="studio-add-btn" onclick="studioCommitNewVersion(${mi},${hi},${hyi})" style="margin-left:auto; background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold); padding:8px 22px;">+ Add Recording</button>
+                    <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
                 </div>
 
                 <!-- two-column top section -->
@@ -3034,8 +3054,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                         <label class="studio-field-label">Timestamps</label>
                         <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
                         <button class="studio-add-btn" onclick="studioAddNewVerTimestamp()">+ Timestamp</button>
-
-                        <button class="studio-add-btn" onclick="studioCommitNewVersion(${mi},${hi},${hyi})" style="margin-top:4px; background:var(--gold); color:#000; border-color:var(--gold);">+ Add Recording</button>
                     </div>
                 </div>
 
@@ -3122,7 +3140,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
                     <div style="display:flex;gap:6px;">
-                        <button class="studio-add-btn" onclick="studioTestAudio('grec-src-${flatIdx}')">▶</button>
+                        <button class="studio-add-btn" onclick="studioTestAudio('grec-src-${flatIdx}', this)">▶</button>
                         <button class="studio-delete-btn" onclick="studioDeleteGridVersion(${mi},${hi},${hyi},${flatIdx})">✕</button>
                     </div>
                 </div>
@@ -3404,7 +3422,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
                     <div style="display:flex;gap:6px;">
-                        <button class="studio-add-btn" onclick="studioTestAudio('fgrec-src-${flatIdx}')">▶</button>
+                        <button class="studio-add-btn" onclick="studioTestAudio('fgrec-src-${flatIdx}', this)">▶</button>
                         <button class="studio-delete-btn" onclick="studioDeleteFlatGridVersion(${hyi},${flatIdx})">✕</button>
                     </div>
                 </div>
