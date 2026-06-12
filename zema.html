@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <title>ዜማ ወአቋቋም · Zema & Aquaquam Player</title>
+    <title>ዜማ ወአቋቋም · Zema & Aquaquam Player</title> 
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style>
         * {
             margin: 0;
@@ -537,6 +539,64 @@
             background: #06060a;
             border-radius: 32px 0 0 32px;
             transition: flex-basis 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .player-overlay.youtube-mode .player-image-side {
+            flex: 0 0 65%;
+            width: 65%;
+            border-radius: 32px 0 0 32px;
+            height: min(720px, 90vh);
+            overflow: hidden;
+        }
+        .player-overlay.youtube-mode .player-controls-side {
+            border-left: none;
+            border-radius: 0 32px 32px 0;
+            max-width: 380px;
+        }
+        #ytPlayerWrap {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+        #ytPlayerWrap iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+        }
+        .yt-center-controls {
+            display: flex;
+            justify-content: center;
+            margin: 28px 0;
+        }
+        .yt-ts-btn {
+            background: transparent;
+            border: 1px solid var(--border);
+            border-radius: 40px;
+            padding: 10px 24px;
+            color: var(--text);
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .yt-ts-btn:hover, .yt-ts-btn.active {
+            border-color: var(--gold);
+            color: var(--gold);
+        }
+        @media (max-width: 800px) {
+            .player-overlay.youtube-mode .player-image-side {
+                flex: 0 0 100%;
+                width: 100%;
+                height: 40vh;
+                border-radius: 32px 32px 0 0;
+            }
+            .player-overlay.youtube-mode .player-controls-side {
+                border-radius: 0 0 32px 32px;
+                max-width: 100%;
+            }
+            .player-overlay.youtube-mode {
+                flex-direction: column;
+            }
         }
         .player-overlay.book-open .player-image-side {
             flex: 0 0 60%;
@@ -1241,6 +1301,7 @@
     <!-- Image side 60% -->
     <div class="player-image-side">
         <div id="playerBigImage" class="player-big-image"></div>
+        <div id="ytPlayerWrap"></div>
         <button id="closePlayerBtn" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:7px 18px;color:#fff;font-size:0.85rem;cursor:pointer;z-index:5;">⏹ Stop</button>
     </div>
 
@@ -1252,6 +1313,7 @@
             <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
             <button class="panel-toggle-btn" id="queueToggleBtn">≡ Queue</button>
         </div>
+        <div style="position:absolute;top:16px;right:16px;z-index:10;display:none;" id="ytTopBtnsPlaceholder"></div>
         <div class="player-container" id="playerContainer">
 
             <!-- Timestamps panel -->
@@ -1271,19 +1333,22 @@
                         <span id="playerChanter" style="font-size:0.8rem; color:var(--muted);"></span>
                     </div>
                     <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
-                    <div class="controls-grid">
+                    <div class="controls-grid" id="standardControlsGrid">
                         <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
                         <button id="playerPlayPause" class="btn-play-lg">▶</button>
                         <button id="playerNextBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏭</button>
                     </div>
                     <div class="progress-bar" id="playerProgress"><div class="progress-fill" id="playerProgressFill"></div></div>
                     <div class="time-row"><span id="currentTimeLabel">0:00</span><span id="durationLabel">0:00</span></div>
-                    <div style="display:flex; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap;">
+                    <div id="standardControlsRow" style="display:flex; justify-content:center; gap:12px; margin-top:18px; flex-wrap:wrap;">
                         <button id="loopBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); cursor:pointer;">🔁</button>
                         <input id="speedSelect" type="number" min="0.5" max="2" step="0.25" value="1"
                             style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border); width:72px; text-align:center; outline:none; font-family:inherit; font-size:0.85rem;"
                             title="Playback speed (0.5–2x)">
                         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);">
+                    </div>
+                    <div class="yt-center-controls" id="ytCenterControls" style="display:none;">
+                        <button class="yt-ts-btn" id="ytTsToggleBtn">⏱ Timestamps</button>
                     </div>
                 </div>
             </div>
@@ -1445,6 +1510,133 @@
     let currentMonth = null, currentHoliday = null;
     let audio = new Audio();
     audio.volume = 0.8;
+
+    // ---------- YOUTUBE SUPPORT ----------
+    let ytPlayer = null;
+    let ytApiReady = false;
+    let ytPollInterval = null;
+    let isYoutubeTrack = false;
+
+    function extractYoutubeId(url) {
+        if(!url) return null;
+        // handle full <iframe> embed code pasted directly
+        const iframeMatch = url.match(/src=["']([^"']+)["']/);
+        if(iframeMatch) url = iframeMatch[1];
+        const patterns = [
+            /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/|youtube-nocookie\.com\/embed\/)([a-zA-Z0-9_-]{11})/
+        ];
+        for(const p of patterns) {
+            const m = url.match(p);
+            if(m) return m[1];
+        }
+        // if it's already a bare 11-char video id
+        if(/^[a-zA-Z0-9_-]{11}$/.test(url.trim())) return url.trim();
+        return null;
+    }
+
+    window.onYouTubeIframeAPIReady = function() {
+        ytApiReady = true;
+    };
+
+    function destroyYtPlayer() {
+        if(ytPollInterval) { clearInterval(ytPollInterval); ytPollInterval = null; }
+        if(ytPlayer && ytPlayer.destroy) { try { ytPlayer.destroy(); } catch(e){} }
+        ytPlayer = null;
+        const wrap = document.getElementById('ytPlayerWrap');
+        if(wrap) wrap.innerHTML = '';
+    }
+
+    function createYtPlayer(videoId, startSeconds) {
+        destroyYtPlayer();
+        const wrap = document.getElementById('ytPlayerWrap');
+        if(!wrap) return;
+        const div = document.createElement('div');
+        div.id = 'ytPlayerEl';
+        wrap.appendChild(div);
+
+        function init() {
+            ytPlayer = new YT.Player('ytPlayerEl', {
+                videoId: videoId,
+                playerVars: { 
+                    autoplay: 1, 
+                    start: Math.floor(startSeconds || 0), 
+                    rel: 0, 
+                    modestbranding: 1,
+                    origin: window.location.origin
+                },
+                events: {
+                    onReady: (e) => {
+                        e.target.playVideo();
+                        isPlaying = true;
+                        updatePlayUI();
+                        startYtPolling();
+                    },
+                    onStateChange: (e) => {
+                        if(e.data === YT.PlayerState.PLAYING) { isPlaying = true; }
+                        else if(e.data === YT.PlayerState.PAUSED) { isPlaying = false; }
+                        else if(e.data === YT.PlayerState.ENDED) { isPlaying = false; handleClipEnd(); }
+                        updatePlayUI();
+                    },
+                    onError: (e) => {
+                        const msgs = { 2:'Invalid video ID.', 5:'HTML5 player error.', 100:'Video not found or private.', 101:'Video owner has disabled embedding.', 150:'Video owner has disabled embedding.' };
+                        const msg = msgs[e.data] || `YouTube error ${e.data} — this video cannot be embedded. Try a different recording.`;
+                        document.getElementById('playerTrackTitle').innerText = '⚠ ' + msg;
+                        document.getElementById('playerChanter').innerText = 'The video owner has restricted playback on external sites.';
+                        isPlaying = false;
+                        updatePlayUI();
+                    }
+                }
+            });
+        }
+        if(ytApiReady && window.YT && window.YT.Player) init();
+        else {
+            const check = setInterval(() => {
+                if(ytApiReady && window.YT && window.YT.Player) { clearInterval(check); init(); }
+            }, 100);
+        }
+    }
+
+    function startYtPolling() {
+        if(ytPollInterval) clearInterval(ytPollInterval);
+        ytPollInterval = setInterval(() => {
+            if(!ytPlayer || !ytPlayer.getCurrentTime) return;
+            const cur = ytPlayer.getCurrentTime() || 0;
+            const dur = ytPlayer.getDuration() || 0;
+            document.getElementById('currentTimeLabel').innerText = formatSec(cur);
+            document.getElementById('durationLabel').innerText = formatSec(dur);
+            const percent = dur > 0 ? (cur / dur) * 100 : 0;
+            document.getElementById('playerProgressFill').style.width = percent + '%';
+        }, 500);
+    }
+
+    function setYoutubeMode(on) {
+        const overlay = document.getElementById('fullPlayer');
+        const topBtns = document.getElementById('playerTopBtns');
+        const ytBtns  = document.getElementById('ytTopBtnsPlaceholder');
+        const stdGrid = document.getElementById('standardControlsGrid');
+        const stdRow  = document.getElementById('standardControlsRow');
+        const ytRow   = document.getElementById('ytCenterControls');
+        const vizEl2  = document.getElementById('visualizer');
+        const bigImg  = document.getElementById('playerBigImage');
+        const ytWrap  = document.getElementById('ytPlayerWrap');
+
+        overlay.classList.toggle('youtube-mode', on);
+        if(topBtns) topBtns.style.display = on ? 'none' : '';
+        if(ytBtns)  ytBtns.style.display  = on ? 'flex' : 'none';
+        if(stdGrid) stdGrid.style.display  = on ? 'none' : '';
+        if(stdRow)  stdRow.style.display   = on ? 'none' : '';
+        if(ytRow)   ytRow.style.display    = on ? 'flex' : 'none';
+        if(vizEl2)  vizEl2.style.display   = on ? 'none' : '';
+        if(bigImg)  bigImg.style.display   = on ? 'none' : '';
+        if(ytWrap)  ytWrap.style.display   = on ? 'block' : 'none';
+
+        // progress bar / time row — hide for YT (YT polling handles labels)
+        const prog  = document.getElementById('playerProgress');
+        const trow  = document.querySelector('.time-row');
+        if(prog) prog.style.visibility  = on ? 'hidden' : 'visible';
+        if(trow) trow.style.visibility  = on ? 'hidden' : 'visible';
+    }
+
     let currentTrackObj = null;      // { hymn, type, version, clipStart, clipEnd, timestamps }
     let playlist = [];
     let recentlyPlayed = [];
@@ -1670,10 +1862,25 @@
         currentHymnTitle = hymn.displayTitle || hymn.title;
         clipStartSec = parseTimeToSec(version.clipStart);
         clipEndSec = parseTimeToSec(version.clipEnd) || parseTimeToSec(version.duration) || 0;
-        // 0 means "use real audio duration" — resolved in onloadedmetadata below
         currentTrackObj = { hymn, type, version, clipStart: clipStartSec, clipEnd: clipEndSec, timestamps: version.timestamps || [] };
-        audio.src = version.src;
-        audio.load();
+
+        // detect YouTube
+        const ytId = extractYoutubeId(version.src);
+        isYoutubeTrack = !!ytId;
+
+        if(isYoutubeTrack) {
+            // stop regular audio
+            audio.pause();
+            audio.src = '';
+            setYoutubeMode(true);
+            const startSec = seekTime ? parseTimeToSec(seekTime) : 0;
+            createYtPlayer(ytId, startSec);
+        } else {
+            destroyYtPlayer();
+            setYoutubeMode(false);
+            audio.src = version.src;
+            audio.load();
+        }
         recentlyPlayed.unshift({
             title: currentHymnTitle,
             time: Date.now(),
@@ -1700,6 +1907,12 @@
         syncPlayerUI();
         openFullPlayer();
         document.getElementById('miniPlayer').classList.remove('visible');
+        // For YouTube tracks, also hide mini progress (YT handles its own seek)
+        if(isYoutubeTrack) {
+            document.getElementById('miniProgressBar').style.visibility = 'hidden';
+        } else {
+            document.getElementById('miniProgressBar').style.visibility = 'visible';
+        }
 
         audio.onloadedmetadata = () => {
             if(clipEndSec <= clipStartSec) clipEndSec = audio.duration || clipStartSec + 3600;
@@ -1792,7 +2005,14 @@
         });
     }
 
-    function seekTo(seconds) { let newAbs = clipStartSec + Math.min(Math.max(0, seconds), clipEndSec - clipStartSec); audio.currentTime = newAbs; }
+    function seekTo(seconds) {
+        if(isYoutubeTrack && ytPlayer && ytPlayer.seekTo) {
+            ytPlayer.seekTo(seconds, true);
+            return;
+        }
+        let newAbs = clipStartSec + Math.min(Math.max(0, seconds), clipEndSec - clipStartSec);
+        audio.currentTime = newAbs;
+    }
     function updatePlayUI() {
         const playBtn = document.getElementById('playerPlayPause');
         if(playBtn) playBtn.innerHTML = isPlaying ? '⏸' : '▶';
@@ -1805,6 +2025,12 @@
         });
     }
     function togglePlayPause() {
+        if(isYoutubeTrack && ytPlayer) {
+            if(isPlaying) { ytPlayer.pauseVideo(); isPlaying = false; }
+            else          { ytPlayer.playVideo();  isPlaying = true;  }
+            updatePlayUI();
+            return;
+        }
         if(isPlaying) {
             audio.pause();
             isPlaying = false;
@@ -1891,6 +2117,9 @@
     document.getElementById('closePlayerBtn')?.addEventListener('click', () => {
         audio.pause();
         audio.currentTime = 0;
+        destroyYtPlayer();
+        setYoutubeMode(false);
+        isYoutubeTrack = false;
         isPlaying = false;
         updatePlayUI();
         closeFullPlayer();
@@ -2043,6 +2272,26 @@ function renderRecent(){
     panel.querySelectorAll('[data-ri]').forEach(el => {
         el.onclick = () => {
             const item = recentlyPlayed[parseInt(el.dataset.ri)];
+            // flat items (qine/negsh) — just navigate to that tab
+            if(!item.monthId && item.type) {
+                const flatType = item.type === 'kum' ? null : null; // may be kum on flat page
+                const data = QINE_DATA.find(h => (h.displayTitle||h.title) === item.title) ? QINE_DATA
+                           : NEGSH_DATA.find(h => (h.displayTitle||h.title) === item.title) ? NEGSH_DATA : null;
+                if(data) {
+                    const label = data === QINE_DATA ? 'ቅኔ' : 'ነግሥ';
+                    const filter = data === QINE_DATA ? 'qine' : 'negsh';
+                    closeFullPlayer();
+                    document.getElementById('miniPlayer').classList.remove('visible');
+                    document.body.style.overflow = '';
+                    document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+                    document.querySelector(`.category-tab[data-filter="${filter}"]`)?.classList.add('active');
+                    activeTab = filter;
+                    document.getElementById('holidayView').style.display = 'none';
+                    showOnlyView(filter + 'View');
+                    renderFlatHymnList(filter + 'View', data, label);
+                }
+                return;
+            }
             if(!item.monthId || !item.holidayName) return;
             const targetMonth = MONTHS_DATA.find(m => m.id === item.monthId);
             const targetHoliday = targetMonth?.holidays.find(h => h.name === item.holidayName);
@@ -2155,6 +2404,12 @@ function renderQueue(){
     document.getElementById('tsToggleBtn')?.addEventListener('click', () => {
         const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
         setPlayerPanelState(isOpen ? null : 'timestamps-open');
+    });
+    document.getElementById('ytTsToggleBtn')?.addEventListener('click', () => {
+        const btn = document.getElementById('ytTsToggleBtn');
+        const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
+        setPlayerPanelState(isOpen ? null : 'timestamps-open');
+        btn.classList.toggle('active', !isOpen);
     });
     document.getElementById('queueToggleBtn')?.addEventListener('click', () => {
         const isOpen = document.getElementById('playerContainer').classList.contains('queue-open');
@@ -3049,7 +3304,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                             🎵 Drop MP3 or click
                             <span id="dz_new_audio_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
-                        <input class="studio-input" id="sNewVerSrc" placeholder="or paste audio URL">
+                        <input class="studio-input" id="sNewVerSrc" placeholder="paste audio URL or YouTube link">
 
                         <label class="studio-field-label">Timestamps</label>
                         <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -3152,7 +3407,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                     🎵 Replace audio
                     <span id="gdz-${flatIdx}-status" style="display:block;font-size:0.65rem;"></span>
                 </div>
-                <input class="studio-input" id="grec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL">
+                <input class="studio-input" id="grec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL or YouTube link">
+                ${extractYoutubeId(v.src||'') ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,80,80,0.3);border-radius:8px;padding:4px 10px;font-size:0.7rem;color:#f87171;">▶ YouTube · ${extractYoutubeId(v.src||'')}</div>` : ''}
                 <div id="gts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
                 <button class="studio-add-btn" onclick="studioAddGridTimestamp(${flatIdx})">+ Timestamp</button>
                 <button class="studio-add-btn" onclick="studioSaveGridVersion(${mi},${hi},${hyi},${flatIdx})" style="background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold);">Save</button>
@@ -3338,7 +3594,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                             🎵 Drop MP3 or click
                             <span id="dz_new_audio_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
-                        <input class="studio-input" id="sNewVerSrc" placeholder="or paste audio URL">
+                        <input class="studio-input" id="sNewVerSrc" placeholder="paste audio URL or YouTube link">
 
                         <label class="studio-field-label">Timestamps</label>
                         <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
@@ -3434,7 +3690,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                     🎵 Replace audio
                     <span id="fgdz-${flatIdx}-status" style="display:block;font-size:0.65rem;"></span>
                 </div>
-                <input class="studio-input" id="fgrec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL">
+                <input class="studio-input" id="fgrec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL or YouTube link">
+                ${extractYoutubeId(v.src||'') ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,80,80,0.3);border-radius:8px;padding:4px 10px;font-size:0.7rem;color:#f87171;">▶ YouTube · ${extractYoutubeId(v.src||'')}</div>` : ''}
                 <div id="fgts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
                 <button class="studio-add-btn" onclick="studioAddFlatGridTimestamp(${flatIdx})">+ Timestamp</button>
                 <button class="studio-add-btn" onclick="studioSaveFlatGridVersion(${hyi},${flatIdx})" style="background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold);">Save</button>
@@ -3561,6 +3818,16 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         studioRenderTree();
     }
 
+    function studioAddFlatHymn() {
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        data.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
+        const hyi = data.length - 1;
+        studioSelectedMonth = hyi;
+        studioSelectedHoliday = null;
+        studioRenderTree();
+        studioEditFlatHymn(hyi);
+    }
+    
     function studioDeleteFlatHymn(hyi) {
         const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
         if(!confirm('Delete this hymn?')) return;
@@ -3672,6 +3939,14 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         sessionStorage.setItem(CACHE_TS, Date.now());              // ← inside try
     } catch (e) {
         console.warn('Gist load failed, using built-in data');
+        const widget = document.getElementById('liveDateWidget');
+        if(widget) {
+            const note = document.createElement('div');
+            note.style.cssText = 'font-size:0.7rem;color:#f87171;margin-top:4px;width:100%;';
+            note.innerText = '⚠ Could not load latest data — showing cached content.';
+            widget.appendChild(note);
+            setTimeout(() => note.remove(), 6000);
+        }
     }
     renderMonths();
     searchIndex = buildSearchIndex();
