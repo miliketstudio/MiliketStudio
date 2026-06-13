@@ -1203,12 +1203,14 @@
         .now-playing-bars.paused span { animation-play-state: paused; height: 4px; }
 
         #visualizer {
-            display: flex !important;
             flex-direction: row !important;
             align-items: flex-end !important;
             justify-content: center !important;
             flex-wrap: nowrap !important;
             overflow: hidden;
+        }
+        #visualizer.active {
+            display: flex !important;
         }
         #visualizer > div {
             flex-shrink: 0;
@@ -1254,7 +1256,7 @@
 
     <!-- month grid view -->
     <!-- Live Date Indicator Banner -->
-<div id="liveDateWidget" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+<div id="liveDateWidget" style="background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:16px 20px; margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
     <div style="text-align:left;">
         <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px;">Today in Ethiopia</div>
         <div style="font-size:1.25rem; font-weight:600; color:var(--gold); display:flex; align-items:center; gap:8px;">
@@ -1919,7 +1921,12 @@
             document.getElementById('translationPanel').innerText =
             currentTrackObj.hymn.translation || '';
         };
-        audio.onerror = () => console.warn("audio mock error, using mock");
+        audio.onerror = () => {
+            document.getElementById('playerTrackTitle').innerText = '⚠ Could not load audio';
+            document.getElementById('playerChanter').innerText = 'Check the URL or try another recording';
+            isPlaying = false;
+            updatePlayUI(); // flips ⏸ back to ▶
+        };
     }
 
     function buildPlaylistFromHoliday() {
@@ -2064,7 +2071,8 @@
         else { isPlaying = false; updatePlayUI(); }
     }
     function prevTrack() {
-        if(audio.currentTime - clipStartSec > 1.25) { audio.currentTime = clipStartSec; return; }
+        const currentPos = isYoutubeTrack && ytPlayer ? ytPlayer.getCurrentTime() : audio.currentTime;
+        if(currentPos - clipStartSec > 1.25) { if(isYoutubeTrack && ytPlayer) ytPlayer.seekTo(clipStartSec, true); else audio.currentTime = clipStartSec; return; }
         if(playlistIndex-1 >= 0) { playlistIndex--; loadPlaylistTrack(); }
         else { audio.currentTime = clipStartSec; }
     }
@@ -2348,11 +2356,13 @@ function renderQueue(){
             case 'ArrowRight':
                 e.preventDefault();
                 if(e.shiftKey) nextTrack();
+                else if(isYoutubeTrack && ytPlayer) { ytPlayer.seekTo((ytPlayer.getCurrentTime()||0) + 10, true); }
                 else { let t = audio.currentTime + 10; audio.currentTime = Math.min(t, clipEndSec); }
                 break;
             case 'ArrowLeft':
                 e.preventDefault();
                 if(e.shiftKey) prevTrack();
+                else if(isYoutubeTrack && ytPlayer) { ytPlayer.seekTo(Math.max(0, (ytPlayer.getCurrentTime()||0) - 10), true); }
                 else { let t = audio.currentTime - 10; audio.currentTime = Math.max(t, clipStartSec); }
                 break;
             case 'Escape':
@@ -2648,6 +2658,7 @@ function renderQueue(){
 function startVisualizer() {
     const bars = vizEl ? vizEl.querySelectorAll('div') : [];
     if(!bars.length) return;
+    if(vizEl) vizEl.classList.add('active');
 
     // only attempt Web Audio for same-origin sources to avoid CORS silencing audio
     const src = audio.src || '';
@@ -2698,6 +2709,7 @@ function stopVisualizer() {
     vizRaf = null;
     clearInterval(vizInterval);
     vizInterval = null;
+    if(vizEl) vizEl.classList.remove('active');
     const bars = vizEl ? vizEl.querySelectorAll('div') : [];
     bars.forEach(b => { b.style.height = '4px'; b.style.opacity = '0.2'; });
 }
@@ -2841,7 +2853,10 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     let studioActivePage = 'months';
     
     function openStudio() {
-        studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
+        // Only re-clone on first open — preserve unsaved edits on subsequent opens
+        if(!studioUnlocked || studioData.length === 0) {
+            studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
+        }
         document.getElementById('studioOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         studioActivePage = 'months';
@@ -3959,6 +3974,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioSaveFlatHymn(hyi) {
+        // Use studioFlatData (working copy) instead of mutating live arrays directly,
+        // matching the same pattern studioSaveHymn uses for months
         const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
         const hymn = data[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
@@ -4004,6 +4021,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         studioSelectedHoliday = null;
         studioRenderTree();
         studioEditFlatHymn(hyi);
+        // Remind user this isn't saved to Gist yet — same as months behaviour
+        studioSetStatus('New hymn added — click Save JSON to publish');
     }
     
     function studioDeleteFlatHymn(hyi) {
@@ -4011,6 +4030,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         if(!confirm('Delete this hymn?')) return;
         data.splice(hyi, 1);
         studioSelectedMonth = null;
+        studioSelectedHoliday = null;
         studioRenderTree();
         document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select an item from the list</div>';
         studioSwitchTab('structure');
@@ -4018,7 +4038,13 @@ function studioDrop(e, type, mi, hi, targetIdx) {
 
     // --- export / import ---
     function studioRefreshExport() {
-        const payload = { months: studioData, qine: QINE_DATA, negsh: NEGSH_DATA };
+        // Always sync studioData back from live MONTHS_DATA before exporting
+        // so any unsaved month edits are reflected accurately
+        const payload = {
+            months: studioData,
+            qine: QINE_DATA,
+            negsh: NEGSH_DATA
+        };
         document.getElementById('studioJsonPreview').value = JSON.stringify(payload, null, 2);
     }
     function studioDownloadJson() {
