@@ -564,25 +564,6 @@
             border: none;
             display: block;
         }
-        .yt-center-controls {
-            display: flex;
-            justify-content: center;
-            margin: 28px 0;
-        }
-        .yt-ts-btn {
-            background: transparent;
-            border: 1px solid var(--border);
-            border-radius: 40px;
-            padding: 10px 24px;
-            color: var(--text);
-            font-size: 0.9rem;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .yt-ts-btn:hover, .yt-ts-btn.active {
-            border-color: var(--gold);
-            color: var(--gold);
-        }
         @media (max-width: 800px) {
             .player-overlay.youtube-mode .player-image-side {
                 flex: 0 0 100%;
@@ -1220,6 +1201,21 @@
             to   { height: 13px; }
         }
         .now-playing-bars.paused span { animation-play-state: paused; height: 4px; }
+
+        #visualizer {
+            display: flex !important;
+            flex-direction: row !important;
+            align-items: flex-end !important;
+            justify-content: center !important;
+            flex-wrap: nowrap !important;
+            overflow: hidden;
+        }
+        #visualizer > div {
+            flex-shrink: 0;
+            width: 4px;
+            min-width: 4px;
+            max-width: 4px;
+        }
     </style>
 </head>
 <body>
@@ -1303,6 +1299,9 @@
         <div id="playerBigImage" class="player-big-image"></div>
         <div id="ytPlayerWrap"></div>
         <button id="closePlayerBtn" style="position:absolute;top:20px;left:20px;background:rgba(0,0,0,0.6);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:7px 18px;color:#fff;font-size:0.85rem;cursor:pointer;z-index:5;">⏹ Stop</button>
+        <button id="imagePrevBtn" style="display:none;position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:42px;height:42px;color:#fff;font-size:1.3rem;cursor:pointer;z-index:5;align-items:center;justify-content:center;">‹</button>
+        <button id="imageNextBtn" style="display:none;position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:50%;width:42px;height:42px;color:#fff;font-size:1.3rem;cursor:pointer;z-index:5;align-items:center;justify-content:center;">›</button>
+        <div id="imageCounter" style="display:none;position:absolute;bottom:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.5);backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.2);border-radius:40px;padding:4px 14px;color:#fff;font-size:0.75rem;z-index:5;"></div>
     </div>
 
     <!-- Controls side 40% -->
@@ -1333,6 +1332,7 @@
                         <span id="playerChanter" style="font-size:0.8rem; color:var(--muted);"></span>
                     </div>
                     <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
+                    <div id="ytTimestampsList" style="display:none; flex-direction:column; gap:6px; max-height:280px; overflow-y:auto; text-align:left; margin-bottom:16px;"></div>
                     <div class="controls-grid" id="standardControlsGrid">
                         <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
                         <button id="playerPlayPause" class="btn-play-lg">▶</button>
@@ -1346,9 +1346,6 @@
                             style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border); width:72px; text-align:center; outline:none; font-family:inherit; font-size:0.85rem;"
                             title="Playback speed (0.5–2x)">
                         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);">
-                    </div>
-                    <div class="yt-center-controls" id="ytCenterControls" style="display:none;">
-                        <button class="yt-ts-btn" id="ytTsToggleBtn">⏱ Timestamps</button>
                     </div>
                 </div>
             </div>
@@ -1517,6 +1514,16 @@
     let ytPollInterval = null;
     let isYoutubeTrack = false;
 
+    // Cleans a pasted value: if it's a YouTube iframe/url/ID, returns a canonical
+    // watch URL. Otherwise returns the trimmed input unchanged (e.g. mp3 URLs).
+    function normalizeSrcValue(raw) {
+        if(!raw) return raw;
+        const trimmed = raw.trim();
+        const ytId = extractYoutubeId(trimmed);
+        if(ytId) return `https://www.youtube.com/watch?v=${ytId}`;
+        return trimmed;
+    }
+
     function extractYoutubeId(url) {
         if(!url) return null;
         // handle full <iframe> embed code pasted directly
@@ -1615,8 +1622,8 @@
         const ytBtns  = document.getElementById('ytTopBtnsPlaceholder');
         const stdGrid = document.getElementById('standardControlsGrid');
         const stdRow  = document.getElementById('standardControlsRow');
-        const ytRow   = document.getElementById('ytCenterControls');
         const vizEl2  = document.getElementById('visualizer');
+        const ytTs    = document.getElementById('ytTimestampsList');
         const bigImg  = document.getElementById('playerBigImage');
         const ytWrap  = document.getElementById('ytPlayerWrap');
 
@@ -1625,8 +1632,8 @@
         if(ytBtns)  ytBtns.style.display  = on ? 'flex' : 'none';
         if(stdGrid) stdGrid.style.display  = on ? 'none' : '';
         if(stdRow)  stdRow.style.display   = on ? 'none' : '';
-        if(ytRow)   ytRow.style.display    = on ? 'flex' : 'none';
         if(vizEl2)  vizEl2.style.display   = on ? 'none' : '';
+        if(ytTs)    ytTs.style.display     = on ? 'flex' : 'none';
         if(bigImg)  bigImg.style.display   = on ? 'none' : '';
         if(ytWrap)  ytWrap.style.display   = on ? 'block' : 'none';
 
@@ -1638,6 +1645,7 @@
     }
 
     let currentTrackObj = null;      // { hymn, type, version, clipStart, clipEnd, timestamps }
+    let currentImageIndex = 0;
     let playlist = [];
     let recentlyPlayed = [];
     try{
@@ -1658,73 +1666,64 @@
     function parseTimeToSec(t) { if(!t) return 0; let p=t.split(':'); return p.length===2 ? parseInt(p[0])*60+parseFloat(p[1]) : (p.length===3 ? parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]) : 0); }
     function formatSec(sec) { let m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}:${s<10?'0'+s:s}`; }
 
-        // Ethiopian month helper (returns 1-13) – corrected leap rule
-    function getCurrentEthiopianMonth() {
+        // Single source of truth for "today" in the Ethiopian calendar.
+    // Returns { monthIndex (0-12), day (1-30), year } using the
+    // Gregorian year % 4 === 3 leap rule.
+    function getEthiopianTodayInfo() {
         const now = new Date();
         const year = now.getFullYear();
-        
-        // Correct Ethiopian leap rule: Gregorian year % 4 === 3
+
         const isLeapCurrent = (year % 4 === 3);
         const newYearDay = isLeapCurrent ? 12 : 11;
         const newYearDate = new Date(year, 8, newYearDay);
-        
-        let daysDiff;
+
+        let daysDiff, ethiopianYear;
         if (now < newYearDate) {
             const isLeapPrev = ((year - 1) % 4 === 3);
             const prevNewYear = new Date(year - 1, 8, isLeapPrev ? 12 : 11);
             daysDiff = Math.floor((now - prevNewYear) / (1000 * 60 * 60 * 24));
+            ethiopianYear = year - 8;
         } else {
             daysDiff = Math.floor((now - newYearDate) / (1000 * 60 * 60 * 24));
+            ethiopianYear = year - 7;
         }
-        
-        return Math.max(1, Math.min(13, Math.floor(daysDiff / 30) + 1));
+
+        const monthIndex = Math.floor(daysDiff / 30);
+        const day = (daysDiff % 30) + 1;
+        return { monthIndex, day, year: ethiopianYear };
     }
 
+    // Ethiopian month helper (returns 1-13)
+    function getCurrentEthiopianMonth() {
+        const { monthIndex } = getEthiopianTodayInfo();
+        return Math.max(1, Math.min(13, monthIndex + 1));
+    }
 
-            // Function to calculate and render both current Ethiopian date and system locale date
+    // Function to calculate and render both current Ethiopian date and system locale date
     function renderLiveDateWidget() {
         const amharicMonths = ["መስከረም", "ጥቅምት", "ኅዳር", "ታኅሣሥ", "ጥር", "የካቲት", "መጋቢት", "ሚያዝያ", "ግንቦት", "ሰኔ", "ሐምሌ", "ነሐሴ", "ጳጉሜን"];
         const englishMonths = ["Meskerem", "Tikimt", "Hidar", "Tahsas", "Tir", "Yekatit", "Megabit", "Miazia", "Ginbot", "Sene", "Hamle", "Nehase", "Pagumē"];
-        
+
         const now = new Date();
-        const year = now.getFullYear();
-        
-        // 1. Resolve User Localized System Date 
+
+        // 1. Resolve User Localized System Date
         const systemDateEl = document.getElementById('userSystemDate');
         if (systemDateEl) {
             systemDateEl.innerText = new Intl.DateTimeFormat(navigator.language || 'en-US', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
             }).format(now);
         }
-        
-        // 2. Compute Ethiopian Calendar Components (True Gregorian % 4 === 3 rule)
-        const isLeapCurrent = (year % 4 === 3);
-        const newYearDay = isLeapCurrent ? 12 : 11;
-        const newYearDate = new Date(year, 8, newYearDay);
-        
-        let daysDiff;
-        let ethiopianYear;
-        
-        if (now < newYearDate) {
-            const isLeapPrev = ((year - 1) % 4 === 3);
-            const prevNewYear = new Date(year - 1, 8, isLeapPrev ? 12 : 11);
-            daysDiff = Math.floor((now - prevNewYear) / (1000 * 60 * 60 * 24));
-            ethiopianYear = year - 8; // Before New Year, still in previous Ethiopian year
-        } else {
-            daysDiff = Math.floor((now - newYearDate) / (1000 * 60 * 60 * 24));
-            ethiopianYear = year - 7; // After New Year, moved to next Ethiopian year
-        }
-        
-        const monthIndex = Math.floor(daysDiff / 30);
-        const ethiopianDay = (daysDiff % 30) + 1;
-        
+
+        // 2. Compute Ethiopian Calendar Components via shared helper
+        const { monthIndex, day, year: ethiopianYear } = getEthiopianTodayInfo();
+
         if (monthIndex >= 0 && monthIndex < 13) {
-            const amharicString = `${amharicMonths[monthIndex]} ${ethiopianDay} ቀን ${ethiopianYear} ዓ.ም`;
-            const englishString = `${englishMonths[monthIndex]} ${ethiopianDay}, ${ethiopianYear}`;
-            
+            const amharicString = `${amharicMonths[monthIndex]} ${day} ቀን ${ethiopianYear} ዓ.ም`;
+            const englishString = `${englishMonths[monthIndex]} ${day}, ${ethiopianYear}`;
+
             const amharicEl = document.getElementById('ethiopianAmharicDate');
             const englishEl = document.getElementById('ethiopianEnglishDate');
-            
+
             if (amharicEl) amharicEl.innerText = amharicString;
             if (englishEl) englishEl.innerText = englishString;
         }
@@ -1821,7 +1820,7 @@
                     playHymn(hymn, type, 0, null);
                     return;
                 }
-                picker.innerHTML = `<div class="beat-picker-label">Select ቤት</div>` +
+                picker.innerHTML = `<div class="beat-picker-label">Select Audio</div>` +
                     versions.map((v, vi) => `
                         <div class="beat-option" data-vi="${vi}">
                             <div class="beat-option-left">
@@ -1842,12 +1841,6 @@
             if(kumBtn) kumBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(hymn.kum, 'kum'); };
             if(aquBtn) aquBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(aquVersions, 'aqu'); };
         });
-
-        document.addEventListener('click', (e) => {
-            if(!e.target.closest('.holiday-row')) {
-                container.querySelectorAll('.beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
-            }
-        }, { once: false });
     }
 
     function playHymn(hymn, type, versionIdx, seekTime = null) {
@@ -1952,7 +1945,7 @@
         updateNowPlayingIndicator();
         document.getElementById('translationPanel').innerText =
         currentTrackObj.hymn.translation || 'No translation available';
-        // timestamps panel
+        // timestamps panel (side panel, regular audio)
         const tsPanel = document.getElementById('timestampsPanel');
         const timestamps = currentTrackObj.timestamps || [];
         if(!timestamps.length) {
@@ -1973,6 +1966,30 @@
                     el.style.color = '#000';
                 };
             });
+        }
+
+        // inline timestamps list (YouTube mode, replaces visualizer)
+        const ytTsList = document.getElementById('ytTimestampsList');
+        if(ytTsList) {
+            if(!timestamps.length) {
+                ytTsList.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:8px 0;">No timestamps for this recording.</div>';
+            } else {
+                ytTsList.innerHTML = timestamps.map(ts =>
+                    `<div class="timestamp-item" data-seek="${ts.time}">
+                        <span>${ts.label}</span>
+                        <span class="timestamp-time">${ts.time}</span>
+                    </div>`
+                ).join('');
+                ytTsList.querySelectorAll('.timestamp-item').forEach(el => {
+                    el.onclick = () => {
+                        const t = parseTimeToSec(el.dataset.seek);
+                        if(!isNaN(t)) seekTo(t);
+                        ytTsList.querySelectorAll('.timestamp-item').forEach(x => x.style.background = '');
+                        el.style.background = 'var(--gold)';
+                        el.style.color = '#000';
+                    };
+                });
+            }
         }
     }
 
@@ -2149,7 +2166,6 @@
         document.getElementById('miniPlayer').classList.remove('visible');
     });
     document.getElementById('miniExpand')?.addEventListener('click', () => { openFullPlayer(); document.getElementById('miniPlayer').classList.remove('visible'); });
-    document.getElementById('volumeBtn')?.addEventListener('click', () => { let s=document.getElementById('volumeSlider'); s.style.display = s.style.display==='none'?'inline-block':'none'; });
     document.getElementById('volumeSlider')?.addEventListener('input', e => audio.volume = parseFloat(e.target.value));
     // progress scrubbing
     const progBar = document.getElementById('playerProgress');
@@ -2240,6 +2256,11 @@
         });
     });
     document.addEventListener('click', (e) => { if(!e.target.closest('.search-wrap')) resultsDiv.classList.remove('show'); });
+    document.addEventListener('click', (e) => {
+        if(!e.target.closest('.holiday-row')) {
+            document.querySelectorAll('#recordingList .beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
+        }
+    });
     document.getElementById('backToMonthsBtn')?.addEventListener('click', () => {
         const savedScroll = sessionStorage.getItem('monthScrollY') || 0;
         document.getElementById('holidayView').style.display = 'none';
@@ -2405,12 +2426,6 @@ function renderQueue(){
         const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
         setPlayerPanelState(isOpen ? null : 'timestamps-open');
     });
-    document.getElementById('ytTsToggleBtn')?.addEventListener('click', () => {
-        const btn = document.getElementById('ytTsToggleBtn');
-        const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
-        setPlayerPanelState(isOpen ? null : 'timestamps-open');
-        btn.classList.toggle('active', !isOpen);
-    });
     document.getElementById('queueToggleBtn')?.addEventListener('click', () => {
         const isOpen = document.getElementById('playerContainer').classList.contains('queue-open');
         setPlayerPanelState(isOpen ? null : 'queue-open');
@@ -2542,11 +2557,14 @@ function renderQueue(){
     function loadArtwork(month, holiday, hymn) {
         const bigEl = document.getElementById('playerBigImage');
         if(!bigEl) return;
-        // Hymn-specific image takes priority
-        if(hymn && hymn.image) {
-            bigEl.style.backgroundImage = `url('${hymn.image}')`;
+        // Hymn-specific images take priority
+        if(hymn && Array.isArray(hymn.images) && hymn.images.length) {
+            currentImageIndex = 0;
+            renderCurrentImage();
+            updateImageNavUI();
             return;
         }
+        updateImageNavUI();
         // Path-based fallback
         if(!month || !holiday) { bigEl.style.backgroundImage = ''; return; }
         const mf = month.name.toLowerCase();
@@ -2567,15 +2585,63 @@ function renderQueue(){
         tryNext();
     }
 
+    // Render whichever image in currentTrackObj.hymn.images is "current"
+    function renderCurrentImage() {
+        const bigEl = document.getElementById('playerBigImage');
+        if(!bigEl || !currentTrackObj) return;
+        const images = currentTrackObj.hymn.images || [];
+        if(!images.length) return;
+        bigEl.style.backgroundImage = `url('${images[currentImageIndex]}')`;
+    }
+
+    // Show/hide nav arrows + counter based on how many images this hymn has
+    function updateImageNavUI() {
+        const prevBtn = document.getElementById('imagePrevBtn');
+        const nextBtn = document.getElementById('imageNextBtn');
+        const counter = document.getElementById('imageCounter');
+        if(!prevBtn || !nextBtn || !counter) return;
+        const images = currentTrackObj?.hymn?.images || [];
+        if(images.length > 1) {
+            prevBtn.style.display = 'flex';
+            nextBtn.style.display = 'flex';
+            counter.style.display = 'block';
+            counter.innerText = `${currentImageIndex + 1} / ${images.length}`;
+        } else {
+            prevBtn.style.display = 'none';
+            nextBtn.style.display = 'none';
+            counter.style.display = 'none';
+        }
+    }
+
+    function showPrevImage() {
+        const images = currentTrackObj?.hymn?.images || [];
+        if(images.length < 2) return;
+        currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+        renderCurrentImage();
+        updateImageNavUI();
+    }
+
+    function showNextImage() {
+        const images = currentTrackObj?.hymn?.images || [];
+        if(images.length < 2) return;
+        currentImageIndex = (currentImageIndex + 1) % images.length;
+        renderCurrentImage();
+        updateImageNavUI();
+    }
+
+    document.getElementById('imagePrevBtn')?.addEventListener('click', (e) => { e.stopPropagation(); showPrevImage(); });
+    document.getElementById('imageNextBtn')?.addEventListener('click', (e) => { e.stopPropagation(); showNextImage(); });
+
     // Visualizer setup
     const vizEl = document.getElementById('visualizer');
     let vizInterval = null;
-    if(vizEl) {
+    if(vizEl && !vizEl.dataset.barsInit) {
         for(let i = 0; i < 30; i++) {
             const bar = document.createElement('div');
             bar.style.cssText = 'width:4px; background:var(--gold); border-radius:4px; height:4px; opacity:0.2; transition:height 0.1s ease;';
             vizEl.appendChild(bar);
         }
+        vizEl.dataset.barsInit = 'true';
     }
     let audioCtx = null, analyser = null, vizSource = null, vizRaf = null;
 
@@ -2773,13 +2839,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
 
     // --- open/close ---
     let studioActivePage = 'months';
-
-    function studioGetActiveData() {
-        if(studioActivePage === 'qine')  return QINE_DATA;
-        if(studioActivePage === 'negsh') return NEGSH_DATA;
-        return studioData;
-    }
-
+    
     function openStudio() {
         studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
         document.getElementById('studioOverlay').style.display = 'flex';
@@ -2888,6 +2948,104 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
             fi.value = '';
         });
+    }
+
+    // Multi-file image drop zone -> pushes each uploaded URL into hymn.images
+    function studioBindImageDropZone(zoneId, fileInputId, statusId, mi, hi, hyi) {
+        const zone = document.getElementById(zoneId);
+        const fi   = document.getElementById(fileInputId);
+        if(!zone || !fi) return;
+        const getHymn = () => (hi === null)
+            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            : studioData[mi].holidays[hi].hymns[hyi];
+        const onFiles = async (files) => {
+            const statusEl = document.getElementById(statusId);
+            const hymn = getHymn();
+            if(!Array.isArray(hymn.images)) hymn.images = [];
+            for(const file of files) {
+                if(!file.type.startsWith('image/')) continue;
+                if(statusEl) { statusEl.innerText = `Uploading ${file.name}…`; statusEl.style.color = 'var(--gold)'; }
+                try {
+                    const compressedBlob = await compressImage(file);
+                    const baseNameOnly = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    const fileToUpload = new File([compressedBlob], baseNameOnly + '.jpg', { type: 'image/jpeg' });
+                    let finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+                    finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
+                    const url = await studioUploadFile(fileToUpload, `images/${finalName}`);
+                    if(url) hymn.images.push(url);
+                } catch(err) {
+                    if(statusEl) { statusEl.innerText = '⚠ ' + err.message; statusEl.style.color = '#f87171'; }
+                }
+            }
+            if(statusEl) { statusEl.innerText = '✓ Done'; statusEl.style.color = 'var(--gold)'; }
+            if(hi === null) studioRenderImagesList(mi, null, null); else studioRenderImagesList(mi, hi, hyi);
+        };
+        zone.addEventListener('click', () => fi.click());
+        zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault(); zone.classList.remove('drag-over');
+            onFiles(Array.from(e.dataTransfer.files || []));
+        });
+        fi.addEventListener('change', () => {
+            onFiles(Array.from(fi.files || []));
+            fi.value = '';
+        });
+    }
+
+    // Add an image by pasting a URL (holiday-hymn editor)
+    function studioAddImageUrl(mi, hi, hyi) {
+        const input = document.getElementById('sHymnImageUrl');
+        const url = input?.value.trim();
+        if(!url) return;
+        const hymn = studioData[mi].holidays[hi].hymns[hyi];
+        if(!Array.isArray(hymn.images)) hymn.images = [];
+        hymn.images.push(url);
+        input.value = '';
+        studioRenderImagesList(mi, hi, hyi);
+    }
+
+    // Add an image by pasting a URL (flat ቅኔ/ነግሥ editor)
+    function studioAddFlatImageUrl(hyi) {
+        const input = document.getElementById('sHymnImageUrl');
+        const url = input?.value.trim();
+        if(!url) return;
+        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const hymn = data[hyi];
+        if(!Array.isArray(hymn.images)) hymn.images = [];
+        hymn.images.push(url);
+        input.value = '';
+        studioRenderImagesList(hyi, null, null);
+    }
+
+    // Render the thumbnail list with delete buttons.
+    // hi === null means flat (qine/negsh) hymn at index mi.
+    function studioRenderImagesList(mi, hi, hyi) {
+        const list = document.getElementById('sHymnImagesList');
+        if(!list) return;
+        const hymn = (hi === null)
+            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            : studioData[mi].holidays[hi].hymns[hyi];
+        const images = hymn.images || [];
+        if(!images.length) {
+            list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;">No images yet.</div>';
+            return;
+        }
+        list.innerHTML = images.map((url, i) => `
+            <div style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-image:url('${url}'); background-size:cover; background-position:center;">
+                ${i===0 ? `<span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">cover</span>` : ''}
+                <button onclick="studioRemoveImage(${mi},${hi===null?'null':hi},${hi===null?'null':hyi},${i})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); border:none; color:#f87171; font-size:0.7rem; width:18px; height:18px; border-radius:50%; cursor:pointer; line-height:1;">✕</button>
+            </div>
+        `).join('');
+    }
+
+    function studioRemoveImage(mi, hi, hyi, idx) {
+        const hymn = (hi === null)
+            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            : studioData[mi].holidays[hi].hymns[hyi];
+        if(!Array.isArray(hymn.images)) return;
+        hymn.images.splice(idx, 1);
+        studioRenderImagesList(mi, hi, hyi);
     }
 
         // Helper: compress image (resize to maxWidth, quality 0.8, returns JPEG blob)
@@ -3275,13 +3433,17 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                         <label class="studio-field-label">Display title (override)</label>
                         <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
 
-                        <label class="studio-field-label">Artwork</label>
-                        <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:80px;"` : 'style="min-height:80px;"'}>
-                            <input type="file" accept="image/*" style="display:none" id="fi_img">
-                            🖼 Drop image or click
+                        <label class="studio-field-label">Artwork (multiple)</label>
+                        <div class="studio-drop-zone" id="dz_img" style="min-height:80px;">
+                            <input type="file" accept="image/*" multiple style="display:none" id="fi_img">
+                            🖼 Drop image(s) or click
                             <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
-                        <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL">
+                        <div style="display:flex; gap:8px;">
+                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image URL" style="flex:1;">
+                            <button class="studio-add-btn" onclick="studioAddImageUrl(${mi},${hi},${hyi})">+ Add</button>
+                        </div>
+                        <div id="sHymnImagesList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
 
                         <label class="studio-field-label">Translation</label>
                         <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit; flex:1; min-height:90px;" rows="4">${hymn.translation || ''}</textarea>
@@ -3320,10 +3482,12 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         `;
 
         window._studioEditCtx = { mi, hi, hyi };
+        if(!Array.isArray(hymn.images)) hymn.images = hymn.image ? [hymn.image] : [];
         setTimeout(() => {
-            studioBindDropZone('dz_img', 'fi_img', 'dz_img_status', 'sHymnImage', 'images/');
+            studioBindImageDropZone('dz_img', 'fi_img', 'dz_img_status', mi, hi, hyi);
             studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
             studioRenderRecordingsGrid(mi, hi, hyi);
+            studioRenderImagesList(mi, hi, hyi);
         }, 0);
     }
 
@@ -3355,7 +3519,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         });
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         hymn.kum = hymn.kum || [];
-        hymn.kum.push({ beat, src, chanter, duration, timestamps });
+        hymn.kum.push({ beat, src: normalizeSrcValue(src), chanter, duration, timestamps });
         // clear form
         ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
         const tsContainer = document.getElementById('sNewVerTimestamps');
@@ -3372,7 +3536,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
-            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i})),
+            ...(hymn.aqu?.lay||[]).map((v,i) => ({...v, _vtype:'aqulay', _vi:i}))
         ];
         if(!allVersions.length) {
             grid.innerHTML = '<div style="color:var(--muted);font-size:0.85rem;grid-column:1/-1;padding:20px 0;">No recordings yet — add one above.</div>';
@@ -3385,6 +3550,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                     <input class="studio-timestamp-label" value="${ts.label}" placeholder="Label" id="gts-label-${flatIdx}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
                     <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
                 </div>`).join('');
+            const recLabel = v._vtype === 'kum' ? 'ቁም' : (v._vtype === 'aqutach' ? 'አቋቋም ታች' : 'አቋቋም ላይ');
             return `
             <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
                 style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
@@ -3393,7 +3559,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 ondragleave="studioDragLeave(event)"
                 ondrop="studioGridDrop(event,${mi},${hi},${hyi},${flatIdx})">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
+                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${recLabel}</span>
                     <div style="display:flex;gap:6px;">
                         <button class="studio-add-btn" onclick="studioTestAudio('grec-src-${flatIdx}', this)">▶</button>
                         <button class="studio-delete-btn" onclick="studioDeleteGridVersion(${mi},${hi},${hyi},${flatIdx})">✕</button>
@@ -3435,13 +3601,15 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
-            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i})),
+            ...(hymn.aqu?.lay||[]).map((v,i) => ({...v, _vtype:'aqulay', _vi:i}))
         ];
         const [moved] = allVersions.splice(gridDragSrcIdx, 1);
         allVersions.splice(targetIdx, 0, moved);
         hymn.kum = allVersions.filter(v => v._vtype === 'kum').map(({_vtype,_vi,...rest}) => rest);
         hymn.aqu = hymn.aqu || { tach:[], lay:[] };
         hymn.aqu.tach = allVersions.filter(v => v._vtype === 'aqutach').map(({_vtype,_vi,...rest}) => rest);
+        hymn.aqu.lay = allVersions.filter(v => v._vtype === 'aqulay').map(({_vtype,_vi,...rest}) => rest);
         gridDragSrcIdx = null;
         studioRenderRecordingsGrid(mi, hi, hyi);
     }
@@ -3462,7 +3630,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
-            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i})),
+            ...(hymn.aqu?.lay||[]).map((v,i) => ({...v, _vtype:'aqulay', _vi:i}))
         ];
         const v = allVersions[flatIdx];
         if(!v) return;
@@ -3475,13 +3644,14 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         });
         const updated = {
             beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
-            src: document.getElementById(`grec-src-${flatIdx}`)?.value.trim() || '',
+            src: normalizeSrcValue(document.getElementById(`grec-src-${flatIdx}`)?.value || ''),
             chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
             duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
             timestamps
         };
         if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
-        else hymn.aqu.tach[v._vi] = updated;
+        else if(v._vtype === 'aqutach') hymn.aqu.tach[v._vi] = updated;
+        else hymn.aqu.lay[v._vi] = updated;
         studioSetStatus('Recording saved ✓');
     }
     function studioDeleteGridVersion(mi, hi, hyi, flatIdx) {
@@ -3489,12 +3659,14 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
-            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i})),
+            ...(hymn.aqu?.lay||[]).map((v,i) => ({...v, _vtype:'aqulay', _vi:i}))
         ];
         const v = allVersions[flatIdx];
         if(!v) return;
         if(v._vtype === 'kum') hymn.kum.splice(v._vi, 1);
-        else hymn.aqu.tach.splice(v._vi, 1);
+        else if(v._vtype === 'aqutach') hymn.aqu.tach.splice(v._vi, 1);
+        else hymn.aqu.lay.splice(v._vi, 1);
         studioRenderRecordingsGrid(mi, hi, hyi);
     }
 
@@ -3502,13 +3674,13 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
-        hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
         hymn.translation = document.getElementById('sHymnTranslation').value;
 
         // collect all recording cards from the grid
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
-            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i}))
+            ...(hymn.aqu?.tach||[]).map((v,i) => ({...v, _vtype:'aqutach', _vi:i})),
+            ...(hymn.aqu?.lay||[]).map((v,i) => ({...v, _vtype:'aqulay', _vi:i}))
         ];
         allVersions.forEach((v, flatIdx) => {
             const srcEl = document.getElementById(`grec-src-${flatIdx}`);
@@ -3522,13 +3694,14 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
-                src: srcEl.value.trim(),
+                src: normalizeSrcValue(srcEl.value || ''),
                 chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
                 duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
                 timestamps
             };
             if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
-            else hymn.aqu.tach[v._vi] = updated;
+            else if(v._vtype === 'aqutach') hymn.aqu.tach[v._vi] = updated;
+            else hymn.aqu.lay[v._vi] = updated;
         });
 
         studioSetStatus('Hymn saved ✓');
@@ -3565,13 +3738,17 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                         <label class="studio-field-label">Display title (override)</label>
                         <input class="studio-input" id="sHymnDisplayTitle" value="${hymn.displayTitle || ''}">
 
-                        <label class="studio-field-label">Artwork</label>
-                        <div class="studio-drop-zone" id="dz_img" ${hymn.image ? `style="background-image:url('${hymn.image}');background-size:cover;background-position:center;min-height:80px;"` : 'style="min-height:80px;"'}>
-                            <input type="file" accept="image/*" style="display:none" id="fi_img">
-                            🖼 Drop image or click
+                        <label class="studio-field-label">Artwork (multiple)</label>
+                        <div class="studio-drop-zone" id="dz_img" style="min-height:80px;">
+                            <input type="file" accept="image/*" multiple style="display:none" id="fi_img">
+                            🖼 Drop image(s) or click
                             <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
-                        <input class="studio-input" id="sHymnImage" value="${hymn.image || ''}" placeholder="or paste image URL">
+                        <div style="display:flex; gap:8px;">
+                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image URL" style="flex:1;">
+                            <button class="studio-add-btn" onclick="studioAddFlatImageUrl(${hyi})">+ Add</button>
+                        </div>
+                        <div id="sHymnImagesList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
 
                         <label class="studio-field-label">Translation</label>
                         <textarea class="studio-textarea" id="sHymnTranslation" style="font-family:inherit; min-height:90px;" rows="4">${hymn.translation || ''}</textarea>
@@ -3616,10 +3793,12 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         `;
 
         window._studioEditCtx = { hyi };
+        if(!Array.isArray(hymn.images)) hymn.images = hymn.image ? [hymn.image] : [];
         setTimeout(() => {
-            studioBindDropZone('dz_img', 'fi_img', 'dz_img_status', 'sHymnImage', 'images/');
+            studioBindImageDropZone('dz_img', 'fi_img', 'dz_img_status', hyi, null, null);
             studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
             studioRenderFlatRecordingsGrid(hyi);
+            studioRenderImagesList(hyi, null, null);
         }, 0);
     }
 
@@ -3639,7 +3818,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             if(time && label) timestamps.push({ time, label });
         });
         hymn.kum = hymn.kum || [];
-        hymn.kum.push({ beat, src, chanter, duration, timestamps });
+        hymn.kum.push({ beat, src: normalizeSrcValue(src), chanter, duration, timestamps });
         ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
         const tsContainer = document.getElementById('sNewVerTimestamps');
         if(tsContainer) tsContainer.innerHTML = '';
@@ -3734,7 +3913,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         });
         const updated = {
             beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
-            src: document.getElementById(`fgrec-src-${flatIdx}`)?.value.trim() || '',
+            src: normalizeSrcValue(document.getElementById(`fgrec-src-${flatIdx}`)?.value || ''),
             chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
             duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
             timestamps
@@ -3784,7 +3963,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymn = data[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
-        hymn.image = document.getElementById('sHymnImage').value.trim() || undefined;
         hymn.translation = document.getElementById('sHymnTranslation').value;
 
         // collect all recording cards from the grid
@@ -3804,7 +3982,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             });
             const updated = {
                 beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
-                src: srcEl.value.trim(),
+                src: normalizeSrcValue(srcEl.value || ''),
                 chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
                 duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
                 timestamps
@@ -3907,7 +4085,23 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     // END STUDIO
     // ============================================================
 
-    async function loadFromGist() {
+    // One-time migration: hymn.image (string) -> hymn.images (array).
+// Walks every hymn across months/holidays + qine + negsh.
+function migrateHymnImages() {
+    function fix(hymn) {
+        if(!hymn) return;
+        if(!Array.isArray(hymn.images)) hymn.images = [];
+        if(hymn.image) {
+            if(!hymn.images.includes(hymn.image)) hymn.images.unshift(hymn.image);
+            delete hymn.image;
+        }
+    }
+    MONTHS_DATA.forEach(m => m.holidays.forEach(h => h.hymns.forEach(fix)));
+    QINE_DATA.forEach(fix);
+    NEGSH_DATA.forEach(fix);
+}
+
+async function loadFromGist() {
     const CACHE_KEY = 'gistCache', CACHE_TS = 'gistCacheTs';
     const cached = sessionStorage.getItem(CACHE_KEY);
     const cacheAge = Date.now() - parseInt(sessionStorage.getItem(CACHE_TS) || 0);
@@ -3920,6 +4114,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             if (Array.isArray(data.qine))  { QINE_DATA.length  = 0; data.qine.forEach(h  => QINE_DATA.push(h));  }
             if (Array.isArray(data.negsh)) { NEGSH_DATA.length = 0; data.negsh.forEach(h => NEGSH_DATA.push(h)); }
         }
+        migrateHymnImages();
         renderMonths();
         searchIndex = buildSearchIndex();
         return;
@@ -3948,6 +4143,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             setTimeout(() => note.remove(), 6000);
         }
     }
+    migrateHymnImages();
     renderMonths();
     searchIndex = buildSearchIndex();
 }
