@@ -139,6 +139,7 @@
         .search-wrap {
             position: relative;
             width: 280px;
+            max-width: 100%;
         }
         .search-input {
             width: 100%;
@@ -188,7 +189,7 @@
 
 .hero-section{
     margin-bottom:40px;
-    padding:60px;
+    padding: clamp(24px, 6vw, 60px);
     border-radius:40px;
     background:
         radial-gradient(circle at top right, rgba(234,179,8,.18), transparent 45%),
@@ -821,7 +822,7 @@
             font-size: 0.85rem;
         }
         .mini-progress {
-            width: 160px;
+            width: 100px;
             background: #2c2c30;
             height: 4px;
             border-radius: 4px;
@@ -867,7 +868,11 @@
             .drawer-actions { flex-direction: column; gap: 12px; }
             .holiday-row.open .drawer { max-height: 220px; }
             .hero-title { font-size: 2.4rem; }
-            .hero-section { padding: 36px 28px; }
+            .hero-section { padding: 24px 20px; }
+            .mini-player { padding: 8px 14px; gap: 10px; }
+            .mini-info { min-width: 80px; }
+            .mini-progress { width: 60px; }
+            .mini-btn { font-size: 1rem; }
         }
         button {
             font-family: inherit;
@@ -1222,7 +1227,7 @@
 </head>
 <body>
 <div class="app-container" id="app">
-    <div class="top-bar" style="flex-wrap:nowrap; gap:10px;">
+    <div class="top-bar" style="flex-wrap:wrap; gap:10px;">
             <div class="logo">
                 <h1>ዜማ ወአቋቋም</h1>
                 <p>Zema · Aquaquam · Timestamps</p>
@@ -1232,6 +1237,7 @@
             <div id="searchResults" class="search-results"></div>
         </div>
         <div style="display:flex; gap:8px; align-items:center; margin-left:auto;">
+            <a href="https://miliketstudio.github.io/MiliketStudio/" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s; text-decoration:none; display:inline-flex; align-items:center;">⌂ Home</a>
             <button id="themeToggleBtn" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">☀ Light</button>
             <button id="studioTrigger" style="background:transparent; border:1px solid var(--border); border-radius:40px; padding:8px 18px; color:var(--muted); font-size:0.75rem; cursor:pointer; transition:0.2s;">⚙ Studio</button>
         </div>
@@ -1504,6 +1510,9 @@
 
     const QINE_DATA = [];
     const NEGSH_DATA = [];
+    const GIST_ID = 'b070b16ccb4d0eb452d48c3530c32e1c';
+    const GIST_USERNAME = 'miliketstudio';
+
     let currentFlatData = null;
     let activeTab = 'all';
     let currentMonth = null, currentHoliday = null;
@@ -1915,17 +1924,29 @@
             let startPos = clipStartSec;
             if(seekTime) startPos = clipStartSec + parseTimeToSec(seekTime);
             audio.currentTime = Math.min(startPos, clipEndSec - 0.1);
-            audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e=>console.warn(e));
             buildPlaylistFromHoliday();
             renderQueue();
             document.getElementById('translationPanel').innerText =
             currentTrackObj.hymn.translation || '';
         };
+
+        // iOS requires play() to be called synchronously within the user gesture.
+        // We call it immediately after setting src, before waiting for metadata.
+        if(!isYoutubeTrack) {
+            audio.play().then(() => { isPlaying=true; updatePlayUI(); }).catch(e => {
+                // On iOS the first play() may fail if src isn't ready yet — that's okay,
+                // the user can tap the play button and it will work from there.
+                console.warn('Autoplay blocked (expected on iOS):', e);
+                isPlaying = false;
+                updatePlayUI();
+            });
+        }
         audio.onerror = () => {
+            if(isYoutubeTrack) return;
             document.getElementById('playerTrackTitle').innerText = '⚠ Could not load audio';
             document.getElementById('playerChanter').innerText = 'Check the URL or try another recording';
             isPlaying = false;
-            updatePlayUI(); // flips ⏸ back to ▶
+            updatePlayUI();
         };
     }
 
@@ -2042,7 +2063,7 @@
         if(playBtn) playBtn.innerHTML = isPlaying ? '⏸' : '▶';
         const miniBtn = document.getElementById('miniPlayPause');
         if(miniBtn) miniBtn.innerHTML = isPlaying ? '⏸' : '▶';
-        if(isPlaying) startVisualizer(); else stopVisualizer();
+        if(isPlaying && !isYoutubeTrack) startVisualizer(); else stopVisualizer();
         // sync now playing bar animation
         document.querySelectorAll('.now-playing-bars').forEach(el => {
             el.classList.toggle('paused', !isPlaying);
@@ -2853,10 +2874,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     let studioActivePage = 'months';
     
     function openStudio() {
-        // Only re-clone on first open — preserve unsaved edits on subsequent opens
-        if(!studioUnlocked || studioData.length === 0) {
-            studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
-        }
+        // Always sync from live MONTHS_DATA (already populated by loadFromGist)
+        studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
         document.getElementById('studioOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         studioActivePage = 'months';
@@ -3153,10 +3172,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             }
         }
     }
-
-    // --- Gist sync ---
-    const GIST_ID = 'b070b16ccb4d0eb452d48c3530c32e1c';
-    const GIST_USERNAME = 'miliketstudio';
 
     function studioSaveToken() {
         const val = document.getElementById('studioTokenInput').value.trim();
