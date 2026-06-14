@@ -10,7 +10,36 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+    <script>
+    firebase.initializeApp({
+        apiKey: "AIzaSyBGqPnDo9cRnB1DQysPK1cG71NFwPfY5mM",
+        authDomain: "miliketstudio-1.firebaseapp.com",
+        projectId: "miliketstudio-1",
+        storageBucket: "miliketstudio-1.firebasestorage.app",
+        messagingSenderId: "188875051308",
+        appId: "1:188875051308:web:14f411a23e15d480125c89"
+    });
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let currentUserId = null;
+
+    auth.onAuthStateChanged((user) => {
+        if (user) {
+        currentUserId = user.uid;
+        console.log("Seamless login active. User UID:", currentUserId);
+        } else {
+        console.log("No session found. Creating a guest account...");
+        auth.signInAnonymously().catch((error) => {
+            console.error("Anonymous authentication failed:", error.message);
+        });
+        }
+    });
+    </script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
@@ -1716,7 +1745,6 @@ let appData = {};
 let currentUser = null;
 let currentFolder = null;
 let currentPiece = null;
-let db = null;
 let confirmCallback = null;
 let confirmAnswer = '';
 
@@ -2054,7 +2082,7 @@ async function saveAndSync() {
     appData._lastSaved = Date.now();
     localStorage.setItem('miliket_last_saved', appData._lastSaved);
     saveData();
-    await pushToGist();
+    await pushToFirestore();
 }
 
 // --- Studio page navigation ---
@@ -3677,6 +3705,33 @@ function attachDragHandlers(div, type) {
 // --- Init ---
 let _studioInitialized = false;
 
+async function loadFromFirestore(uid) {
+    try {
+        const doc = await db.collection('users').doc(uid).get();
+        if (doc.exists) {
+            appData = doc.data().appData || {};
+            saveData();
+        }
+        showSyncStatus('saved');
+    } catch(e) {
+        console.error('Firestore load failed:', e);
+        showSyncStatus('failed');
+    }
+}
+
+async function pushToFirestore() {
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    try {
+        showSyncStatus('pending');
+        await db.collection('users').doc(user.uid).set({ appData });
+        showSyncStatus('saved');
+    } catch(e) {
+        console.error('Firestore push failed:', e);
+        showSyncStatus('failed');
+    }
+}
+
 async function enterStudio() {
     if (_studioInitialized) {
         showStudioPage('page-projects');
@@ -3685,22 +3740,20 @@ async function enterStudio() {
     }
     _studioInitialized = true;
     showStudioPage('page-projects');
+    showSyncStatus('pending');
 
-    // Ask for GitHub token if not set
-    if (!getGistToken()) {
-        const token = prompt('Enter your GitHub token for cloud sync (or Cancel to skip):');
-        if (token) localStorage.setItem('miliket_gist_token', token.trim());
+    try {
+        const userCredential = await firebase.auth().signInAnonymously();
+        const firebaseUser = userCredential.user;
+        console.log('Signed in as UID:', firebaseUser.uid);
+        await loadFromFirestore(firebaseUser.uid);
+    } catch (error) {
+        console.error('Auth failed:', error);
+        showSyncStatus('failed');
     }
 
-    // Pull from Gist
-    if (getGistToken()) await pullFromGist();
-
-    // Render projects
     renderProjects();
     checkSyncReminder();
-
-    const statusEl = document.getElementById('sync-status-text');
-    if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.color = '#27ae60'; }
 }
 
 window.addEventListener('DOMContentLoaded', async () => {
