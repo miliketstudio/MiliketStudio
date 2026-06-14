@@ -3711,7 +3711,20 @@ async function loadFromFirestore(uid) {
     try {
         const doc = await fsdb.collection('users').doc(uid).get();
         if (doc.exists) {
-            appData = doc.data().appData || {};
+            const index = doc.data().index || {};
+            // Load each piece's visualData from subcollection
+            const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
+            const pieceMap = {};
+            pieceSnaps.forEach(p => { pieceMap[p.id] = decompressFromCloud(p.data().visualData || ''); });
+            // Merge visualData back into index
+            Object.keys(index).filter(k => k !== '_lastSaved').forEach(projName => {
+                (index[projName].folders || []).forEach(folder => {
+                    (folder.pieces || []).forEach(piece => {
+                        piece.visualData = pieceMap[piece.id] || '';
+                    });
+                });
+            });
+            appData = index;
             saveData();
         }
         showSyncStatus('saved');
@@ -3726,7 +3739,38 @@ async function pushToFirestore() {
     if (!user) return;
     try {
         showSyncStatus('pending');
-        await fsdb.collection('users').doc(user.uid).set({ appData });
+        const batch = fsdb.batch();
+
+        // Build index without visualData
+        const index = buildIndexData();
+        batch.set(fsdb.collection('users').doc(user.uid), { index });
+
+        // Each dirty piece gets its own document
+        _dirtyPieceIds.forEach(pieceId => {
+            let found = null;
+            Object.keys(appData).filter(k => k !== '_lastSaved').some(projName =>
+                (appData[projName].folders || []).some(folder =>
+                    (folder.pieces || []).some(piece => {
+                        if (piece.id === pieceId) { found = piece; return true; }
+                    })
+                )
+            );
+            if (found) {
+                batch.set(
+                    fsdb.collection('users').doc(user.uid).collection('pieces').doc(pieceId),
+                    { visualData: compressForCloud(found.visualData || '') }
+                );
+            }
+        });
+
+        // Delete removed pieces
+        _deletedPieceIds.forEach(pieceId => {
+            batch.delete(fsdb.collection('users').doc(user.uid).collection('pieces').doc(pieceId));
+        });
+
+        await batch.commit();
+        _dirtyPieceIds.clear();
+        _deletedPieceIds.clear();
         showSyncStatus('saved');
     } catch(e) {
         console.error('Firestore push failed:', e);
