@@ -1891,7 +1891,7 @@ async function idbSet(key, value) {
     });
 }
 function saveData() {
-    if (!db) return;
+    if (!idb) return;
     idbSet('miliket_data', appData)
         .then(() => studioChannel.postMessage({ type: 'data_updated' }))
         .catch(e => console.error('IDB save failed', e));
