@@ -24,7 +24,7 @@
     });
 
     const auth = firebase.auth();
-    const db = firebase.firestore();
+    const fsdb = firebase.firestore();
 
     let currentUserId = null;
 
@@ -3708,7 +3708,7 @@ let _studioInitialized = false;
 
 async function loadFromFirestore(uid) {
     try {
-        const doc = await db.collection('users').doc(uid).get();
+        const doc = await fsdb.collection('users').doc(uid).get();
         if (doc.exists) {
             appData = doc.data().appData || {};
             saveData();
@@ -3725,7 +3725,7 @@ async function pushToFirestore() {
     if (!user) return;
     try {
         showSyncStatus('pending');
-        await db.collection('users').doc(user.uid).set({ appData });
+        await fsdb.collection('users').doc(user.uid).set({ appData });
         showSyncStatus('saved');
     } catch(e) {
         console.error('Firestore push failed:', e);
