@@ -3740,26 +3740,114 @@ function attachDragHandlers(div, type) {
 // --- Init ---
 let _studioInitialized = false;
 
+function downloadJson(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
+    return new Promise(resolve => {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;';
+        const localProjects = Object.keys(localData).filter(k => k !== '_lastSaved').length;
+        const cloudProjects = Object.keys(cloudData).filter(k => k !== '_lastSaved').length;
+        overlay.innerHTML = `
+            <div style="background:white;border-radius:12px;padding:28px;width:90%;max-width:480px;border-top:4px solid #b8860b;">
+                <h3 style="margin:0 0 8px;font-size:16px;">☁ Choose Version to Load</h3>
+                <p style="font-size:12px;color:#999;margin-bottom:18px;">Your local and cloud data differ. Which would you like to work with?</p>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
+                    <div style="border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;">
+                        <div onclick="document.getElementById('sync-choice').value='CLOUD';" style="cursor:pointer;">
+                            <div style="font-weight:bold;color:#3a9ad1;margin-bottom:6px;">☁ Cloud</div>
+                            <div style="font-size:12px;color:#333;">${cloudProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${cloudTs ? new Date(cloudTs).toLocaleString() : 'Unknown'}</span></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>CLOUD</b></div>
+                        </div>
+                        <button id="dl-cloud" style="margin-top:10px;background:#3a9ad1;color:white;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;">⬇ Download JSON</button>
+                    </div>
+                    <div style="border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;">
+                        <div onclick="document.getElementById('sync-choice').value='LOCAL';" style="cursor:pointer;">
+                            <div style="font-weight:bold;color:#27ae60;margin-bottom:6px;">💾 Local</div>
+                            <div style="font-size:12px;color:#333;">${localProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${localTs ? new Date(localTs).toLocaleString() : 'Unknown'}</span></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>LOCAL</b></div>
+                        </div>
+                        <button id="dl-local" style="margin-top:10px;background:#27ae60;color:white;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;">⬇ Download JSON</button>
+                    </div>
+                </div>
+                <input id="sync-choice" type="text" placeholder="CLOUD or LOCAL" autocomplete="off"
+                    style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
+                <div id="sync-choice-err" style="color:#e74c3c;font-size:12px;margin-top:4px;display:none;">Please type CLOUD or LOCAL exactly.</div>
+                <div style="display:flex;justify-content:flex-end;margin-top:14px;">
+                    <button id="sync-choice-btn" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:9px 22px;font-weight:bold;cursor:pointer;">Confirm</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+
+        const input = overlay.querySelector('#sync-choice');
+        const btn = overlay.querySelector('#sync-choice-btn');
+        const err = overlay.querySelector('#sync-choice-err');
+        input.focus();
+
+        overlay.querySelector('#dl-cloud').addEventListener('click', () => downloadJson(cloudData, 'miliket_cloud_' + new Date().toISOString().split('T')[0] + '.json'));
+        overlay.querySelector('#dl-local').addEventListener('click', () => downloadJson(localData, 'miliket_local_' + new Date().toISOString().split('T')[0] + '.json'));
+
+        function confirm() {
+            const val = input.value.trim().toUpperCase();
+            if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
+            document.body.removeChild(overlay);
+            if (val === 'CLOUD') {
+                appData = cloudData;
+                saveData();
+            } else {
+                appData = localData;
+                markAllPiecesDirty();
+                saveData();
+            }
+            resolve();
+        }
+        btn.addEventListener('click', confirm);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+    });
+}
+
 async function loadFromFirestore(uid) {
     try {
         const doc = await fsdb.collection('users').doc(uid).get();
-        if (doc.exists) {
-            const index = doc.data().index || {};
-            // Load each piece's visualData from subcollection
-            const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
-            const pieceMap = {};
-            pieceSnaps.forEach(p => { pieceMap[p.id] = decompressFromCloud(p.data().visualData || ''); });
-            // Merge visualData back into index
-            Object.keys(index).filter(k => k !== '_lastSaved').forEach(projName => {
-                (index[projName].folders || []).forEach(folder => {
-                    (folder.pieces || []).forEach(piece => {
-                        piece.visualData = pieceMap[piece.id] || '';
-                    });
+        if (!doc.exists) { showSyncStatus('saved'); return; }
+
+        const cloudIndex = doc.data().index || {};
+        const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
+        const pieceMap = {};
+        pieceSnaps.forEach(p => { pieceMap[p.id] = decompressFromCloud(p.data().visualData || ''); });
+        Object.keys(cloudIndex).filter(k => k !== '_lastSaved').forEach(projName => {
+            (cloudIndex[projName].folders || []).forEach(folder => {
+                (folder.pieces || []).forEach(piece => {
+                    piece.visualData = pieceMap[piece.id] || '';
                 });
             });
-            appData = index;
+        });
+
+        const localData = await idbGet('miliket_data');
+        const localTs = localData?._lastSaved || 0;
+        const cloudTs = cloudIndex._lastSaved || 0;
+        const localHasData = localData && Object.keys(localData).filter(k => k !== '_lastSaved').length > 0;
+        const cloudHasData = Object.keys(cloudIndex).filter(k => k !== '_lastSaved').length > 0;
+
+        if (localHasData && cloudHasData && localTs !== cloudTs) {
+            await showCloudLocalPicker(cloudIndex, localData, cloudTs, localTs);
+        } else if (cloudHasData) {
+            appData = cloudIndex;
+            saveData();
+        } else if (localHasData) {
+            appData = localData;
+            markAllPiecesDirty();
             saveData();
         }
+
         showSyncStatus('saved');
     } catch(e) {
         console.error('Firestore load failed:', e);
