@@ -10,6 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/dist/pptxgen.bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
@@ -2587,9 +2588,9 @@ function triggerAutoSave() {
     unsavedChanges = true;
     clearTimeout(autoSaveTimer);
     autoSaveTimer = setTimeout(async () => {
-        savePieceNow();      // visual data → appData
-        saveData();          // appData → IndexedDB
-        await pushToGist();  // appData → GitHub Gist
+        savePieceNow();
+        saveData();
+        await pushToFirestore();
         showSyncStatus('saved');
     }, 10000);
     showSyncStatus('pending');
@@ -3805,7 +3806,7 @@ window.addEventListener('beforeunload', (e) => {
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         saveData();
-        if (navigator.onLine) pushToGist();
+        if (navigator.onLine) pushToFirestore();
     }
 });
 
