@@ -1865,17 +1865,18 @@ async function loadCloudPieces(gistFiles, cloudData) {
 }
 
 // --- IndexedDB ---
+let idb = null;
 function openDB() {
     return new Promise((resolve, reject) => {
         const req = indexedDB.open(DB_NAME, 1);
         req.onupgradeneeded = e => e.target.result.createObjectStore(DB_STORE);
-        req.onsuccess = e => { db = e.target.result; resolve(db); };
+        req.onsuccess = e => { idb = e.target.result; resolve(idb); };
         req.onerror = e => reject(e.target.error);
     });
 }
 async function idbGet(key) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readonly');
+        const tx = idb.transaction(DB_STORE, 'readonly');
         const req = tx.objectStore(DB_STORE).get(key);
         req.onsuccess = () => resolve(req.result ?? null);
         req.onerror = () => reject(req.error);
@@ -1883,7 +1884,7 @@ async function idbGet(key) {
 }
 async function idbSet(key, value) {
     return new Promise((resolve, reject) => {
-        const tx = db.transaction(DB_STORE, 'readwrite');
+        const tx = idb.transaction(DB_STORE, 'readwrite');
         const req = tx.objectStore(DB_STORE).put(value, key);
         req.onsuccess = () => resolve();
         req.onerror = () => reject(req.error);
@@ -3767,7 +3768,7 @@ window.addEventListener('DOMContentLoaded', async () => {
     }
 
     // Open DB silently
-    db = await openDB();
+    idb = await openDB();
     const saved = await idbGet('miliket_data');
     if (saved) appData = saved;
     migrateMissingIds();
