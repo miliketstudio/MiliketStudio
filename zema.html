@@ -2563,7 +2563,11 @@ function renderQueue(){
                 <div class="row-main" style="flex-wrap:wrap; gap:12px;">
                     <div class="row-title">
                         <h3 style="font-family:'Abyssinica SIL',serif;">${hymn.displayTitle || hymn.title}</h3>
-                        <div class="row-meta">${[hasKum?'ቁም ዜማ':'', hasAqu?'አቋቋም':''].filter(Boolean).join(' · ')}</div>
+                        <div class="row-meta">${[
+                            ...(hymn.kum||[]).map(v=>v.beat||'').filter(Boolean),
+                            ...(hymn.aqu?.tach||[]).map(v=>v.beat||'').filter(Boolean),
+                            ...(hymn.aqu?.lay||[]).map(v=>v.beat||'').filter(Boolean)
+                        ].join(' · ')}</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
                         ${hasKum ? `<button class="btn-play flat-btn-kum">▶ ${kumVer.beat||''} &nbsp;${kumVer.duration||'--'}</button>` : ''}
