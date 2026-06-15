@@ -1674,6 +1674,7 @@
     let isPlaying = false;
     let clipStartSec = 0, clipEndSec = 0;
     let currentHymnTitle = "";
+    let isScrubbing = false;
 
         // helpers
     function parseTimeToSec(t) { if(!t) return 0; let p=t.split(':'); return p.length===2 ? parseInt(p[0])*60+parseFloat(p[1]) : (p.length===3 ? parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]) : 0); }
@@ -2122,6 +2123,7 @@
         }
     }
     audio.addEventListener('timeupdate', () => {
+        if(isScrubbing) return;
         let rel = audio.currentTime - clipStartSec;
         if(rel<0) rel=0;
         const total = clipEndSec - clipStartSec;
@@ -2218,14 +2220,15 @@
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
             return Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
         }
-        barEl.addEventListener('mousedown', e => { dragging = true; onScrub(getScrubFrac(e), false); });
-        barEl.addEventListener('touchstart', e => { dragging = true; onScrub(getScrubFrac(e), false); }, { passive: true });
+        barEl.addEventListener('mousedown', e => { dragging = true; isScrubbing = true; onScrub(getScrubFrac(e), false); });
+        barEl.addEventListener('touchstart', e => { dragging = true; isScrubbing = true; onScrub(getScrubFrac(e), false); }, { passive: true });
         document.addEventListener('mousemove', e => { if(!dragging) return; onScrub(getScrubFrac(e), false); });
         document.addEventListener('touchmove', e => { if(!dragging) return; onScrub(getScrubFrac(e), false); }, { passive: true });
-        document.addEventListener('mouseup', e => { if(!dragging) return; dragging = false; onScrub(getScrubFrac(e), true); });
+        document.addEventListener('mouseup', e => { if(!dragging) return; dragging = false; isScrubbing = false; onScrub(getScrubFrac(e), true); });
         document.addEventListener('touchend', e => {
             if(!dragging) return;
             dragging = false;
+            isScrubbing = false;
             const rect = barEl.getBoundingClientRect();
             const clientX = e.changedTouches[0].clientX;
             onScrub(Math.min(1, Math.max(0, (clientX - rect.left) / rect.width)), true);
