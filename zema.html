@@ -1355,7 +1355,8 @@
                         <input id="speedSelect" type="number" min="0.5" max="2" step="0.25" value="1"
                             style="background:var(--card); color:var(--text); border-radius:40px; padding:6px 12px; border:1px solid var(--border); width:72px; text-align:center; outline:none; font-family:inherit; font-size:0.85rem;"
                             title="Playback speed (0.5–2x)">
-                        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);">
+                        <span style="font-size:0.95rem;">🔊</span>
+                        <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px; accent-color:var(--gold);" title="Volume">
                     </div>
                 </div>
             </div>
@@ -1645,7 +1646,7 @@
         if(ytBtns)  ytBtns.style.display  = on ? 'flex' : 'none';
         if(stdGrid) stdGrid.style.display  = on ? 'none' : '';
         if(stdRow)  stdRow.style.display   = on ? 'none' : '';
-        if(vizEl2)  vizEl2.style.display   = on ? 'none' : '';
+        if(vizEl2)  vizEl2.style.display   = on ? 'none' : 'flex';
         if(ytTs)    ytTs.style.display     = on ? 'flex' : 'none';
         if(bigImg)  bigImg.style.display   = on ? 'none' : '';
         if(ytWrap)  ytWrap.style.display   = on ? 'block' : 'none';
