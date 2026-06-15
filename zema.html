@@ -1809,7 +1809,11 @@
                 <div class="row-main" style="flex-wrap:wrap; gap:12px;">
                     <div class="row-title">
                         <h3>${hymn.displayTitle || hymn.title}</h3>
-                        <div class="row-meta">${[hasKum?`ቁም ዜማ${kumCount>1?' ('+kumCount+')':''}` :'', aquVersions.length?`አቋቋም${aquVersions.length>1?' ('+aquVersions.length+')':''}` :''].filter(Boolean).join(' · ')}</div>
+                        <div class="row-meta">${[
+                            ...(hymn.kum||[]).map(v=>v.beat||'').filter(Boolean),
+                            ...(hymn.aqu?.tach||[]).map(v=>v.beat||'').filter(Boolean),
+                            ...(hymn.aqu?.lay||[]).map(v=>v.beat||'').filter(Boolean)
+                        ].join(' · ')}</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
                         ${hasKum ? `<button class="btn-play btn-kum-row">▶ ቁም ዜማ</button>` : ''}
@@ -2516,7 +2520,7 @@ function renderQueue(){
                         <div class="row-meta">${[hasKum?'ቁም ዜማ':'', hasAqu?'አቋቋም':''].filter(Boolean).join(' · ')}</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-                        ${hasKum ? `<button class="btn-play flat-btn-kum">▶ ቁም &nbsp;${kumVer.duration||'--'}</button>` : ''}
+                        ${hasKum ? `<button class="btn-play flat-btn-kum">▶ ${kumVer.beat||''} &nbsp;${kumVer.duration||'--'}</button>` : ''}
                         ${hasAqu ? `<button class="btn-play flat-btn-aqu">▶ አቋቋም &nbsp;${aquVer.duration||'--'}</button>` : ''}
                     </div>
                 </div>
@@ -3580,7 +3584,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                     <input class="studio-timestamp-label" value="${ts.label}" placeholder="Label" id="gts-label-${flatIdx}-${tsi}" style="font-family:'Abyssinica SIL',serif;">
                     <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>
                 </div>`).join('');
-            const recLabel = v._vtype === 'kum' ? 'ቁም' : (v._vtype === 'aqutach' ? 'አቋቋም ታች' : 'አቋቋም ላይ');
+            const recLabel = v.beat || (v._vtype === 'kum' ? 'ቁም' : (v._vtype === 'aqutach' ? 'አቋቋም ታች' : 'አቋቋም ላይ'));
             return `
             <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
                 style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
@@ -3885,7 +3889,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 ondragleave="studioDragLeave(event)"
                 ondrop="studioFlatGridDrop(event,${hyi},${flatIdx})">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1} · ${v._vtype === 'kum' ? 'ቁም' : 'አቋቋም'}</span>
+                    <span style="font-size:0.65rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em;">Recording ${flatIdx+1}${v.beat ? ' · ' + v.beat : ''}</span>
                     <div style="display:flex;gap:6px;">
                         <button class="studio-add-btn" onclick="studioTestAudio('fgrec-src-${flatIdx}', this)">▶</button>
                         <button class="studio-delete-btn" onclick="studioDeleteFlatGridVersion(${hyi},${flatIdx})">✕</button>
