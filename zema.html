@@ -3292,7 +3292,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 row.innerHTML = `
                     <div class="studio-tree-month-header ${isSelected ? 'selected' : ''}" style="cursor:pointer;">
                         <span style="font-family:'Abyssinica SIL',serif; flex:1;">${hymn.displayTitle || hymn.title}</span>
-                        <span style="color:var(--muted); font-size:0.7rem;">${[hymn.kum?.length?'Rec':'', hymn.aqu?.tach?.length?'አቋቋም':''].filter(Boolean).join(' · ')}</span>
+                        <span style="color:var(--muted); font-size:0.7rem;">${(()=>{ const total=(hymn.kum?.length||0)+(hymn.aqu?.tach?.length||0)+(hymn.aqu?.lay?.length||0); return Array.from({length:total},(_,i)=>`rec ${i+1}`).join(' · '); })()}</span>
                     </div>
                 `;
                 row.querySelector('.studio-tree-month-header').onclick = () => {
