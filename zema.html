@@ -3253,7 +3253,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         }
         list.innerHTML = images.map((url, i) => `
             <div style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-image:url('${url}'); background-size:cover; background-position:center;">
-                ${i===0 ? `<span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">cover</span>` : ''}
+                <span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">${i+1}</span>
                 <button onclick="studioRemoveImage(${mi},${hi===null?'null':hi},${hi===null?'null':hyi},${i})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); border:none; color:#f87171; font-size:0.7rem; width:18px; height:18px; border-radius:50%; cursor:pointer; line-height:1;">✕</button>
             </div>
         `).join('');
@@ -3861,7 +3861,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         tsRows.forEach((row, tsi) => {
             const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
             const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
-            if(time && label) timestamps.push({ time, label });
+            const existingImage = v.timestamps?.[tsi]?.image || '';
+            if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
         });
         const updated = {
             beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
@@ -3912,7 +3913,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             tsRows.forEach((row, tsi) => {
                 const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
-                if(time && label) timestamps.push({ time, label });
+                const existingImage = v.timestamps?.[tsi]?.image || '';
+                if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
@@ -3927,8 +3929,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         });
 
         studioSetStatus('Hymn saved ✓');
-        studioSwitchTab('structure');
-        studioShowHolidayDetail(mi, hi);
     }
 
     // --- flat hymn (ቅኔ / ነግሥ) ---
@@ -4101,7 +4101,10 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             </div>`;
         }).join('');
         allVersions.forEach((v, flatIdx) => {
-            setTimeout(() => studioBindDropZone(`fgdz-${flatIdx}`, `fgfi-${flatIdx}`, `fgdz-${flatIdx}-status`, `fgrec-src-${flatIdx}`, 'audio/'), 0);
+            setTimeout(() => {
+                studioBindDropZone(`fgdz-${flatIdx}`, `fgfi-${flatIdx}`, `fgdz-${flatIdx}-status`, `fgrec-src-${flatIdx}`, 'audio/');
+                studioRenderTsImgList(`fgts-img-list-${flatIdx}`, v.timestamps || [], flatIdx, true);
+            }, 0);
         });
     }
 
@@ -4133,7 +4136,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         tsRows.forEach((row, tsi) => {
             const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
             const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
-            if(time && label) timestamps.push({ time, label });
+            const existingImage = v.timestamps?.[tsi]?.image || '';
+            if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
         });
         const updated = {
             beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4144,9 +4148,9 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         };
         if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
         else hymn.aqu.tach[v._vi] = updated;
+        studioRenderFlatRecordingsGrid(hyi);
         studioSetStatus('Recording saved ✓');
     }
-
     function studioDeleteFlatGridVersion(hyi, flatIdx) {
         if(!confirm('Delete this recording?')) return;
         const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
@@ -4204,7 +4208,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             tsRows.forEach((row, tsi) => {
                 const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
-                if(time && label) timestamps.push({ time, label });
+                const existingImage = v.timestamps?.[tsi]?.image || '';
+                if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4218,7 +4223,6 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         });
 
         studioSetStatus('Hymn saved ✓');
-        studioSwitchTab('structure');
         studioRenderTree();
     }
 
@@ -4226,30 +4230,79 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const container = document.getElementById(containerId);
         if(!container) return;
         container.innerHTML = '';
+
+        // get hymn images for the select options
+        const ctx = window._studioEditCtx || {};
+        let hymnImages = [];
+        if(ctx.hyi !== undefined && ctx.hi !== undefined && ctx.hi !== null) {
+            hymnImages = studioData[ctx.mi]?.holidays[ctx.hi]?.hymns[ctx.hyi]?.images || [];
+        } else if(ctx.hyi !== undefined) {
+            const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+            hymnImages = data[ctx.hyi]?.images || [];
+        }
+
         timestamps.forEach((ts, tsi) => {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+
             const timeLabel = document.createElement('span');
             timeLabel.style.cssText = 'font-size:0.65rem;color:var(--muted);width:40px;flex-shrink:0;font-variant-numeric:tabular-nums;';
             timeLabel.textContent = ts.time || '';
+
+            // select dropdown
+            const select = document.createElement('select');
+            select.className = 'studio-input';
+            select.style.cssText = 'width:90px;flex-shrink:0;padding:4px 6px;font-size:0.72rem;';
+            const noneOpt = document.createElement('option');
+            noneOpt.value = '';
+            noneOpt.textContent = '— none —';
+            select.appendChild(noneOpt);
+            hymnImages.forEach((url, i) => {
+                const opt = document.createElement('option');
+                opt.value = url;
+                opt.textContent = `Image ${i+1}`;
+                if(ts.image === url) opt.selected = true;
+                select.appendChild(opt);
+            });
+
+            // url input fallback
             const urlInput = document.createElement('input');
             urlInput.className = 'studio-input';
             urlInput.style.cssText = 'flex:1;padding:4px 8px;font-size:0.72rem;';
-            urlInput.placeholder = 'Photo URL for this timestamp';
-            urlInput.value = ts.image || '';
-            urlInput.oninput = () => { ts.image = urlInput.value.trim(); };
+            urlInput.placeholder = 'or paste URL';
+            // if current image is not in the hymn images array, show it in the url input
+            const isFromLibrary = hymnImages.includes(ts.image || '');
+            urlInput.value = (!isFromLibrary && ts.image) ? ts.image : '';
+
             const thumb = document.createElement('div');
             thumb.style.cssText = 'width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background-size:cover;background-position:center;flex-shrink:0;';
             if(ts.image) thumb.style.backgroundImage = `url('${ts.image}')`;
-            urlInput.addEventListener('change', () => {
-                ts.image = urlInput.value.trim();
-                thumb.style.backgroundImage = ts.image ? `url('${ts.image}')` : '';
+
+            const updateImage = (url) => {
+                ts.image = url;
+                thumb.style.backgroundImage = url ? `url('${url}')` : '';
+            };
+
+            select.addEventListener('change', () => {
+                if(select.value) {
+                    urlInput.value = '';
+                    updateImage(select.value);
+                }
             });
+            urlInput.addEventListener('input', () => {
+                if(urlInput.value.trim()) {
+                    select.value = '';
+                    updateImage(urlInput.value.trim());
+                }
+            });
+
             row.appendChild(timeLabel);
+            row.appendChild(select);
             row.appendChild(urlInput);
             row.appendChild(thumb);
             container.appendChild(row);
         });
+
         if(!timestamps.length) {
             container.innerHTML = '<div style="font-size:0.68rem;color:var(--muted);padding:2px 0;">No timestamps yet — add timestamps above first.</div>';
         }
