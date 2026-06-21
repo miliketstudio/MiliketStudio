@@ -523,7 +523,7 @@
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
-            padding: 24px;
+            padding: 8px;
         }
         .player-overlay.open {
             opacity: 1;
@@ -620,6 +620,7 @@
             border-left: none;
             border-radius: 0 32px 32px 0;
             max-width: 40vw;
+            overflow: hidden;
         }
         .player-container {
             flex: 1;
@@ -629,6 +630,9 @@
             padding: 24px;
             position: relative;
             overflow: visible;
+        }
+        .player-overlay.youtube-mode .player-container {
+            padding: 8px;
         }
         .center-stage {
             max-width: 360px;
@@ -714,6 +718,7 @@
             border-radius: 12px;
             cursor: pointer;
             font-size: 0.85rem;
+            font-weight: 600;
             transition: 0.15s;
             display: flex;
             justify-content: space-between;
@@ -1315,7 +1320,6 @@
     <!-- Controls side 40% -->
     <div class="player-controls-side">
         <button id="dismissPlayerBtn" style="position:absolute;top:16px;left:16px;background:transparent;border:1px solid var(--border);border-radius:40px;padding:6px 16px;color:var(--muted);font-size:0.75rem;cursor:pointer;z-index:10;transition:0.2s;">✕ Dismiss</button>
-        <button id="bookToggleBtn2" style="position:absolute;top:16px;left:110px;background:transparent;border:1px solid var(--border);border-radius:40px;padding:6px 16px;color:var(--muted);font-size:0.75rem;cursor:pointer;z-index:10;transition:0.2s;">📖 View Book</button>
         <div style="position:absolute;top:16px;right:16px;z-index:10;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;max-width:calc(100% - 120px);" id="playerTopBtns">
             <button class="panel-toggle-btn" id="bookToggleBtn">📖 View Book</button>
             <button class="panel-toggle-btn" id="tsToggleBtn">⏱ Timestamps</button>
@@ -1336,12 +1340,12 @@
             <!-- Center stage -->
             <div class="center-stage">
                 <div class="center-player">
-                    <div style="flex:0 0 11%; min-height:0; display:flex; flex-direction:column; justify-content:center; border-bottom:1px solid var(--border); margin:0;">
-                        <strong id="playerTrackTitle" style="font-size:0.88rem; display:block; padding:0 16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4;">-</strong>
-                        <span id="playerChanter" style="font-size:0.75rem; display:block; padding:0 16px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
+                    <div style="flex:0 0 11%; min-height:0; display:flex; flex-direction:column; justify-content:center; border-bottom:2px solid var(--border); margin:0; width:100%; padding-bottom:4px;">
+                        <strong id="playerTrackTitle" style="font-size:0.925rem; display:block; padding:0 16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; line-height:1.4;">-</strong>
+                        <span id="playerChanter" style="font-size:0.79rem; display:block; padding:0 16px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></span>
                     </div>
                     <div id="visualizer" style="display:flex; align-items:flex-end; justify-content:center; gap:3px; height:40px; margin-bottom:16px;"></div>
-                    <div id="ytTimestampsList" style="display:none; flex-direction:column; gap:0; overflow-y:auto; text-align:left; margin-bottom:0; flex:1; min-height:0;"></div>
+                    <div id="ytTimestampsList" style="display:none; flex-direction:column; gap:0; overflow-y:auto; text-align:left; margin-bottom:0; flex:1; min-height:0; max-height:calc(90vh - 80px);"></div>
                     <div class="controls-grid" id="standardControlsGrid">
                         <button id="playerPrevBtn" style="background:none; border:none; color:var(--text); font-size:1.8rem; cursor:pointer;">⏮</button>
                         <button id="playerSeekBack" style="background:none; border:1px solid var(--border); border-radius:40px; padding:5px 10px; color:var(--text); font-size:0.7rem; cursor:pointer; line-height:1;">−10s</button>
@@ -1633,6 +1637,7 @@
     }
 
     function setYoutubeMode(on) {
+        if(on) { stopVisualizer(); cancelAnimationFrame(vizRaf); clearInterval(vizInterval); if(vizEl) { vizEl.classList.remove('active'); vizEl.style.display = 'none'; } }
         const overlay = document.getElementById('fullPlayer');
         const topBtns = document.getElementById('playerTopBtns');
         const ytBtns  = document.getElementById('ytTopBtnsPlaceholder');
@@ -1644,12 +1649,12 @@
         const ytWrap  = document.getElementById('ytPlayerWrap');
 
         overlay.classList.toggle('youtube-mode', on);
-        if(topBtns) topBtns.style.display = on ? 'none' : '';
+        if(topBtns) { topBtns.querySelectorAll('.panel-toggle-btn:not(#bookToggleBtn)').forEach(b => b.style.display = on ? 'none' : ''); }
         if(ytBtns)  ytBtns.style.display  = on ? 'flex' : 'none';
         if(stdGrid) stdGrid.style.display  = on ? 'none' : '';
         if(stdRow)  stdRow.style.display   = on ? 'none' : '';
         if(vizEl2)  vizEl2.style.display   = on ? 'none' : 'flex';
-        if(ytTs)    ytTs.style.display     = on ? 'flex' : 'none';
+        if(ytTs)    { ytTs.style.display = on ? 'block' : 'none'; ytTs.style.flexWrap = ''; ytTs.style.flexDirection = ''; ytTs.style.alignContent = ''; }
         if(bigImg)  bigImg.style.display   = on ? 'none' : '';
         if(ytWrap)  ytWrap.style.display   = on ? 'block' : 'none';
 
@@ -1662,12 +1667,16 @@
         // book panel: restructure the controls side for YT book mode
         const pc = document.getElementById('playerContainer');
         if(!on) {
-            // restore normal layout when leaving YT mode
-            pc.style.flexDirection = '';
-            pc.style.padding = '';
-            if(ytTs) { ytTs.style.flex = ''; ytTs.style.minHeight = ''; }
+            // close book state first
+            const fullPlayerEl = document.getElementById('fullPlayer');
+            if(fullPlayerEl) fullPlayerEl.classList.remove('book-open');
+            const bookBtn = document.getElementById('bookToggleBtn');
+            if(bookBtn) { bookBtn.classList.remove('active'); bookBtn.innerHTML = '📖 View Book'; }
             const ytArt = document.getElementById('ytBookArt');
             if(ytArt) ytArt.remove();
+            // then reset layout
+            pc.style.cssText = '';
+            if(ytTs) { ytTs.style.cssText = 'display:none; flex-direction:column;'; }
         }
     }
 
@@ -2023,10 +2032,13 @@
             if(!timestamps.length) {
                 ytTsList.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;padding:6px 8px;">No timestamps</div>';
             } else {
+                const colCount = timestamps.length <= 8 ? 1 : timestamps.length <= 16 ? 2 : 3;
+                ytTsList.style.columnCount = colCount;
+                ytTsList.style.columnGap = '4px';
                 ytTsList.innerHTML = timestamps.map(ts =>
-                    `<div class="timestamp-item" data-seek="${ts.time}" style="padding:7px 12px; margin:0; border-radius:0; border-bottom:1px solid rgba(255,255,255,0.05);">
-                        <span style="font-size:0.82rem;">${ts.label}</span>
-                        <span class="timestamp-time">${ts.time}</span>
+                    `<div class="timestamp-item" data-seek="${ts.time}" style="padding:4px 8px; margin:0 0 2px 0; border-radius:8px; border-bottom:none; display:flex; align-items:center; gap:6px; box-sizing:border-box; break-inside:avoid; width:100%;">
+                        <span style="font-size:0.78rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${ts.label}</span>
+                        <span class="timestamp-time" style="opacity:0.7; font-weight:600; white-space:nowrap; flex-shrink:0; font-size:0.72rem;">${ts.time}</span>
                     </div>`
                 ).join('');
                 ytTsList.querySelectorAll('.timestamp-item').forEach(el => {
@@ -2108,7 +2120,7 @@
         if(playBtn) playBtn.innerHTML = isPlaying ? '⏸' : '▶';
         const miniBtn = document.getElementById('miniPlayPause');
         if(miniBtn) miniBtn.innerHTML = isPlaying ? '⏸' : '▶';
-        if(isPlaying && !isYoutubeTrack) startVisualizer(); else stopVisualizer();
+        if(isPlaying && !isYoutubeTrack) startVisualizer(); else { stopVisualizer(); if(isYoutubeTrack && vizEl) vizEl.style.display = 'none'; }
         // sync now playing bar animation
         document.querySelectorAll('.now-playing-bars').forEach(el => {
             el.classList.toggle('paused', !isPlaying);
@@ -2542,13 +2554,6 @@ function renderQueue(){
         }
     }
 
-    document.getElementById('bookToggleBtn2')?.addEventListener('click', () => {
-        document.getElementById('bookToggleBtn').click();
-        const btn2 = document.getElementById('bookToggleBtn2');
-        const btn1 = document.getElementById('bookToggleBtn');
-        btn2.innerHTML = btn1.innerHTML;
-        btn2.classList.toggle('active', btn1.classList.contains('active'));
-    });
     document.getElementById('tsToggleBtn')?.addEventListener('click', () => {
         const isOpen = document.getElementById('playerContainer').classList.contains('timestamps-open');
         setPlayerPanelState(isOpen ? null : 'timestamps-open');
@@ -2565,6 +2570,12 @@ function renderQueue(){
         btn.classList.toggle('active', !isOpen);
         btn.innerHTML = isOpen ? '📖 View Book' : '✕ Close Book';
 
+        // regular audio: show timestamp list only when book is open
+        if(!isYoutubeTrack) {
+            const ytTsListEl = document.getElementById('ytTimestampsList');
+            if(ytTsListEl) ytTsListEl.style.display = !isOpen ? 'block' : 'none';
+        }
+
         // YouTube mode: split controls side into art (top 60%) + timestamps (bottom 40%)
         if(isYoutubeTrack) {
             const pc = document.getElementById('playerContainer');
@@ -2577,11 +2588,20 @@ function renderQueue(){
                 overlay.querySelector('.player-image-side').style.width = '60%';
                 pc.style.cssText = 'flex-direction:column; padding:0; align-items:stretch; justify-content:flex-start; overflow:hidden;';
 
-                // art zone — top 60%
+                // art zone — top 50%
+                // force center-stage to full width in YT book mode
+                const cs = pc.querySelector('.center-stage');
+                if(cs) cs.style.cssText = 'max-width:100%; width:100%; display:flex; flex-direction:column; flex:1; min-height:0; overflow:hidden;';
+                const cp = pc.querySelector('.center-player');
+                if(cp) { cp.style.cssText = 'display:flex; flex-direction:column; flex:1; text-align:center; min-height:0;'; if(cp.firstElementChild) cp.firstElementChild.style.flexBasis = 'auto'; }
+                const ytTsEl = document.getElementById('ytTimestampsList');
+                if(ytTsEl) { ytTsEl.style.flex = '1'; ytTsEl.style.minHeight = '0'; }
+                const timeRow = document.querySelector('.time-row');
+                if(timeRow) timeRow.style.display = 'none';
                 if(!existing) {
                     const artZone = document.createElement('div');
                     artZone.id = 'ytBookArt';
-                    artZone.style.cssText = 'flex:0 0 60%; min-height:0; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center;';
+                    artZone.style.cssText = 'flex:0 0 50%; min-height:0; overflow:hidden; background:#000; display:flex; align-items:center; justify-content:center;';
                     // pull images from current hymn
                     const images = currentTrackObj?.hymn?.images || [];
                     if(images.length) {
@@ -2613,20 +2633,21 @@ function renderQueue(){
                     pc.insertBefore(artZone, pc.firstChild);
                 }
 
-                // timestamps zone — bottom 40%, no heading, scrollable
-                if(ytTs) {
-                    ytTs.style.cssText = 'display:flex; flex-direction:column; gap:0; flex:0 0 40%; min-height:0; overflow-y:auto; text-align:left; margin:0; border-top:1px solid var(--border); padding:4px 0;';
-                }
-
+                // timestamps zone — bottom 55%, no heading, scrollable
             } else {
                 // closing book in YT mode
                 overlay.querySelector('.player-image-side').style.flex = '';
                 overlay.querySelector('.player-image-side').style.width = '';
                 pc.style.cssText = '';
                 if(existing) existing.remove();
-                if(ytTs) {
-                    ytTs.style.cssText = 'display:flex; flex-direction:column; gap:0; overflow-y:auto; text-align:left; margin-bottom:0; flex:1; min-height:0;';
-                }
+                const cs = pc.querySelector('.center-stage');
+                if(cs) cs.style.cssText = '';
+                const cp = pc.querySelector('.center-player');
+                if(cp) { cp.style.cssText = ''; if(cp.firstElementChild) cp.firstElementChild.style.flexBasis = ''; }
+                const ytTsEl = document.getElementById('ytTimestampsList');
+                if(ytTsEl) { ytTsEl.style.flex = ''; ytTsEl.style.minHeight = ''; ytTsEl.style.paddingBottom = ''; }
+                const timeRow = document.querySelector('.time-row');
+                if(timeRow) timeRow.style.display = '';
             }
         }
     });
@@ -3781,8 +3802,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         // bind drop zones for each card
         allVersions.forEach((v, flatIdx) => {
             setTimeout(() => {
-                studioBindDropZone(`fgdz-${flatIdx}`, `fgfi-${flatIdx}`, `fgdz-${flatIdx}-status`, `fgrec-src-${flatIdx}`, 'audio/');
-                studioRenderTsImgList(`fgts-img-list-${flatIdx}`, v.timestamps || [], flatIdx, true);
+                studioBindDropZone(`gdz-${flatIdx}`, `gfi-${flatIdx}`, `gdz-${flatIdx}-status`, `grec-src-${flatIdx}`, 'audio/');
+                studioRenderTsImgList(`gts-img-list-${flatIdx}`, v.timestamps || [], flatIdx, true);
             }, 0);
         });
     }
@@ -3852,6 +3873,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
         else if(v._vtype === 'aqutach') hymn.aqu.tach[v._vi] = updated;
         else hymn.aqu.lay[v._vi] = updated;
+        studioRenderRecordingsGrid(mi, hi, hyi);
         studioSetStatus('Recording saved ✓');
     }
     function studioDeleteGridVersion(mi, hi, hyi, flatIdx) {
