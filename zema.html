@@ -2949,6 +2949,7 @@ function stopVisualizer() {
     let studioUnlocked = false;
     let testAudio = null;
     let studioData = JSON.parse(JSON.stringify(MONTHS_DATA)); // deep clone
+    let studioFlatData = { qine: [], negsh: [] }; // flat page working copies
     let studioSelectedMonth = null;
     let studioSelectedHoliday = null;
     let dragSrcIdx = null;
@@ -3062,6 +3063,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     function openStudio() {
         // Always sync from live MONTHS_DATA (already populated by loadFromGist)
         studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
+        studioFlatData = { qine: JSON.parse(JSON.stringify(QINE_DATA)), negsh: JSON.parse(JSON.stringify(NEGSH_DATA)) };
         document.getElementById('studioOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         studioActivePage = 'months';
@@ -3230,7 +3232,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const input = document.getElementById('sHymnImageUrl');
         const url = input?.value.trim();
         if(!url) return;
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         if(!Array.isArray(hymn.images)) hymn.images = [];
         hymn.images.push(url);
@@ -3244,7 +3246,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const list = document.getElementById('sHymnImagesList');
         if(!list) return;
         const hymn = (hi === null)
-            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
             : studioData[mi].holidays[hi].hymns[hyi];
         const images = hymn.images || [];
         if(!images.length) {
@@ -3261,7 +3263,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
 
     function studioRemoveImage(mi, hi, hyi, idx) {
         const hymn = (hi === null)
-            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
             : studioData[mi].holidays[hi].hymns[hyi];
         if(!Array.isArray(hymn.images)) return;
         hymn.images.splice(idx, 1);
@@ -3411,7 +3413,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         tree.innerHTML = '';
 
         if(studioActivePage === 'qine' || studioActivePage === 'negsh') {
-            const flatData = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+            const flatData = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;;
             if(!flatData.length) {
                 tree.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:16px 4px;">No hymns yet — click + Hymn above.</div>';
                 return;
@@ -3423,7 +3425,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 row.innerHTML = `
                     <div class="studio-tree-month-header ${isSelected ? 'selected' : ''}" style="cursor:pointer;">
                         <span style="font-family:'Abyssinica SIL',serif; flex:1;">${hymn.displayTitle || hymn.title}</span>
-                        <span style="color:var(--muted); font-size:0.7rem;">${(()=>{ const total=(hymn.kum?.length||0)+(hymn.aqu?.tach?.length||0)+(hymn.aqu?.lay?.length||0); return Array.from({length:total},(_,i)=>`rec ${i+1}`).join(' · '); })()}</span>
+                        <span style="color:var(--muted); font-size:0.7rem;">${[
+                            ...(hymn.kum||[]).map(v => v.beat || 'ቁም'),
+                            ...(hymn.aqu?.tach||[]).map(v => v.beat || 'አቋቋም'),
+                            ...(hymn.aqu?.lay||[]).map(v => v.beat || 'አቋቋም ላይ')
+                        ].join(' · ')}</span>
                     </div>
                 `;
                 row.querySelector('.studio-tree-month-header').onclick = () => {
@@ -3554,9 +3560,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <div style="flex:1;">
                     <div style="font-size:0.85rem; font-family:'Abyssinica SIL',serif;">${hymn.title}</div>
                     <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">
-                        ${hymn.kum?.length ? `ቁም ዜማ (${hymn.kum.length})` : ''}
-                        ${hymn.aqu?.tach?.length ? ` · አቋቋም ታች (${hymn.aqu.tach.length})` : ''}
-                        ${hymn.aqu?.lay?.length ? ` · አቋቋም ላይ (${hymn.aqu.lay.length})` : ''}
+                        ${[
+                            ...(hymn.kum||[]).map(v => v.beat || 'ቁም ዜማ'),
+                            ...(hymn.aqu?.tach||[]).map(v => v.beat || 'አቋቋም ታች'),
+                            ...(hymn.aqu?.lay||[]).map(v => v.beat || 'አቋቋም ላይ')
+                        ].join(' · ')}
                     </div>
                 </div>
                 <button class="studio-add-btn" onclick="studioEditHymn(${mi},${hi},${hyi})">Edit</button>
@@ -3634,8 +3642,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <div style="display:flex; align-items:center; gap:12px; margin-bottom:20px; flex-shrink:0;">
                     <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
                     <span style="font-size:1rem; font-weight:500; color:var(--gold);">${studioData[mi].holidays[hi].name} · Hymn Editor</span>
-                    <button class="studio-add-btn" onclick="studioCommitNewVersion(${mi},${hi},${hyi})" style="margin-left:auto; background:rgba(254,240,138,0.1); border-color:var(--gold); color:var(--gold); padding:8px 22px;">+ Add Recording</button>
-                    <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
+                    <button class="studio-add-btn" onclick="studioSaveHymn(${mi},${hi},${hyi})" style="margin-left:auto; background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
+                    <button class="studio-delete-btn" onclick="studioDeleteHymn(${mi},${hi},${hyi})" style="padding:8px 16px;">Delete hymn</button>
                 </div>
 
                 <!-- two-column top section -->
@@ -3685,15 +3693,19 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                         <input class="studio-input" id="sNewVerSrc" placeholder="paste audio URL or YouTube link">
 
                         <label class="studio-field-label">Timestamps</label>
+                        <textarea id="sNewVerTsPaste" class="studio-input" rows="3" placeholder="Paste timestamp list here and click Parse…" style="font-size:0.75rem; resize:vertical; min-height:60px; font-family:monospace;"></textarea>
+                        <button class="studio-add-btn" onclick="studioParseTimestamps('sNewVerTsPaste','sNewVerTimestamps','nts')" style="margin-bottom:4px;">⬇ Parse timestamps</button>
                         <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
                         <button class="studio-add-btn" onclick="studioAddNewVerTimestamp()">+ Timestamp</button>
+
+                        <button class="studio-add-btn" onclick="studioCommitNewVersion(${mi},${hi},${hyi})" style="margin-top:4px; background:var(--gold); color:#000; border-color:var(--gold);">+ Add Recording</button>
                     </div>
                 </div>
 
                 <!-- bottom: existing recordings grid -->
                 <hr class="studio-section-divider" style="margin:20px 0 16px;">
                 <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin-bottom:12px;">Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})</div>
-                <div id="sRecordingsGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; padding-bottom:24px;"></div>
+                <div id="sRecordingsGrid" style="display:flex; flex-wrap:wrap; gap:14px; padding-bottom:24px; align-items:flex-start;"></div>
             </div>
         `;
 
@@ -3705,6 +3717,61 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             studioRenderRecordingsGrid(mi, hi, hyi);
             studioRenderImagesList(mi, hi, hyi);
         }, 0);
+    }
+
+    function studioParseTimestamps(pasteId, containerId, idPrefix) {
+        const raw = document.getElementById(pasteId)?.value || '';
+        if(!raw.trim()) return;
+        const results = [];
+
+        // Strip markdown links: [1:17:56](url) -> 1:17:56
+        const cleaned = raw.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]\([^)]*\)/g, '$1');
+
+        // Normalize: collapse multiple spaces, handle newline-separated time+label
+        const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
+
+        let i = 0;
+        while(i < lines.length) {
+            const line = lines[i];
+            // Match time at start of line: MM:SS or H:MM:SS or HH:MM:SS
+            const timeMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(.*)/);
+            if(timeMatch) {
+                const time = timeMatch[1];
+                let label = timeMatch[2].trim();
+                // if label is empty, check next line
+                if(!label && i + 1 < lines.length) {
+                    const nextLine = lines[i + 1];
+                    // next line is not a timestamp — it's the label
+                    if(!/^\d{1,2}:\d{2}/.test(nextLine)) {
+                        label = nextLine.trim();
+                        i++;
+                    }
+                }
+                if(time) results.push({ time, label: label || '—' });
+            }
+            i++;
+        }
+
+        if(!results.length) { alert('No timestamps found — check the format.'); return; }
+
+        const container = document.getElementById(containerId);
+        if(!container) return;
+        // append (don't replace existing rows)
+        results.forEach(({ time, label }) => {
+            const idx = container.querySelectorAll('.studio-timestamp-row').length;
+            const row = document.createElement('div');
+            row.className = 'studio-timestamp-row';
+            row.innerHTML = `
+                <input class="studio-timestamp-time" placeholder="00:00" id="${idPrefix}-time-${idx}" value="${time}">
+                <input class="studio-timestamp-label" placeholder="Label" id="${idPrefix}-label-${idx}" style="font-family:'Abyssinica SIL',serif;" value="${label}">
+                <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
+            container.appendChild(row);
+        });
+
+        // clear the paste box
+        const pasteEl = document.getElementById(pasteId);
+        if(pasteEl) pasteEl.value = '';
+        studioSetStatus(`✓ ${results.length} timestamps parsed`);
     }
 
     function studioAddNewVerTimestamp() {
@@ -3740,6 +3807,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
         const tsContainer = document.getElementById('sNewVerTimestamps');
         if(tsContainer) tsContainer.innerHTML = '';
+        const dzNew = document.getElementById('dz_new_audio');
+        if(dzNew) { dzNew.style.backgroundImage = ''; dzNew.style.backgroundSize = ''; dzNew.style.backgroundPosition = ''; }
         // update grid count label
         const countEl = document.querySelector('#sRecordingsGrid')?.previousElementSibling;
         if(countEl) countEl.innerText = `Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})`;
@@ -3769,7 +3838,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             const recLabel = v.beat || (v._vtype === 'kum' ? 'ቁም' : (v._vtype === 'aqutach' ? 'አቋቋም ታች' : 'አቋቋም ላይ'));
             return `
             <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
-                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
+                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab; width:260px; flex-shrink:0;"
                 ondragstart="studioGridDragStart(event,${flatIdx})"
                 ondragover="studioDragOver(event)"
                 ondragleave="studioDragLeave(event)"
@@ -3792,6 +3861,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <input class="studio-input" id="grec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL or YouTube link">
                 ${extractYoutubeId(v.src||'') ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,80,80,0.3);border-radius:8px;padding:4px 10px;font-size:0.7rem;color:#f87171;">▶ YouTube · ${extractYoutubeId(v.src||'')}</div>` : ''}
                 <div id="gts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
+                <textarea id="gts-paste-${flatIdx}" class="studio-input" rows="2" placeholder="Paste timestamp list…" style="font-size:0.75rem; resize:vertical; min-height:48px; font-family:monospace;"></textarea>
+                <button class="studio-add-btn" onclick="studioParseTimestamps('gts-paste-${flatIdx}','gts-container-${flatIdx}','gts-${flatIdx}')" style="margin-bottom:4px;">⬇ Parse</button>
                 <button class="studio-add-btn" onclick="studioAddGridTimestamp(${flatIdx})">+ Timestamp</button>
                 <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-top:8px;margin-bottom:4px;">Timestamp Photos</div>
                 <div id="gts-img-list-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;"></div>
@@ -3859,23 +3930,27 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const tsRows = document.getElementById(`gts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
         const timestamps = [];
         tsRows.forEach((row, tsi) => {
-            const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
-            const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
-            const existingImage = v.timestamps?.[tsi]?.image || '';
-            if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
-        });
-        const updated = {
-            beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
-            src: normalizeSrcValue(document.getElementById(`grec-src-${flatIdx}`)?.value || ''),
-            chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
-            duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
-            timestamps
-        };
-        if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
-        else if(v._vtype === 'aqutach') hymn.aqu.tach[v._vi] = updated;
-        else hymn.aqu.lay[v._vi] = updated;
-        studioRenderRecordingsGrid(mi, hi, hyi);
-        studioSetStatus('Recording saved ✓');
+                const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
+                const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
+                const imgRow = imgList?.querySelectorAll('div[data-ts-idx]')?.[tsi] ||
+                               imgList?.children?.[tsi];
+                const selectEl = imgRow?.querySelector('select');
+                const imageVal = (selectEl?.value || '').trim();
+                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+            });
+            const updated = {
+                beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
+                src: normalizeSrcValue(document.getElementById(`grec-src-${flatIdx}`)?.value || ''),
+                chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
+                duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
+                timestamps
+            };
+            if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+            else if(v._vtype === 'aqutach') hymn.aqu.tach[v._vi] = updated;
+            else hymn.aqu.lay[v._vi] = updated;
+            studioRenderRecordingsGrid(mi, hi, hyi);
+            studioSetStatus('Recording saved ✓');
     }
     function studioDeleteGridVersion(mi, hi, hyi, flatIdx) {
         if(!confirm('Delete this recording?')) return;
@@ -3894,10 +3969,15 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioSaveHymn(mi, hi, hyi) {
+        // commit pending new recording if src is filled
+        if(document.getElementById('sNewVerSrc')?.value.trim()) studioCommitNewVersion(mi, hi, hyi);
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
         hymn.translation = document.getElementById('sHymnTranslation').value;
+        // images are already on the hymn object from upload/add actions — no re-collect needed
+        // but ensure the array exists
+        if(!Array.isArray(hymn.images)) hymn.images = [];
 
         // collect all recording cards from the grid
         const allVersions = [
@@ -3913,8 +3993,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             tsRows.forEach((row, tsi) => {
                 const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
-                const existingImage = v.timestamps?.[tsi]?.image || '';
-                if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
+                const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
+                const imgRow = imgList?.children?.[tsi];
+                const selectEl = imgRow?.querySelector('select');
+                const imageVal = (selectEl?.value || '').trim();
+                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
@@ -3933,7 +4016,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
 
     // --- flat hymn (ቅኔ / ነግሥ) ---
     function studioEditFlatHymn(hyi) {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         if(!hymn) return;
         studioSwitchTab('editor');
@@ -3947,6 +4030,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                     <button class="studio-add-btn" onclick="studioSwitchTab('structure')">← Back</button>
                     <span style="font-size:1rem; font-weight:500; color:var(--gold); font-family:'Abyssinica SIL',serif;">${pageLabel} · Hymn Editor</span>
                     <button class="studio-add-btn" onclick="studioSaveFlatHymn(${hyi})" style="margin-left:auto; background:var(--gold); color:#000; border-color:var(--gold); padding:8px 22px;">Save hymn</button>
+                    <button class="studio-delete-btn" onclick="studioDeleteFlatHymn(${hyi})" style="padding:8px 16px;">Delete hymn</button>
                 </div>
 
                 <!-- two-column top section -->
@@ -3996,6 +4080,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                         <input class="studio-input" id="sNewVerSrc" placeholder="paste audio URL or YouTube link">
 
                         <label class="studio-field-label">Timestamps</label>
+                        <textarea id="sNewVerTsPaste" class="studio-input" rows="3" placeholder="Paste timestamp list here and click Parse…" style="font-size:0.75rem; resize:vertical; min-height:60px; font-family:monospace;"></textarea>
+                        <button class="studio-add-btn" onclick="studioParseTimestamps('sNewVerTsPaste','sNewVerTimestamps','nts')" style="margin-bottom:4px;">⬇ Parse timestamps</button>
                         <div id="sNewVerTimestamps" style="display:flex;flex-direction:column;gap:6px;"></div>
                         <button class="studio-add-btn" onclick="studioAddNewVerTimestamp()">+ Timestamp</button>
 
@@ -4006,7 +4092,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <!-- bottom: existing recordings grid -->
                 <hr class="studio-section-divider" style="margin:20px 0 16px;">
                 <div style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted); margin-bottom:12px;">Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})</div>
-                <div id="sFlatRecordingsGrid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px; padding-bottom:24px;"></div>
+                <div id="sFlatRecordingsGrid" style="display:flex; flex-wrap:wrap; gap:14px; padding-bottom:24px; align-items:flex-start;"></div>
 
                 <!-- delete -->
                 <hr class="studio-section-divider" style="margin:8px 0 16px;">
@@ -4025,7 +4111,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioCommitFlatVersion(hyi) {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         const src = document.getElementById('sNewVerSrc')?.value.trim();
         if(!src) { alert('Paste or drop an audio URL first.'); return; }
@@ -4044,6 +4130,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         ['sNewVerBeat','sNewVerChanter','sNewVerDuration','sNewVerSrc'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
         const tsContainer = document.getElementById('sNewVerTimestamps');
         if(tsContainer) tsContainer.innerHTML = '';
+        const dzNew = document.getElementById('dz_new_audio');
+        if(dzNew) { dzNew.style.backgroundImage = ''; dzNew.style.backgroundSize = ''; dzNew.style.backgroundPosition = ''; }
         const countEl = document.querySelector('#sFlatRecordingsGrid')?.previousElementSibling;
         if(countEl) countEl.innerText = `Recordings (${(hymn.kum||[]).length + (hymn.aqu?.tach||[]).length})`;
         studioRenderFlatRecordingsGrid(hyi);
@@ -4052,7 +4140,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     function studioRenderFlatRecordingsGrid(hyi) {
         const grid = document.getElementById('sFlatRecordingsGrid');
         if(!grid) return;
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
@@ -4071,7 +4159,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 </div>`).join('');
             return `
             <div class="studio-hymn-row" draggable="true" data-flatidx="${flatIdx}"
-                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab;"
+                style="flex-direction:column; align-items:stretch; gap:8px; cursor:grab; width:260px; flex-shrink:0;"
                 ondragstart="studioGridDragStart(event,${flatIdx})"
                 ondragover="studioDragOver(event)"
                 ondragleave="studioDragLeave(event)"
@@ -4094,6 +4182,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 <input class="studio-input" id="fgrec-src-${flatIdx}" value="${v.src||''}" placeholder="Audio URL or YouTube link">
                 ${extractYoutubeId(v.src||'') ? `<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,0,0,0.1);border:1px solid rgba(255,80,80,0.3);border-radius:8px;padding:4px 10px;font-size:0.7rem;color:#f87171;">▶ YouTube · ${extractYoutubeId(v.src||'')}</div>` : ''}
                 <div id="fgts-container-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;">${tsHtml}</div>
+                <textarea id="fgts-paste-${flatIdx}" class="studio-input" rows="2" placeholder="Paste timestamp list…" style="font-size:0.75rem; resize:vertical; min-height:48px; font-family:monospace;"></textarea>
+                <button class="studio-add-btn" onclick="studioParseTimestamps('fgts-paste-${flatIdx}','fgts-container-${flatIdx}','fgts-${flatIdx}')" style="margin-bottom:4px;">⬇ Parse</button>
                 <button class="studio-add-btn" onclick="studioAddFlatGridTimestamp(${flatIdx})">+ Timestamp</button>
                 <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--muted);margin-top:8px;margin-bottom:4px;">Timestamp Photos</div>
                 <div id="fgts-img-list-${flatIdx}" style="display:flex;flex-direction:column;gap:4px;"></div>
@@ -4123,7 +4213,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioSaveFlatGridVersion(hyi, flatIdx) {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
@@ -4134,26 +4224,29 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const tsRows = document.getElementById(`fgts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
         const timestamps = [];
         tsRows.forEach((row, tsi) => {
-            const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
-            const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
-            const existingImage = v.timestamps?.[tsi]?.image || '';
-            if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
-        });
-        const updated = {
-            beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
-            src: normalizeSrcValue(document.getElementById(`fgrec-src-${flatIdx}`)?.value || ''),
-            chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
-            duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
-            timestamps
-        };
-        if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
-        else hymn.aqu.tach[v._vi] = updated;
-        studioRenderFlatRecordingsGrid(hyi);
-        studioSetStatus('Recording saved ✓');
+                const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
+                const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
+                const imgRow = imgList?.children?.[tsi];
+                const selectEl = imgRow?.querySelector('select');
+                const imageVal = (selectEl?.value || '').trim();
+                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+            });
+            const updated = {
+                beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
+                src: normalizeSrcValue(document.getElementById(`fgrec-src-${flatIdx}`)?.value || ''),
+                chanter: document.getElementById(`fgrec-chanter-${flatIdx}`)?.value.trim() || '',
+                duration: document.getElementById(`fgrec-duration-${flatIdx}`)?.value.trim() || '',
+                timestamps
+            };
+            if(v._vtype === 'kum') hymn.kum[v._vi] = updated;
+            else hymn.aqu.tach[v._vi] = updated;
+            studioRenderFlatRecordingsGrid(hyi);
+            studioSetStatus('Recording saved ✓');
     }
     function studioDeleteFlatGridVersion(hyi, flatIdx) {
         if(!confirm('Delete this recording?')) return;
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
@@ -4171,7 +4264,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         e.currentTarget.style.outline = '';
         e.currentTarget.style.opacity = '';
         if(gridDragSrcIdx === null || gridDragSrcIdx === targetIdx) return;
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         const allVersions = [
             ...(hymn.kum||[]).map((v,i) => ({...v, _vtype:'kum', _vi:i})),
@@ -4187,13 +4280,14 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioSaveFlatHymn(hyi) {
-        // Use studioFlatData (working copy) instead of mutating live arrays directly,
-        // matching the same pattern studioSaveHymn uses for months
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        // commit pending new recording if src is filled
+        if(document.getElementById('sNewVerSrc')?.value.trim()) studioCommitFlatVersion(hyi);
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         const hymn = data[hyi];
         hymn.title = document.getElementById('sHymnTitle').value.trim();
         hymn.displayTitle = document.getElementById('sHymnDisplayTitle').value.trim() || undefined;
         hymn.translation = document.getElementById('sHymnTranslation').value;
+        if(!Array.isArray(hymn.images)) hymn.images = [];
 
         // collect all recording cards from the grid
         const allVersions = [
@@ -4208,8 +4302,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             tsRows.forEach((row, tsi) => {
                 const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
-                const existingImage = v.timestamps?.[tsi]?.image || '';
-                if(time && label) timestamps.push({ time, label, ...(existingImage ? { image: existingImage } : {}) });
+                const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
+                const imgRow = imgList?.children?.[tsi];
+                const selectEl = imgRow?.querySelector('select');
+                const imageVal = (selectEl?.value || '').trim();
+                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4237,7 +4334,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         if(ctx.hyi !== undefined && ctx.hi !== undefined && ctx.hi !== null) {
             hymnImages = studioData[ctx.mi]?.holidays[ctx.hi]?.hymns[ctx.hyi]?.images || [];
         } else if(ctx.hyi !== undefined) {
-            const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+            const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
             hymnImages = data[ctx.hyi]?.images || [];
         }
 
@@ -4265,40 +4362,23 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 select.appendChild(opt);
             });
 
-            // url input fallback
-            const urlInput = document.createElement('input');
-            urlInput.className = 'studio-input';
-            urlInput.style.cssText = 'flex:1;padding:4px 8px;font-size:0.72rem;';
-            urlInput.placeholder = 'or paste URL';
-            // if current image is not in the hymn images array, show it in the url input
-            const isFromLibrary = hymnImages.includes(ts.image || '');
-            urlInput.value = (!isFromLibrary && ts.image) ? ts.image : '';
-
             const thumb = document.createElement('div');
             thumb.style.cssText = 'width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background-size:cover;background-position:center;flex-shrink:0;';
             if(ts.image) thumb.style.backgroundImage = `url('${ts.image}')`;
 
-            const updateImage = (url) => {
-                ts.image = url;
+            const updateThumb = (url) => {
                 thumb.style.backgroundImage = url ? `url('${url}')` : '';
             };
-
+            // update thumb preview only — don't write to ts.image yet
             select.addEventListener('change', () => {
-                if(select.value) {
-                    urlInput.value = '';
-                    updateImage(select.value);
-                }
+                if(select.value) updateThumb(select.value);
             });
-            urlInput.addEventListener('input', () => {
-                if(urlInput.value.trim()) {
-                    select.value = '';
-                    updateImage(urlInput.value.trim());
-                }
-            });
+            // expose current value so Save can read it
+            select.dataset.tsIdx = tsi;
+            row.dataset.tsIdx = tsi;
 
             row.appendChild(timeLabel);
             row.appendChild(select);
-            row.appendChild(urlInput);
             row.appendChild(thumb);
             container.appendChild(row);
         });
@@ -4309,7 +4389,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
 
     function studioAddFlatHymn() {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         data.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
         const hyi = data.length - 1;
         studioSelectedMonth = hyi;
@@ -4321,7 +4401,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     }
     
     function studioDeleteFlatHymn(hyi) {
-        const data = studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA;
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         if(!confirm('Delete this hymn?')) return;
         data.splice(hyi, 1);
         studioSelectedMonth = null;
@@ -4385,8 +4465,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     document.getElementById('studioSaveBtn').addEventListener('click', async () => {
         MONTHS_DATA.length = 0;
         studioData.forEach(m => MONTHS_DATA.push(m));
+        QINE_DATA.length = 0;
+        studioFlatData.qine.forEach(h => QINE_DATA.push(h));
+        NEGSH_DATA.length = 0;
+        studioFlatData.negsh.forEach(h => NEGSH_DATA.push(h));
         renderMonths();
-        // re-render whichever flat page is active so live data updates too
         if(activeTab === 'qine') renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
         if(activeTab === 'negsh') renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
         sessionStorage.removeItem('gistCache');
