@@ -368,9 +368,7 @@
             color: var(--gold);
         }
         .recording-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
+            display: block;
         }
         .holiday-row {
             background: var(--card);
@@ -1143,6 +1141,36 @@
             scrollbar-width: thin;
             scrollbar-color: var(--border) transparent;
         }
+        /* recording card grid */
+        .rec-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .rec-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+            cursor: pointer;
+            transition: border-color 0.15s, transform 0.15s;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .rec-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+        .rec-card.playing { border-color: var(--gold); background: rgba(254,240,138,0.05); }
+        .rec-card-beat { font-size: 13px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--gold); }
+        .rec-card-title { font-size: 15px; font-weight: 500; font-family: 'Abyssinica SIL', serif; color: var(--text); line-height: 1.3; }
+        .rec-card-meta { font-size: 14px; color: var(--muted); }
+        .rec-card-actions { display: flex; gap: 6px; margin-top: 8px; }
+        .rec-card-play { background: var(--gold); border: none; border-radius: 20px; padding: 5px 14px; font-size: 12px; cursor: pointer; color: #000; font-weight: 500; font-family: inherit; }
+        .rec-card-ts { background: transparent; border: 1px solid var(--border); border-radius: 20px; padding: 5px 10px; font-size: 11px; cursor: pointer; color: var(--muted); font-family: inherit; transition: 0.15s; }
+        .rec-card-ts:hover { border-color: var(--gold); color: var(--gold); }
+        .rec-hymn-block { margin-bottom: 20px; }
+        .rec-hymn-label { font-size: 12px; font-weight: 500; font-family: 'Abyssinica SIL', serif; color: var(--muted); margin-bottom: 6px; padding: 0 2px; }
+
         .beat-picker {
             display: flex;
             flex-direction: column;
@@ -1856,63 +1884,43 @@ function parseTimeToSec(t) {
     function renderHolidayRows(holiday) {
         const container = document.getElementById('recordingList');
         container.innerHTML = '';
-        holiday.hymns.forEach((hymn, idx) => {
-            const hasKum = hymn.kum && hymn.kum.length;
-            const hasAqu = hymn.aqu && (hymn.aqu.tach?.length || hymn.aqu.lay?.length);
-            const kumCount = hasKum ? hymn.kum.length : 0;
-            const aquVersions = hasAqu ? [...(hymn.aqu.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu.lay||[]).map(v=>({...v,_type:'lay'}))] : [];
-            const row = document.createElement('div');
-            row.className = 'holiday-row';
-            row.innerHTML = `
-                <div class="row-main" style="flex-wrap:wrap; gap:12px;">
-                    <div class="row-title">
-                        <h3>${hymn.displayTitle || hymn.title}</h3>
-                        <div class="row-meta">${[
-                            ...(hymn.kum||[]).map(v=>v.beat||'').filter(Boolean),
-                            ...(hymn.aqu?.tach||[]).map(v=>v.beat||'').filter(Boolean),
-                            ...(hymn.aqu?.lay||[]).map(v=>v.beat||'').filter(Boolean)
-                        ].join(' · ')}</div>
-                    </div>
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-                        ${hasKum ? `<button class="btn-play btn-kum-row">▶ ${hymn.kum.length === 1 ? (hymn.kum[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
-                        ${aquVersions.length ? `<button class="btn-play btn-aqu-row">▶ ${aquVersions.length === 1 ? (aquVersions[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
-                    </div>
-                </div>
-                <div class="beat-picker" id="bp-${idx}" style="display:none;"></div>
-            `;
-            container.appendChild(row);
-
-            function closePickers() {
-                container.querySelectorAll('.beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
-            }
-
-            function showBeatPicker(versions, type) {
-                closePickers();
-                const picker = row.querySelector(`#bp-${idx}`);
-                if(versions.length === 1) {
-                    playHymn(hymn, type, 0, null);
-                    return;
+        const grid = document.createElement('div');
+        grid.className = 'rec-grid';
+        container.appendChild(grid);
+        holiday.hymns.forEach((hymn) => {
+            const kumVersions = hymn.kum || [];
+            const aquVersions = [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))];
+            const allVersions = [
+                ...kumVersions.map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+                ...aquVersions.map((v,i) => ({...v, _vi:i}))
+            ];
+            if(!allVersions.length) return;
+            allVersions.forEach((v) => {
+                const tsCount = (v.timestamps||[]).length;
+                const beatLabel = v.beat || (v._vtype === 'kum' ? 'ቁም ዜማ' : (v._type === 'tach' ? 'አቋቋም ታች' : 'አቋቋም ላይ'));
+                const card = document.createElement('div');
+                card.className = 'rec-card';
+                const isYt = !!extractYoutubeId(v.src || '');
+                const type = v._vtype === 'kum' ? 'kum' : 'aqu';
+                card.innerHTML = `
+                    <div class="rec-card-beat">${beatLabel}</div>
+                    <div class="rec-card-title">${hymn.displayTitle || hymn.title}</div>
+                    <div class="rec-card-meta">${v.chanter || ''}${v.duration ? ' · ' + v.duration : ''}</div>
+                    <div class="rec-card-actions">
+                        <button class="rec-card-play">▶ Play</button>
+                        ${tsCount ? `<button class="rec-card-ts">⏱ ${tsCount}</button>` : ''}
+                        ${isYt ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;background:rgba(255,0,0,0.12);border:1px solid rgba(255,0,0,0.25);color:#f87171;font-size:10px;font-weight:600;letter-spacing:0.04em;gap:3px;"><span style="color:#ff0000;font-size:11px;">▶</span>YT</span>` : ''}
+                    </div>`;
+                card.querySelector('.rec-card-play').onclick = (e) => { e.stopPropagation(); playHymn(hymn, type, v._vi, null); };
+                if(tsCount) {
+                    card.querySelector('.rec-card-ts').onclick = (e) => {
+                        e.stopPropagation();
+                        playHymn(hymn, type, v._vi, null);
+                        setTimeout(() => setPlayerPanelState('timestamps-open'), 300);
+                    };
                 }
-                picker.innerHTML = `<div class="beat-picker-label">Select Audio</div>` +
-                    versions.map((v, vi) => `
-                        <div class="beat-option" data-vi="${vi}">
-                            <div class="beat-option-left">
-                                <span class="beat-option-name">${v.beat || (type==='kum' ? 'ቁም ዜማ' : 'አቋቋም') + ' ' + (vi+1)}</span>
-                                <span class="beat-option-chanter">${v.chanter || ''}</span>
-                            </div>
-                            <span class="beat-option-duration">${v.duration || '--'}</span>
-                        </div>`
-                    ).join('');
-                picker.style.display = 'flex';
-                picker.querySelectorAll('.beat-option').forEach(el => {
-                    el.onclick = (e) => { e.stopPropagation(); closePickers(); playHymn(hymn, type, parseInt(el.dataset.vi), null); };
-                });
-            }
-
-            const kumBtn = row.querySelector('.btn-kum-row');
-            const aquBtn = row.querySelector('.btn-aqu-row');
-            if(kumBtn) kumBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(hymn.kum, 'kum'); };
-            if(aquBtn) aquBtn.onclick = (e) => { e.stopPropagation(); showBeatPicker(aquVersions, 'aqu'); };
+                grid.appendChild(card);
+            });
         });
     }
 
@@ -2135,30 +2143,30 @@ function parseTimeToSec(t) {
     }
 
     function updateNowPlayingIndicator() {
-        // remove any existing indicators
         document.querySelectorAll('.now-playing-bar').forEach(el => el.remove());
         if(!currentTrackObj) return;
         const container = document.getElementById('recordingList');
         if(!container) return;
-        const rows = container.querySelectorAll('.holiday-row');
-        if(!rows.length) return;
-        const hymns = currentHoliday ? currentHoliday.hymns : (currentFlatData || []);
-        hymns.forEach((hymn, idx) => {
-            if((hymn.displayTitle || hymn.title) === currentHymnTitle) {
-                const row = rows[idx];
-                if(!row) return;
-                // remove old bar if switching tracks
-                row.querySelector('.now-playing-bar')?.remove();
-                const bar = document.createElement('div');
-                bar.className = 'now-playing-bar';
-                const paused = !isPlaying;
-                bar.innerHTML = `
-                    <div class="now-playing-bars ${paused ? 'paused' : ''}">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <span>Now playing · ${currentTrackObj.version.beat || currentTrackObj.version.chanter || (currentTrackObj.type === 'kum' ? 'ቁም ዜማ' : 'አቋቋም')}</span>
-                `;
-                row.appendChild(bar);
+        const paused = !isPlaying;
+        const barHTML = `
+            <div class="now-playing-bar" style="border-radius:0 0 20px 20px;">
+                <div class="now-playing-bars ${paused ? 'paused' : ''}">
+                    <span></span><span></span><span></span>
+                </div>
+                <span>${currentTrackObj.version.beat || currentTrackObj.version.chanter || (currentTrackObj.type === 'kum' ? 'ቁም ዜማ' : 'አቋቋም')}</span>
+            </div>`;
+        // find the exact card matching this version's src
+        container.querySelectorAll('.rec-card').forEach(card => {
+            const playBtn = card.querySelector('.rec-card-play');
+            if(!playBtn) return;
+            // identify by matching beat label + title text
+            const cardBeat = card.querySelector('.rec-card-beat')?.innerText || '';
+            const cardTitle = card.querySelector('.rec-card-title')?.innerText || '';
+            const versionBeat = currentTrackObj.version.beat || '';
+            const versionTitle = currentHymnTitle || '';
+            if(cardTitle === versionTitle && cardBeat === versionBeat) {
+                card.classList.add('playing');
+                card.insertAdjacentHTML('beforeend', barHTML);
             }
         });
     }
@@ -2854,75 +2862,49 @@ function renderQueue(){
             container.innerHTML += `<div style="color:var(--muted);padding:60px 0;text-align:center;font-size:0.9rem;border:1px dashed var(--border);border-radius:20px;">No ${sectionLabel} recordings yet — add them via Studio.</div>`;
             return;
         }
-        const list = document.createElement('div');
-        list.className = 'recording-list';
+        const grid = document.createElement('div');
+        grid.className = 'rec-grid';
         data.forEach((hymn) => {
-            const hasKum = hymn.kum && hymn.kum.length;
-            const hasAqu = hymn.aqu && (hymn.aqu.tach?.length || hymn.aqu.lay?.length);
-            const kumVer = hasKum ? hymn.kum[0] : null;
-            const aquVer = hasAqu ? (hymn.aqu.tach?.[0] || hymn.aqu.lay?.[0]) : null;
-            const flatIdx = list.children.length;
-            const aquVersions = hasAqu ? [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))] : [];
-            const row = document.createElement('div');
-            row.className = 'holiday-row';
-            row.innerHTML = `
-                <div class="row-main" style="flex-wrap:wrap; gap:12px;">
-                    <div class="row-title">
-                        <h3 style="font-family:'Abyssinica SIL',serif;">${hymn.displayTitle || hymn.title}</h3>
-                        <div class="row-meta">${[
-                            ...(hymn.kum||[]).map(v=>v.beat||'').filter(Boolean),
-                            ...(hymn.aqu?.tach||[]).map(v=>v.beat||'').filter(Boolean),
-                            ...(hymn.aqu?.lay||[]).map(v=>v.beat||'').filter(Boolean)
-                        ].join(' · ')}</div>
-                    </div>
-                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-                        ${hasKum ? `<button class="btn-play btn-flat-kum-row">▶ ${hymn.kum.length === 1 ? (hymn.kum[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
-                        ${aquVersions.length ? `<button class="btn-play btn-flat-aqu-row">▶ ${aquVersions.length === 1 ? (aquVersions[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
-                    </div>
-                </div>
-                <div class="beat-picker" id="fbp-${flatIdx}" style="display:none;"></div>
-            `;
-            list.appendChild(row);
-
-            function closeFlatPickers() {
-                list.querySelectorAll('.beat-picker').forEach(p => { p.style.display='none'; p.innerHTML=''; });
-            }
-            function showFlatBeatPicker(versions, type) {
-                closeFlatPickers();
-                if(versions.length === 1) {
+            const kumVersions = hymn.kum || [];
+            const aquVersions = [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))];
+            const allVersions = [
+                ...kumVersions.map((v,i) => ({...v, _vtype:'kum', _vi:i})),
+                ...aquVersions.map((v,i) => ({...v, _vi:i}))
+            ];
+            if(!allVersions.length) return;
+            allVersions.forEach((v) => {
+                const tsCount = (v.timestamps||[]).length;
+                const beatLabel = v.beat || (v._vtype === 'kum' ? 'ቁም ዜማ' : (v._type === 'tach' ? 'አቋቋም ታች' : 'አቋቋም ላይ'));
+                const card = document.createElement('div');
+                card.className = 'rec-card';
+                const isYt = !!extractYoutubeId(v.src || '');
+                card.innerHTML = `
+                    <div class="rec-card-beat">${beatLabel}</div>
+                    <div class="rec-card-title">${hymn.displayTitle || hymn.title}</div>
+                    <div class="rec-card-meta">${v.chanter || ''}${v.duration ? ' · ' + v.duration : ''}</div>
+                    <div class="rec-card-actions">
+                        <button class="rec-card-play">▶ Play</button>
+                        ${tsCount ? `<button class="rec-card-ts">⏱ ${tsCount}</button>` : ''}
+                        ${isYt ? `<span style="display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;background:rgba(255,0,0,0.12);border:1px solid rgba(255,0,0,0.25);color:#f87171;font-size:10px;font-weight:600;letter-spacing:0.04em;gap:3px;"><span style="color:#ff0000;font-size:11px;">▶</span>YT</span>` : ''}
+                    </div>`;
+                const type = v._vtype === 'kum' ? 'kum' : 'aqu';
+                card.querySelector('.rec-card-play').onclick = (e) => {
+                    e.stopPropagation();
                     currentFlatData = data; currentMonth = null; currentHoliday = null;
-                    playHymn(hymn, type, 0, null);
-                    return;
-                }
-                const picker = row.querySelector(`#fbp-${flatIdx}`);
-                if(!picker) return;
-                picker.innerHTML = `<div class="beat-picker-label">Select Audio</div>` +
-                    versions.map((v, vi) => `
-                        <div class="beat-option" data-vi="${vi}">
-                            <div class="beat-option-left">
-                                <span class="beat-option-name">${v.beat || (type==='kum' ? 'ቁም ዜማ' : 'አቋቋም') + ' ' + (vi+1)}</span>
-                                <span class="beat-option-chanter">${v.chanter || ''}</span>
-                            </div>
-                            <span class="beat-option-duration">${v.duration || '--'}</span>
-                        </div>`
-                    ).join('');
-                picker.style.display = 'flex';
-                picker.querySelectorAll('.beat-option').forEach(el => {
-                    el.onclick = (e) => {
+                    playHymn(hymn, type, v._vi, null);
+                };
+                if(tsCount) {
+                    card.querySelector('.rec-card-ts').onclick = (e) => {
                         e.stopPropagation();
-                        closeFlatPickers();
                         currentFlatData = data; currentMonth = null; currentHoliday = null;
-                        playHymn(hymn, type, parseInt(el.dataset.vi), null);
+                        playHymn(hymn, type, v._vi, null);
+                        setTimeout(() => setPlayerPanelState('timestamps-open'), 300);
                     };
-                });
-            }
-
-            const kumBtn = row.querySelector('.btn-flat-kum-row');
-            const aquBtn = row.querySelector('.btn-flat-aqu-row');
-            if(kumBtn) kumBtn.onclick = (e) => { e.stopPropagation(); showFlatBeatPicker(hymn.kum, 'kum'); };
-            if(aquBtn) aquBtn.onclick = (e) => { e.stopPropagation(); showFlatBeatPicker(aquVersions, 'aqu'); };
+                }
+                grid.appendChild(card);
+            });
         });
-        container.appendChild(list);
+        container.appendChild(grid);
     }
 
     document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
@@ -3423,30 +3405,100 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const zone = document.getElementById(zoneId);
         const fi   = document.getElementById(fileInputId);
         if(!zone || !fi) return;
-        const getHymn = () => (hi === null)
-            ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
-            : studioData[mi].holidays[hi].hymns[hyi];
+        const getHymn = () => {
+            const ctx = window._studioEditCtx || {};
+            if (ctx.hi === null) {
+                const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
+                return data[ctx.hyi !== undefined ? ctx.hyi : mi];
+            }
+            if (ctx.mi !== undefined && ctx.hi !== undefined && ctx.hyi !== undefined) {
+                return studioData[ctx.mi].holidays[ctx.hi].hymns[ctx.hyi];
+            }
+            return hi === null
+                ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
+                : studioData[mi].holidays[hi].hymns[hyi];
+        };
         const onFiles = async (files) => {
             const statusEl = document.getElementById(statusId);
             const hymn = getHymn();
             if(!Array.isArray(hymn.images)) hymn.images = [];
-            for(const file of files) {
-                if(!file.type.startsWith('image/')) continue;
+            for(let file of files) {
+                if(!file || !file.type.startsWith('image/')) continue;
                 if(statusEl) { statusEl.innerText = `Uploading ${file.name}…`; statusEl.style.color = 'var(--gold)'; }
                 try {
                     const compressedBlob = await compressImage(file);
-                    const baseNameOnly = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    let baseNameOnly = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+                    // Give generic names a unique timestamp so each paste uploads as a distinct file
+                    const GENERIC_NAMES = ['image', 'paste', 'screenshot', 'clipboard', 'img', 'photo', 'capture', 'untitled'];
+                    const rawBase = baseNameOnly.replace(/[-_.\d]/g, '').toLowerCase();
+                    const looksGeneric = GENERIC_NAMES.some(g =>
+                        rawBase === g ||
+                        baseNameOnly.toLowerCase().startsWith(g + '.') ||
+                        baseNameOnly.toLowerCase().startsWith(g + '-') ||
+                        baseNameOnly.toLowerCase().startsWith(g + '_') ||
+                        baseNameOnly.toLowerCase().endsWith('_' + g) ||
+                        baseNameOnly.toLowerCase().endsWith('-' + g)
+                    );
+                    if(looksGeneric) baseNameOnly = 'img-' + Date.now();
                     const fileToUpload = new File([compressedBlob], baseNameOnly + '.jpg', { type: 'image/jpeg' });
                     let finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
                     finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
-                    const url = await studioUploadFile(fileToUpload, `images/${finalName}`);
-                    if(url) hymn.images.push(url);
+                    const expectedPath = `images/${finalName}`;
+                    const allImages = [
+                        ...MONTHS_DATA.flatMap(m => m.holidays.flatMap(h => h.hymns.flatMap(hy => hy.images || []))),
+                        ...QINE_DATA.flatMap(hy => hy.images || []),
+                        ...NEGSH_DATA.flatMap(hy => hy.images || [])
+                    ];
+                    const existingUrl = allImages.find(url => url && url.includes(finalName));
+                    if(existingUrl) {
+                        hymn.images.push(existingUrl);
+                        if(statusEl) { statusEl.innerText = '✓ Reused existing'; statusEl.style.color = 'var(--gold)'; }
+                        const _ctx = window._studioEditCtx || {};
+                        if (_ctx.hi === null) {
+                            studioRenderImagesList(_ctx.hyi !== undefined ? _ctx.hyi : mi, null, null);
+                        } else if (_ctx.mi !== undefined && _ctx.hi !== undefined && _ctx.hyi !== undefined) {
+                            studioRenderImagesList(_ctx.mi, _ctx.hi, _ctx.hyi);
+                        } else {
+                            if(hi === null) studioRenderImagesList(mi, null, null); else studioRenderImagesList(mi, hi, hyi);
+                        }
+                        continue;
+                    }
+                    const localPreviewUrl = URL.createObjectURL(compressedBlob);
+                    hymn.images.push(localPreviewUrl); // show instantly from memory
+                    const _renderCtx = window._studioEditCtx || {};
+                    if (_renderCtx.hi === null) {
+                        studioRenderImagesList(_renderCtx.hyi !== undefined ? _renderCtx.hyi : mi, null, null);
+                    } else if (_renderCtx.mi !== undefined && _renderCtx.hi !== undefined && _renderCtx.hyi !== undefined) {
+                        studioRenderImagesList(_renderCtx.mi, _renderCtx.hi, _renderCtx.hyi);
+                    } else {
+                        if(hi === null) studioRenderImagesList(mi, null, null); else studioRenderImagesList(mi, hi, hyi);
+                    }
+                    const url = await studioUploadFile(fileToUpload, expectedPath);
+                    if(!url) {
+                        if(statusEl) { statusEl.innerText = '⚠ Upload failed — check token in Settings'; statusEl.style.color = '#f87171'; }
+                        // swap back to nothing, upload failed
+                        const idx = hymn.images.indexOf(localPreviewUrl);
+                        if(idx !== -1) hymn.images.splice(idx, 1);
+                        URL.revokeObjectURL(localPreviewUrl);
+                        continue;
+                    }
+                    // swap the blob URL for the real GitHub URL
+                    const idx = hymn.images.indexOf(localPreviewUrl);
+                    if(idx !== -1) hymn.images[idx] = url;
+                    URL.revokeObjectURL(localPreviewUrl);
                 } catch(err) {
                     if(statusEl) { statusEl.innerText = '⚠ ' + err.message; statusEl.style.color = '#f87171'; }
                 }
             }
             if(statusEl) { statusEl.innerText = '✓ Done'; statusEl.style.color = 'var(--gold)'; }
-            if(hi === null) studioRenderImagesList(mi, null, null); else studioRenderImagesList(mi, hi, hyi);
+            const _ctx = window._studioEditCtx || {};
+            if (_ctx.hi === null) {
+                studioRenderImagesList(_ctx.hyi !== undefined ? _ctx.hyi : mi, null, null);
+            } else if (_ctx.mi !== undefined && _ctx.hi !== undefined && _ctx.hyi !== undefined) {
+                studioRenderImagesList(_ctx.mi, _ctx.hi, _ctx.hyi);
+            } else {
+                if(hi === null) studioRenderImagesList(mi, null, null); else studioRenderImagesList(mi, hi, hyi);
+            }
         };
         zone.addEventListener('click', () => fi.click());
         zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
@@ -3459,12 +3511,20 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             onFiles(Array.from(fi.files || []));
             fi.value = '';
         });
-        // document-level paste: Ctrl+V anywhere in the editor uploads images
+        // document-level paste: remove any previous handler, bind fresh one for this zone
+        if(document._zemaPasteHandler) {
+            document.removeEventListener('paste', document._zemaPasteHandler);
+            document._zemaPasteHandler = null;
+        }
         const pasteHandler = (e) => {
-            // don't intercept if user is pasting text into a text/textarea input
+            // only fire if this zone still exists in the DOM
+            if(!document.getElementById(zoneId)) {
+                document.removeEventListener('paste', document._zemaPasteHandler);
+                document._zemaPasteHandler = null;
+                return;
+            }
             const tag = document.activeElement?.tagName;
             if(tag === 'TEXTAREA' || (tag === 'INPUT' && document.activeElement.type !== 'file')) {
-                // only intercept if there are image files — text paste goes through normally
                 const hasImage = Array.from(e.clipboardData?.items || []).some(item => item.kind === 'file' && item.type.startsWith('image/'));
                 if(!hasImage) return;
             }
@@ -3476,15 +3536,8 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             e.preventDefault();
             onFiles(imageFiles);
         };
+        document._zemaPasteHandler = pasteHandler;
         document.addEventListener('paste', pasteHandler);
-        // clean up when the drop zone is replaced (editor rerenders)
-        const observer = new MutationObserver(() => {
-            if(!document.getElementById(zoneId)) {
-                document.removeEventListener('paste', pasteHandler);
-                observer.disconnect();
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     // Add an image by pasting a URL (holiday-hymn editor)
@@ -3525,8 +3578,9 @@ function studioRenderImagesList(mi, hi, hyi) {
         list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;">No images yet.</div>';
         return;
     }
-    list.innerHTML = images.map((url, i) => `
-        <div draggable="true" data-img-idx="${i}" title="Click to preview" style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-image:url('${url}'); background-size:cover; background-position:center; cursor:grab;">
+   list.innerHTML = images.map((url, i) => `
+        <div draggable="true" data-img-idx="${i}" title="Click to preview" style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-color:#1a1a1e; cursor:grab;">
+            <img src="${url}" style="width:100%;height:100%;object-fit:cover;display:block;" onerror="this.style.display='none';this.parentElement.innerHTML+='<div style=\\'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:var(--muted);text-align:center;padding:4px;\\'>Loading…</div>'">
             <span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">${i+1}</span>
             <button onclick="studioRemoveImage(${mi},${hi===null?'null':hi},${hi===null?'null':hyi},${i})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); border:none; color:#f87171; font-size:0.7rem; width:18px; height:18px; border-radius:50%; cursor:pointer; line-height:1;">✕</button>
         </div>
@@ -3699,6 +3753,19 @@ function studioOpenImagePreview(images, startIdx) {
                 setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
             }
         }
+    }
+
+    function autoFillDuration(srcId, durId) {
+        const src = document.getElementById(srcId)?.value.trim();
+        const durEl = document.getElementById(durId);
+        if(!src || !durEl || durEl.value.trim()) return; // don't overwrite manual entry
+        if(extractYoutubeId(src)) return; // skip YouTube
+        const tmp = new Audio(src);
+        tmp.addEventListener('loadedmetadata', () => {
+            const m = Math.floor(tmp.duration / 60);
+            const s = Math.floor(tmp.duration % 60);
+            durEl.value = `${m}:${s < 10 ? '0' + s : s}`;
+        });
     }
 
     function studioSaveToken() {
@@ -4056,6 +4123,8 @@ function studioOpenImagePreview(images, startIdx) {
             studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
             studioRenderRecordingsGrid(mi, hi, hyi);
             studioRenderImagesList(mi, hi, hyi);
+            const srcEl = document.getElementById('sNewVerSrc');
+            if(srcEl) srcEl.addEventListener('change', () => autoFillDuration('sNewVerSrc', 'sNewVerDuration'));
         }, 0);
     }
 
