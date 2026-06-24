@@ -1384,6 +1384,7 @@
                         <button id="muteBtn" style="background:transparent;border:none;font-size:0.95rem;cursor:pointer;">🔊</button>
                         <input type="range" id="volumeSlider" min="0" max="1" step="0.01" value="0.8" style="width:80px;accent-color:var(--gold);" title="Volume">
                         <span id="volumeLabel" style="font-size:0.72rem;color:var(--muted);min-width:36px;text-align:left;">80%</span>
+                        <button id="downloadMp3Btn" style="display:none; background:transparent; border:1px solid var(--border); border-radius:40px; padding:6px 14px; color:var(--text); font-size:0.75rem; cursor:pointer; align-items:center; font-family:inherit;">⬇ MP3</button>
                     </div>
                 </div>
             </div>
@@ -1864,8 +1865,8 @@
                         ].join(' · ')}</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-                        ${hasKum ? `<button class="btn-play btn-kum-row">▶ ቁም ዜማ</button>` : ''}
-                        ${aquVersions.length ? `<button class="btn-play btn-aqu-row">▶ አቋቋም</button>` : ''}
+                        ${hasKum ? `<button class="btn-play btn-kum-row">▶ ${hymn.kum.length === 1 ? (hymn.kum[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
+                        ${aquVersions.length ? `<button class="btn-play btn-aqu-row">▶ ${aquVersions.length === 1 ? (aquVersions[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
                     </div>
                 </div>
                 <div class="beat-picker" id="bp-${idx}" style="display:none;"></div>
@@ -2024,9 +2025,45 @@
         playlistIndex = playlist.findIndex(p => p.version === currentTrackObj.version);
     }
 
+    async function downloadAudioFile(url, filename) {
+        const btn = document.getElementById('downloadMp3Btn');
+        const originalText = btn ? btn.innerText : '';
+        try {
+            if(btn) btn.innerText = '⬇ ...';
+            const response = await fetch(url);
+            if(!response.ok) throw new Error('Fetch failed');
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } catch(e) {
+            console.warn('Download failed, falling back to direct link:', e);
+            window.open(url, '_blank');
+        } finally {
+            if(btn) btn.innerText = originalText || '⬇ MP3';
+        }
+    }
+
     function syncPlayerUI() {
         updateMediaSession();
         loadArtwork(currentMonth, currentHoliday, currentTrackObj.hymn);
+        const dlBtn = document.getElementById('downloadMp3Btn');
+        if(dlBtn) {
+            if(isYoutubeTrack) {
+                dlBtn.style.display = 'none';
+                dlBtn.onclick = null;
+            } else {
+                dlBtn.style.display = 'inline-flex';
+                const srcUrl = currentTrackObj.version.src;
+                const safeName = (currentHymnTitle || 'recording').replace(/[^\p{L}\p{N}_-]/gu, '_');
+                dlBtn.onclick = () => downloadAudioFile(srcUrl, `${safeName}.mp3`);
+            }
+        }
         document.getElementById('playerTrackTitle').innerText = currentHymnTitle;
         const beatLabel = currentTrackObj.version.beat ? `${currentTrackObj.version.beat} · ` : '';
         document.getElementById('playerChanter').innerText = beatLabel + (currentTrackObj.version.chanter || '');
@@ -2497,9 +2534,27 @@
         }
     });
 
+function recentlyPlayedItemExists(item) {
+    if(!item.monthId && item.type) {
+        const data = QINE_DATA.find(h => (h.displayTitle||h.title) === item.title) ? QINE_DATA
+                   : NEGSH_DATA.find(h => (h.displayTitle||h.title) === item.title) ? NEGSH_DATA : null;
+        return !!data;
+    }
+    if(!item.monthId || !item.holidayName) return false;
+    const targetMonth = MONTHS_DATA.find(m => m.id === item.monthId);
+    const targetHoliday = targetMonth?.holidays.find(h => h.name === item.holidayName);
+    if(!targetMonth || !targetHoliday) return false;
+    return targetHoliday.hymns.some(h => (h.displayTitle || h.title) === item.title);
+}
+
 function renderRecent(){
     const panel = document.getElementById('recentPanel');
     if(!panel) return;
+    const beforeCount = recentlyPlayed.length;
+    recentlyPlayed = recentlyPlayed.filter(recentlyPlayedItemExists);
+    if(recentlyPlayed.length !== beforeCount) {
+        localStorage.setItem('recentlyPlayed', JSON.stringify(recentlyPlayed));
+    }
     if(!recentlyPlayed.length){
         panel.innerHTML = '<div class="timestamp-item" style="cursor:default;">Nothing played yet</div>';
         return;
@@ -2530,6 +2585,17 @@ function renderRecent(){
                     document.getElementById('holidayView').style.display = 'none';
                     showOnlyView(filter + 'View');
                     renderFlatHymnList(filter + 'View', data, label);
+                    const hymn = data.find(h => (h.displayTitle||h.title) === item.title);
+                    if(hymn) {
+                        currentFlatData = data;
+                        currentMonth = null;
+                        currentHoliday = null;
+                        if(hymn.kum?.length) {
+                            setTimeout(() => playHymn(hymn, 'kum', 0, null), 50);
+                        } else if(hymn.aqu?.tach?.length || hymn.aqu?.lay?.length) {
+                            setTimeout(() => playHymn(hymn, 'aqu', 0, null), 50);
+                        }
+                    }
                 }
                 return;
             }
@@ -2794,8 +2860,8 @@ function renderQueue(){
                         ].join(' · ')}</div>
                     </div>
                     <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-left:auto;">
-                        ${hasKum ? `<button class="btn-play btn-flat-kum-row">▶ ቁም ዜማ</button>` : ''}
-                        ${aquVersions.length ? `<button class="btn-play btn-flat-aqu-row">▶ አቋቋም</button>` : ''}
+                        ${hasKum ? `<button class="btn-play btn-flat-kum-row">▶ ${hymn.kum.length === 1 ? (hymn.kum[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
+                        ${aquVersions.length ? `<button class="btn-play btn-flat-aqu-row">▶ ${aquVersions.length === 1 ? (aquVersions[0].beat || 'Recording') : 'Recordings'}</button>` : ''}
                     </div>
                 </div>
                 <div class="beat-picker" id="fbp-${flatIdx}" style="display:none;"></div>
@@ -2866,6 +2932,30 @@ function renderQueue(){
                 document.getElementById('monthView').querySelectorAll('[data-ri]').forEach(el => {
                     el.onclick = () => {
                         const item = recentlyPlayed[parseInt(el.dataset.ri)];
+                        if(!item.monthId && item.type) {
+                            const data = QINE_DATA.find(h => (h.displayTitle||h.title) === item.title) ? QINE_DATA
+                                       : NEGSH_DATA.find(h => (h.displayTitle||h.title) === item.title) ? NEGSH_DATA : null;
+                            if(!data) return;
+                            const label = data === QINE_DATA ? 'ቅኔ' : 'ነግሥ';
+                            const filter = data === QINE_DATA ? 'qine' : 'negsh';
+                            document.querySelectorAll('.category-tab').forEach(b => b.classList.remove('active'));
+                            document.querySelector(`.category-tab[data-filter="${filter}"]`)?.classList.add('active');
+                            activeTab = filter;
+                            showOnlyView(filter + 'View');
+                            renderFlatHymnList(filter + 'View', data, label);
+                            const hymn = data.find(h => (h.displayTitle||h.title) === item.title);
+                            if(hymn) {
+                                currentFlatData = data;
+                                currentMonth = null;
+                                currentHoliday = null;
+                                if(hymn.kum?.length) {
+                                    setTimeout(() => playHymn(hymn, 'kum', 0, null), 50);
+                                } else if(hymn.aqu?.tach?.length || hymn.aqu?.lay?.length) {
+                                    setTimeout(() => playHymn(hymn, 'aqu', 0, null), 50);
+                                }
+                            }
+                            return;
+                        }
                         if(!item.monthId || !item.holidayName) return;
                         const m = MONTHS_DATA.find(x => x.id === item.monthId);
                         const h = m?.holidays.find(x => x.name === item.holidayName);
