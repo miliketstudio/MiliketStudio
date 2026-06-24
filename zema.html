@@ -2317,7 +2317,6 @@ function parseTimeToSec(t) {
 
     function updateLoopUI() { const btn = document.getElementById('loopBtn'); btn.innerText = loopState===0?'🔁':(loopState===1?'🔁∞':'🔂1'); }
     function toggleLoop() { loopState = (loopState+1)%3; updateLoopUI(); }
-    function setSpeed(val) { audio.playbackRate = parseFloat(val); }
     document.getElementById('speedSelect')?.addEventListener('change', e => {
         let val = parseFloat(e.target.value);
         if(isNaN(val)) return;
@@ -2329,6 +2328,12 @@ function parseTimeToSec(t) {
         let val = parseFloat(e.target.value);
         if(isNaN(val) || val < 0.5 || val > 2) { e.target.value = 1; setSpeed(1); }
     });
+    function setSpeed(val) {
+        audio.playbackRate = val;
+        if(isYoutubeTrack && ytPlayer && ytPlayer.setPlaybackRate) {
+            try { ytPlayer.setPlaybackRate(val); } catch(e) {}
+        }
+    }
     document.getElementById('loopBtn')?.addEventListener('click', toggleLoop);
     document.getElementById('playerPlayPause')?.addEventListener('click', togglePlayPause);
     document.getElementById('miniPlayPause')?.addEventListener('click', togglePlayPause);
@@ -2559,7 +2564,7 @@ function parseTimeToSec(t) {
     });
 
 function recentlyPlayedItemExists(item) {
-    if(!item.monthId && item.type) {
+    if(item.monthId === null || item.monthId === undefined) {
         const data = QINE_DATA.find(h => (h.displayTitle||h.title) === item.title) ? QINE_DATA
                    : NEGSH_DATA.find(h => (h.displayTitle||h.title) === item.title) ? NEGSH_DATA : null;
         return !!data;
@@ -3780,11 +3785,18 @@ function studioOpenImagePreview(images, startIdx) {
     async function studioPushToGist() {
         const token = localStorage.getItem('zemaStudioToken');
         if(!token) { studioSetStatus('⚠ Add your token in Settings first'); return false; }
+        function stripBlobUrls(data) {
+            return JSON.parse(JSON.stringify(data, (key, val) => {
+                if(key === 'images' && Array.isArray(val)) return val.filter(u => u && !u.startsWith('blob:'));
+                if(key === 'image' && typeof val === 'string' && val.startsWith('blob:')) return undefined;
+                return val;
+            }));
+        }
         try {
             const payload = {
-                months: studioData,
-                qine: QINE_DATA,
-                negsh: NEGSH_DATA
+                months: stripBlobUrls(studioData),
+                qine: stripBlobUrls(QINE_DATA),
+                negsh: stripBlobUrls(NEGSH_DATA)
             };
             const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                 method: 'PATCH',
@@ -4556,7 +4568,7 @@ function studioOpenImagePreview(images, startIdx) {
             </div>
         `;
 
-        window._studioEditCtx = { hyi };
+        window._studioEditCtx = { hyi, hi: null };
         if(!Array.isArray(hymn.images)) hymn.images = hymn.image ? [hymn.image] : [];
         setTimeout(() => {
             studioBindImageDropZone('dz_img', 'fi_img', 'dz_img_status', hyi, null, null);
@@ -4924,12 +4936,21 @@ function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
 
     // --- save to live data ---
     document.getElementById('studioSaveBtn').addEventListener('click', async () => {
+        // Strip any blob: URLs before saving — these are temporary local previews
+        // that haven't finished uploading yet and will break on next load
+        function stripBlobUrls(data) {
+            return JSON.parse(JSON.stringify(data, (key, val) => {
+                if(key === 'images' && Array.isArray(val)) return val.filter(u => u && !u.startsWith('blob:'));
+                if(key === 'image' && typeof val === 'string' && val.startsWith('blob:')) return undefined;
+                return val;
+            }));
+        }
         MONTHS_DATA.length = 0;
-        studioData.forEach(m => MONTHS_DATA.push(m));
+        stripBlobUrls(studioData).forEach(m => MONTHS_DATA.push(m));
         QINE_DATA.length = 0;
-        studioFlatData.qine.forEach(h => QINE_DATA.push(h));
+        stripBlobUrls(studioFlatData.qine).forEach(h => QINE_DATA.push(h));
         NEGSH_DATA.length = 0;
-        studioFlatData.negsh.forEach(h => NEGSH_DATA.push(h));
+        stripBlobUrls(studioFlatData.negsh).forEach(h => NEGSH_DATA.push(h));
         renderMonths();
         if(activeTab === 'qine') renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
         if(activeTab === 'negsh') renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
@@ -5099,6 +5120,64 @@ async function loadFromGist() {
     document.getElementById('playerBigImage')?.addEventListener('touchend', () => {
         touchPanStart = null;
     });
+    
+    // Swipe left/right to change image, swipe down to dismiss player
+    let swipeStartX = 0, swipeStartY = 0, swipeStartTime = 0;
+    document.getElementById('playerBigImage')?.addEventListener('touchstart', (e) => {
+        if(e.touches.length !== 1) return;
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        swipeStartTime = Date.now();
+    }, { passive: true });
+    document.getElementById('playerBigImage')?.addEventListener('touchend', (e) => {
+        if(imgZoom > 1) return; // don't swipe while zoomed — that's panning
+        if(e.changedTouches.length !== 1) return;
+        const dx = e.changedTouches[0].clientX - swipeStartX;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        const dt = Date.now() - swipeStartTime;
+        if(dt > 400) return; // too slow to be a swipe
+        const absDx = Math.abs(dx), absDy = Math.abs(dy);
+        if(absDx < 40 && absDy < 40) return; // too short
+        if(absDx > absDy) {
+            // horizontal swipe — change image
+            if(dx < -40) showNextImage();
+            else if(dx > 40) showPrevImage();
+        } else {
+            // downward swipe — dismiss player
+            if(dy > 60) {
+                closeFullPlayer();
+                document.getElementById('fullPlayer').classList.remove('book-open');
+                document.getElementById('bookToggleBtn').classList.remove('active');
+                document.getElementById('bookToggleBtn').innerHTML = '📖 View Book';
+                setPlayerPanelState(null);
+                if(isPlaying) document.getElementById('miniPlayer').classList.add('visible');
+                document.body.style.overflow = '';
+            }
+        }
+    }, { passive: true });
+
+    // Swipe on the controls side to dismiss player on mobile
+    let ctrlSwipeStartY = 0, ctrlSwipeStartTime = 0;
+    document.querySelector('.player-controls-side')?.addEventListener('touchstart', (e) => {
+        if(e.touches.length !== 1) return;
+        ctrlSwipeStartY = e.touches[0].clientY;
+        ctrlSwipeStartTime = Date.now();
+    }, { passive: true });
+    document.querySelector('.player-controls-side')?.addEventListener('touchend', (e) => {
+        if(e.changedTouches.length !== 1) return;
+        const dy = e.changedTouches[0].clientY - ctrlSwipeStartY;
+        const dt = Date.now() - ctrlSwipeStartTime;
+        if(dt > 400 || dy < 80) return;
+        // only trigger if not scrolling inside a panel
+        if(e.target.closest('.player-left-panel, .player-right-panel, .center-stage')) return;
+        closeFullPlayer();
+        document.getElementById('fullPlayer').classList.remove('book-open');
+        document.getElementById('bookToggleBtn').classList.remove('active');
+        document.getElementById('bookToggleBtn').innerHTML = '📖 View Book';
+        setPlayerPanelState(null);
+        if(isPlaying) document.getElementById('miniPlayer').classList.add('visible');
+        document.body.style.overflow = '';
+    }, { passive: true });
 
     // Double tap/click to reset zoom
     let lastTap = 0;
