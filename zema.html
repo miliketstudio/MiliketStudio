@@ -3413,7 +3413,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const fi   = document.getElementById(fileInputId);
         if(!zone || !fi) return;
         const getHymn = () => (hi === null)
-            ? (studioActivePage === 'qine' ? QINE_DATA : NEGSH_DATA)[mi]
+            ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
             : studioData[mi].holidays[hi].hymns[hyi];
         const onFiles = async (files) => {
             const statusEl = document.getElementById(statusId);
@@ -3448,21 +3448,32 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             onFiles(Array.from(fi.files || []));
             fi.value = '';
         });
-        // paste on the URL input — handles copied images (e.g. from Telegram)
-        setTimeout(() => {
-            const urlInput = document.getElementById('sHymnImageUrl');
-            if(!urlInput || urlInput._pastebound) return;
-            urlInput._pastebound = true;
-            urlInput.addEventListener('paste', (e) => {
-                const imageFiles = Array.from(e.clipboardData?.items || [])
-                    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
-                    .map(item => item.getAsFile())
-                    .filter(Boolean);
-                if(!imageFiles.length) return;
-                e.preventDefault();
-                onFiles(imageFiles);
-            });
-        }, 0);
+        // document-level paste: Ctrl+V anywhere in the editor uploads images
+        const pasteHandler = (e) => {
+            // don't intercept if user is pasting text into a text/textarea input
+            const tag = document.activeElement?.tagName;
+            if(tag === 'TEXTAREA' || (tag === 'INPUT' && document.activeElement.type !== 'file')) {
+                // only intercept if there are image files — text paste goes through normally
+                const hasImage = Array.from(e.clipboardData?.items || []).some(item => item.kind === 'file' && item.type.startsWith('image/'));
+                if(!hasImage) return;
+            }
+            const imageFiles = Array.from(e.clipboardData?.items || [])
+                .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+                .map(item => item.getAsFile())
+                .filter(Boolean);
+            if(!imageFiles.length) return;
+            e.preventDefault();
+            onFiles(imageFiles);
+        };
+        document.addEventListener('paste', pasteHandler);
+        // clean up when the drop zone is replaced (editor rerenders)
+        const observer = new MutationObserver(() => {
+            if(!document.getElementById(zoneId)) {
+                document.removeEventListener('paste', pasteHandler);
+                observer.disconnect();
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     // Add an image by pasting a URL (holiday-hymn editor)
@@ -3547,7 +3558,7 @@ function studioOpenImagePreview(images, startIdx) {
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(9,9,11,0.45);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:9999;display:flex;align-items:center;justify-content:center;';
 
     overlay.innerHTML = `
-        <img id="studioImgPreviewEl" src="${images[current]}" style="max-width:96vw;max-height:92vh;object-fit:contain;display:block;border-radius:8px;">
+        <img id="studioImgPreviewEl" src="${images[current]}" style="max-width:96vw;max-height:92vh;width:min(96vw,1500px);height:min(92vh,1150px);object-fit:contain;display:block;border-radius:8px;">
         <div id="studioImgPreviewCounter" style="position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.12);color:var(--gold);font-size:0.85rem;font-weight:600;padding:6px 22px;border-radius:20px;letter-spacing:0.08em;">${current+1} / ${images.length}</div>
         <button id="studioImgPreviewClose" style="position:fixed;top:16px;right:20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:40px;padding:7px 20px;color:#fff;font-size:0.8rem;cursor:pointer;">✕ Close</button>
         ${images.length > 1 ? `
@@ -4287,10 +4298,8 @@ function studioOpenImagePreview(images, startIdx) {
                 const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
                 const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
-                const imgRow = imgList?.querySelectorAll('div[data-ts-idx]')?.[tsi] ||
-                               imgList?.children?.[tsi];
-                const selectEl = imgRow?.querySelector('select');
-                const imageVal = (selectEl?.value || '').trim();
+                const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
+                const imageVal = (imgRow?.dataset.image || '').trim();
                 if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
@@ -4355,9 +4364,8 @@ function studioOpenImagePreview(images, startIdx) {
                 const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
                 const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
-                const imgRow = imgList?.children?.[tsi];
-                const selectEl = imgRow?.querySelector('select');
-                const imageVal = (selectEl?.value || '').trim();
+                const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
+                const imageVal = (imgRow?.dataset.image || '').trim();
                 if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
@@ -4373,6 +4381,9 @@ function studioOpenImagePreview(images, startIdx) {
         });
 
         studioSetStatus('Hymn saved ✓');
+        studioRenderRecordingsGrid(mi, hi, hyi);
+        studioShowHolidayDetail(mi, hi);
+        studioRenderTree();
     }
 
     // --- flat hymn (ቅኔ / ነግሥ) ---
@@ -4588,9 +4599,8 @@ function studioOpenImagePreview(images, startIdx) {
                 const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
                 const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
-                const imgRow = imgList?.children?.[tsi];
-                const selectEl = imgRow?.querySelector('select');
-                const imageVal = (selectEl?.value || '').trim();
+                const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
+                const imageVal = (imgRow?.dataset.image || '').trim();
                 if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
@@ -4666,9 +4676,8 @@ function studioOpenImagePreview(images, startIdx) {
                 const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
                 const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
                 const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
-                const imgRow = imgList?.children?.[tsi];
-                const selectEl = imgRow?.querySelector('select');
-                const imageVal = (selectEl?.value || '').trim();
+                const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
+                const imageVal = (imgRow?.dataset.image || '').trim();
                 if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
@@ -4683,73 +4692,74 @@ function studioOpenImagePreview(images, startIdx) {
         });
 
         studioSetStatus('Hymn saved ✓');
+        studioRenderFlatRecordingsGrid(hyi);
         studioRenderTree();
+        const flatView = studioActivePage === 'qine' ? 'qineView' : 'negshView';
+        const flatLabel = studioActivePage === 'qine' ? 'ቅኔ' : 'ነግሥ';
+        const flatDataArr = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
+        renderFlatHymnList(flatView, flatDataArr, flatLabel);
     }
 
-    function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
-        const container = document.getElementById(containerId);
-        if(!container) return;
-        container.innerHTML = '';
+function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
+    const container = document.getElementById(containerId);
+    if(!container) return;
+    container.innerHTML = '';
 
-        // get hymn images for the select options
-        const ctx = window._studioEditCtx || {};
-        let hymnImages = [];
-        if(ctx.hyi !== undefined && ctx.hi !== undefined && ctx.hi !== null) {
-            hymnImages = studioData[ctx.mi]?.holidays[ctx.hi]?.hymns[ctx.hyi]?.images || [];
-        } else if(ctx.hyi !== undefined) {
-            const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
-            hymnImages = data[ctx.hyi]?.images || [];
-        }
+    const ctx = window._studioEditCtx || {};
+    let hymnImages = [];
+    if(ctx.hyi !== undefined && ctx.hi !== undefined && ctx.hi !== null) {
+        hymnImages = studioData[ctx.mi]?.holidays[ctx.hi]?.hymns[ctx.hyi]?.images || [];
+    } else if(ctx.hyi !== undefined) {
+        const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
+        hymnImages = data[ctx.hyi]?.images || [];
+    }
 
-        timestamps.filter(ts => ts.time && ts.time.trim()).forEach((ts, tsi) => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+    const timedTimestamps = timestamps.filter(ts => ts.time && ts.time.trim());
+    if(!timedTimestamps.length) {
+        container.innerHTML = '<div style="font-size:0.68rem;color:var(--muted);padding:2px 0;">No timestamps yet — add timestamps above first.</div>';
+        return;
+    }
 
-            const timeLabel = document.createElement('span');
-            timeLabel.style.cssText = 'font-size:0.65rem;color:var(--muted);width:40px;flex-shrink:0;font-variant-numeric:tabular-nums;';
-            timeLabel.textContent = ts.time || '';
+    timedTimestamps.forEach((ts, tsi) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+        row.dataset.tsTime = ts.time;
+        row.dataset.image = ts.image || '';
 
-            // select dropdown
-            const select = document.createElement('select');
-            select.className = 'studio-input';
-            select.style.cssText = 'width:90px;flex-shrink:0;padding:4px 6px;font-size:0.72rem;';
-            const noneOpt = document.createElement('option');
-            noneOpt.value = '';
-            noneOpt.textContent = '— none —';
-            select.appendChild(noneOpt);
-            hymnImages.forEach((url, i) => {
-                const opt = document.createElement('option');
-                opt.value = url;
-                opt.textContent = `Image ${i+1}`;
-                if(ts.image === url) opt.selected = true;
-                select.appendChild(opt);
-            });
+        const timeLabel = document.createElement('span');
+        timeLabel.style.cssText = 'font-size:0.65rem;color:var(--muted);width:40px;flex-shrink:0;font-variant-numeric:tabular-nums;';
+        timeLabel.textContent = ts.time || '';
 
-            const thumb = document.createElement('div');
-            thumb.style.cssText = 'width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background-size:cover;background-position:center;flex-shrink:0;';
-            if(ts.image) thumb.style.backgroundImage = `url('${ts.image}')`;
-
-            const updateThumb = (url) => {
-                thumb.style.backgroundImage = url ? `url('${url}')` : '';
-            };
-            // update thumb preview only — don't write to ts.image yet
-            select.addEventListener('change', () => {
-                if(select.value) updateThumb(select.value);
-            });
-            // expose current value so Save can read it
-            select.dataset.tsIdx = tsi;
-            row.dataset.tsIdx = tsi;
-
-            row.appendChild(timeLabel);
-            row.appendChild(select);
-            row.appendChild(thumb);
-            container.appendChild(row);
+        const select = document.createElement('select');
+        select.className = 'studio-input';
+        select.style.cssText = 'width:90px;flex-shrink:0;padding:4px 6px;font-size:0.72rem;';
+        const noneOpt = document.createElement('option');
+        noneOpt.value = '';
+        noneOpt.textContent = '— none —';
+        select.appendChild(noneOpt);
+        hymnImages.forEach((url, i) => {
+            const opt = document.createElement('option');
+            opt.value = url;
+            opt.textContent = `Image ${i+1}`;
+            if(ts.image === url) opt.selected = true;
+            select.appendChild(opt);
         });
 
-        if(!timestamps.length) {
-            container.innerHTML = '<div style="font-size:0.68rem;color:var(--muted);padding:2px 0;">No timestamps yet — add timestamps above first.</div>';
-        }
-    }
+        const thumb = document.createElement('div');
+        thumb.style.cssText = 'width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background-size:cover;background-position:center;flex-shrink:0;';
+        if(ts.image) thumb.style.backgroundImage = `url('${ts.image}')`;
+
+        select.addEventListener('change', () => {
+            row.dataset.image = select.value;
+            thumb.style.backgroundImage = select.value ? `url('${select.value}')` : '';
+        });
+
+        row.appendChild(timeLabel);
+        row.appendChild(select);
+        row.appendChild(thumb);
+        container.appendChild(row);
+    });
+}
 
     function studioAddFlatHymn() {
         const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
@@ -4840,6 +4850,12 @@ function studioOpenImagePreview(images, startIdx) {
         studioSetStatus('Saving...');
         const ok = await studioPushToGist();
         if(ok) studioSetStatus('Saved + Gist updated ✓');
+        // live-update whatever view is currently open behind the studio
+        renderMonths();
+        if(activeTab === 'qine') renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
+        if(activeTab === 'negsh') renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
+        if(currentHoliday) renderHolidayRows(currentHoliday);
+        searchIndex = buildSearchIndex();
     });
 
     function studioSetStatus(msg) {
