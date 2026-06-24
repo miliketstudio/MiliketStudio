@@ -34,10 +34,7 @@
         currentUserId = user.uid;
         console.log("Seamless login active. User UID:", currentUserId);
         } else {
-        console.log("No session found. Creating a guest account...");
-        auth.signInAnonymously().catch((error) => {
-            console.error("Anonymous authentication failed:", error.message);
-        });
+        console.log("No session found. Waiting for user action.");
         }
     });
     </script>
@@ -870,6 +867,9 @@
                 style="width:100%;padding:12px;border:2px solid var(--card-border);border-radius:8px;font-size:1rem;margin-bottom:12px;background:var(--card-bg);color:var(--text);box-sizing:border-box;">
             <input type="password" id="login-password" name="password" placeholder="Password" autocomplete="current-password" required
                 style="width:100%;padding:12px;border:2px solid var(--card-border);border-radius:8px;font-size:1rem;margin-bottom:6px;background:var(--card-bg);color:var(--text);box-sizing:border-box;">
+            <div style="text-align:right;margin-bottom:8px;margin-top:-6px;">
+                <span onclick="sendPasswordReset()" style="font-size:0.8rem;color:var(--text-muted);cursor:pointer;text-decoration:underline;">Forgot password?</span>
+            </div>
             <div id="login-error" style="color:#e74c3c;font-size:12px;margin-bottom:12px;display:none;"></div>
             <button type="submit" id="login-submit-btn" class="studio-add-btn" style="width:100%;justify-content:center;margin-bottom:10px;">Log In</button>
         </form>
@@ -910,6 +910,7 @@
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
             <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
+            <button class="transfer-btn" style="background:#3a5a82;" onclick="openChangeEmail()">✉ Change Email</button>
         </div>
         <div class="studio-center-actions" style="margin-top:16px;">
             <button class="action-trio-btn action-back" onclick="showStudioPage('page-welcome')">← Home</button>
@@ -1002,6 +1003,7 @@
         <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
         <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
         <button id="next-slide-btn" onclick="saveAndNextSlide()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:12px;">Next Slide →</button>
+        <button id="view-results-btn" onclick="viewResults()" style="background:#27ae60;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:6px;display:none;">✓ View Results</button>
         <button id="finish-present-btn" onclick="finishAndPresent()" style="background:#b8860b;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:6px;display:none;">Finish &amp; ▶ Present</button>
     </div>
     <div id="slides-container" style="padding:24px 0;max-width:100%;margin:0 auto;"></div>
@@ -2749,6 +2751,9 @@ function goToSlides() {
 
     _builtSlides = [];
     _currentSlideIndices = [];
+    _passUsedIndices = new Set();
+    _isSecondPass = false;
+    _secondPassSlideStartIndex = 0;
 
     $('.page').removeClass('active');
     document.getElementById('main-navbar').style.display = 'none';
@@ -2772,7 +2777,7 @@ function renderSlideBuilder() {
 
     const unassignedLines = _allLines
         .map((line, idx) => ({ ...line, originalIndex: idx }))
-        .filter(l => !assignedIndices.has(l.originalIndex));
+        .filter(l => _isSecondPass ? true : !assignedIndices.has(l.originalIndex));
 
     if (unassignedLines.length === 0) {
         renderSlideReorder(container);
@@ -2792,11 +2797,12 @@ function renderSlideBuilder() {
     unassignedLines.forEach((line) => {
         const idx = line.originalIndex;
         const isChecked = _currentSlideIndices.includes(idx);
+        const isPrevUsed = _passUsedIndices.has(idx);
         const card = document.createElement('div');
         card.className = 'line-card' + (isChecked ? ' selected' : '');
+        if (isPrevUsed && !isChecked) card.style.border = '2px solid #e74c3c';
         card.dataset.index = idx;
         card.onclick = () => {
-            if (assignedIndices.has(idx)) return;
             const pos = _currentSlideIndices.indexOf(idx);
             if (pos === -1) {
                 _currentSlideIndices.push(idx);
@@ -2823,7 +2829,7 @@ function renderSlideReorder(container) {
     container.innerHTML = '';
     const header = document.createElement('div');
     header.style.cssText = 'text-align:center;padding:24px 40px 12px;';
-    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p>';
+    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p><div style="display:flex;justify-content:center;margin-top:14px;"><button onclick="enterAddSlidesPass()" style="background:#8e44ad;border:none;color:white;border-radius:7px;padding:9px 28px;font-size:0.9rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">＋ Add Slides</button></div>';
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -2834,7 +2840,8 @@ function renderSlideReorder(container) {
         const row = document.createElement('div');
         row.draggable = true;
         row.dataset.idx = slideIdx;
-        row.style.cssText = 'display:flex;align-items:center;gap:12px;background:white;border:2px solid #b8d4ee;border-radius:8px;padding:10px 14px;cursor:grab;transition:border-color 0.15s;user-select:none;';
+        const isAddedSlide = slideIdx >= _secondPassSlideStartIndex && _isSecondPass;
+        row.style.cssText = 'display:flex;align-items:center;gap:12px;background:white;border:2px solid ' + (isAddedSlide ? '#e74c3c' : '#b8d4ee') + ';border-radius:8px;padding:10px 14px;cursor:grab;transition:border-color 0.15s;user-select:none;';
         const preview = indices.map(i => extractFirstTwoWords(_allLines[i].segmentHtml)).join(' … ');
         const pieceName = _allLines[indices[0]].pieceName;
         row.innerHTML =
@@ -3165,6 +3172,7 @@ function saveAndNextSlide() {
         alert('Select at least one line for this slide.');
         return;
     }
+    _currentSlideIndices.forEach(i => _passUsedIndices.add(i));
     _builtSlides.push([..._currentSlideIndices]);
     _currentSlideIndices = [];
     renderSlideBuilder();
@@ -3222,13 +3230,40 @@ function undoLastSlide() {
     document.getElementById('export-pptx-exact-btn').style.display = 'none';
     renderSlideBuilder();
 }
+function enterAddSlidesPass() {
+    _isSecondPass = true;
+    _secondPassSlideStartIndex = _builtSlides.length;
+    _passUsedIndices.clear();
+    // mark everything already built as previously used
+    _builtSlides.forEach(indices => indices.forEach(i => _passUsedIndices.add(i)));
+    _currentSlideIndices = [];
+    document.getElementById('next-slide-btn').style.display = '';
+    document.getElementById('finish-present-btn').style.display = 'none';
+    document.getElementById('export-pptx-btn').style.display = 'none';
+    document.getElementById('export-pptx-exact-btn').style.display = 'none';
+    // show view results button
+    document.getElementById('view-results-btn').style.display = '';
+    renderSlideBuilder();
+}
+
+function viewResults() {
+    document.getElementById('next-slide-btn').style.display = 'none';
+    document.getElementById('view-results-btn').style.display = 'none';
+    document.getElementById('finish-present-btn').style.display = '';
+    document.getElementById('export-pptx-btn').style.display = '';
+    document.getElementById('export-pptx-exact-btn').style.display = '';
+    renderSlideReorder(document.getElementById('slides-container'));
+}
+
 // ============================================================
 // SLIDESHOW PRESENTATION MODE
-// ============================================================
 let _ssSlides = [];
 let _ssIndex = 0;
 let _ssHudHidden = false;
 let _ssZoomLevels = [];
+let _passUsedIndices = new Set();
+let _isSecondPass = false;
+let _secondPassSlideStartIndex = 0;
 
 function ssGetZoom() {
     return _ssZoomLevels[_ssIndex] || 1.0;
@@ -3929,6 +3964,50 @@ function showLoginError(msg) {
     el.style.display = 'block';
 }
 
+async function openChangeEmail() {
+    const user = firebase.auth().currentUser;
+    if (!user || !user.email) {
+        alert('No email account is signed in.');
+        return;
+    }
+    const newEmail = prompt('Enter your new email address:');
+    if (!newEmail || !newEmail.trim()) return;
+    const password = prompt('Re-enter your current password to confirm:');
+    if (!password) return;
+    try {
+        const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
+        await user.reauthenticateWithCredential(credential);
+        await user.verifyBeforeUpdateEmail(newEmail.trim());
+        alert('Verification email sent to ' + newEmail.trim() + ' — click the link in that email to confirm the change.');
+    } catch(e) {
+        let msg = 'Could not update email. Try again.';
+        if (e.code === 'auth/wrong-password') msg = 'Incorrect password.';
+        if (e.code === 'auth/email-already-in-use') msg = 'That email is already in use.';
+        if (e.code === 'auth/invalid-email') msg = 'Invalid email address.';
+        if (e.code === 'auth/operation-not-allowed') msg = 'Email update is not enabled. Check Firebase console settings.';
+        alert(msg);
+    }
+}
+
+async function sendPasswordReset() {
+    const email = document.getElementById('login-email').value.trim();
+    if (!email) {
+        showLoginError('Enter your email above first, then click Forgot password.');
+        return;
+    }
+    try {
+        await firebase.auth().sendPasswordResetEmail(email);
+        const el = document.getElementById('login-error');
+        el.textContent = 'Reset email sent — check your inbox.';
+        el.style.color = '#27ae60';
+        el.style.display = 'block';
+    } catch(e) {
+        let msg = 'Could not send reset email. Check the address and try again.';
+        if (e.code === 'auth/user-not-found') msg = 'No account found with that email.';
+        showLoginError(msg);
+    }
+}
+
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const email = document.getElementById('login-email').value.trim();
@@ -3956,7 +4035,12 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
     }
 });
 
-function continueAsGuest() {
+async function continueAsGuest() {
+    try {
+        await firebase.auth().signInAnonymously();
+    } catch(e) {
+        console.error("Anonymous auth failed:", e.message);
+    }
     proceedToStudio();
 }
 
@@ -3982,6 +4066,12 @@ async function enterStudio() {
             firebaseUser = userCredential.user;
         }
         console.log('Signed in as UID:', firebaseUser.uid);
+        if (firebaseUser.email) {
+            fsdb.collection('users').doc(firebaseUser.uid).set(
+                { email: firebaseUser.email },
+                { merge: true }
+            );
+        }
         await loadFromFirestore(firebaseUser.uid);
     } catch (error) {
         console.error('Auth failed:', error);
