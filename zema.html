@@ -2087,7 +2087,7 @@
             tsPanel.querySelectorAll('.timestamp-item').forEach(el => {
                 el.onclick = () => {
                     const t = parseTimeToSec(el.dataset.seek);
-                    if(!isNaN(t)) seekTo(t);
+                    if(t && !isNaN(t)) seekTo(t);
                     tsPanel.querySelectorAll('.timestamp-item').forEach(x => { x.style.background = ''; x.style.color = ''; });
                     el.style.background = 'var(--gold)';
                     el.style.color = '#000';
@@ -2113,7 +2113,7 @@
                 ytTsList.querySelectorAll('.timestamp-item').forEach(el => {
                     el.onclick = () => {
                         const t = parseTimeToSec(el.dataset.seek);
-                        if(!isNaN(t)) seekTo(t);
+                        if(t && !isNaN(t)) seekTo(t);
                         ytTsList.querySelectorAll('.timestamp-item').forEach(x => { x.style.background = ''; x.style.color = ''; });
                         el.style.background = 'var(--gold)';
                         el.style.color = '#000';
@@ -4021,7 +4021,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         tsRows.forEach((row, i) => {
             const time = document.getElementById(`nts-time-${i}`)?.value.trim();
             const label = document.getElementById(`nts-label-${i}`)?.value.trim();
-            if(time && label) timestamps.push({ time, label });
+            if(label) timestamps.push({ time, label });
         });
         const hymn = studioData[mi].holidays[hi].hymns[hyi];
         hymn.kum = hymn.kum || [];
@@ -4160,7 +4160,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                                imgList?.children?.[tsi];
                 const selectEl = imgRow?.querySelector('select');
                 const imageVal = (selectEl?.value || '').trim();
-                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+                if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4227,7 +4227,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 const imgRow = imgList?.children?.[tsi];
                 const selectEl = imgRow?.querySelector('select');
                 const imageVal = (selectEl?.value || '').trim();
-                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+                if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4353,7 +4353,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         tsRows.forEach((row, i) => {
             const time = document.getElementById(`nts-time-${i}`)?.value.trim();
             const label = document.getElementById(`nts-label-${i}`)?.value.trim();
-            if(time && label) timestamps.push({ time, label });
+            if(label) timestamps.push({ time, label });
         });
         hymn.kum = hymn.kum || [];
         hymn.kum.push({ beat, src: normalizeSrcValue(src), chanter, duration, timestamps });
@@ -4460,7 +4460,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 const imgRow = imgList?.children?.[tsi];
                 const selectEl = imgRow?.querySelector('select');
                 const imageVal = (selectEl?.value || '').trim();
-                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+                if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
@@ -4538,7 +4538,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                 const imgRow = imgList?.children?.[tsi];
                 const selectEl = imgRow?.querySelector('select');
                 const imageVal = (selectEl?.value || '').trim();
-                if(time && label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
+                if(label) timestamps.push({ time, label, ...(imageVal ? { image: imageVal } : {}) });
             });
             const updated = {
                 beat: document.getElementById(`fgrec-beat-${flatIdx}`)?.value.trim() || '',
