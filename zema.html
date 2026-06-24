@@ -4613,7 +4613,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             hymnImages = data[ctx.hyi]?.images || [];
         }
 
-        timestamps.forEach((ts, tsi) => {
+        timestamps.filter(ts => ts.time && ts.time.trim()).forEach((ts, tsi) => {
             const row = document.createElement('div');
             row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:4px;';
 
