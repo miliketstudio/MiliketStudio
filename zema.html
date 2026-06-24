@@ -1705,6 +1705,8 @@
 
     let currentTrackObj = null;      // { hymn, type, version, clipStart, clipEnd, timestamps }
     let currentImageIndex = 0;
+    let userOverrodeImage = false;   // true after manual prev/next nav; cleared on track change or new ts boundary
+    let lastAppliedTsImage = null;   // track which ts image was last auto-applied
     let playlist = [];
     let recentlyPlayed = [];
     try{
@@ -1927,6 +1929,8 @@ function parseTimeToSec(t) {
         clipStartSec = parseTimeToSec(version.clipStart);
         clipEndSec = parseTimeToSec(version.clipEnd) || parseTimeToSec(version.duration) || 0;
         currentTrackObj = { hymn, type, version, clipStart: clipStartSec, clipEnd: clipEndSec, timestamps: version.timestamps || [] };
+        userOverrodeImage = false;
+        lastAppliedTsImage = null;
 
         // detect YouTube
         const ytId = extractYoutubeId(version.src);
@@ -2173,8 +2177,6 @@ function parseTimeToSec(t) {
         const timestamps = currentTrackObj.timestamps || [];
         const withImages = timestamps.filter(ts => ts.image && ts.image.trim());
         if(!withImages.length) return;
-        // for regular audio currentSec is relative (from clip start)
-        // for YouTube currentSec is absolute — normalise to relative
         const relSec = isYoutubeTrack ? Math.max(0, currentSec - clipStartSec) : currentSec;
         // find the last timestamp whose time <= relSec
         let active = null;
@@ -2184,6 +2186,14 @@ function parseTimeToSec(t) {
             else break;
         }
         if(!active) return;
+        // only force-apply if this is a NEW ts boundary (different image than last auto-apply)
+        const isNewBoundary = active.image !== lastAppliedTsImage;
+        if(isNewBoundary) {
+            userOverrodeImage = false;   // new boundary resets manual override
+            lastAppliedTsImage = active.image;
+        }
+        // if user manually navigated since last boundary, don't overwrite their choice
+        if(userOverrodeImage) return;
         // update the book art zone (YT mode) or the big image (regular mode)
         const artZone = document.getElementById('ytBookArt');
         if(artZone) {
@@ -2191,7 +2201,6 @@ function parseTimeToSec(t) {
             if(img && img.src !== active.image) img.src = active.image;
             return;
         }
-        const bigEl = document.getElementById('playerBigImage');
         const imgEl = document.getElementById('playerBigImageEl');
         if(imgEl && active.image) { imgEl.src = active.image; resetZoom(); }
     }
@@ -3064,6 +3073,7 @@ function renderQueue(){
         const images = currentTrackObj?.hymn?.images || [];
         if(images.length < 2) return;
         currentImageIndex = (currentImageIndex - 1 + images.length) % images.length;
+        userOverrodeImage = true;
         renderCurrentImage();
         updateImageNavUI();
     }
@@ -3072,6 +3082,7 @@ function renderQueue(){
         const images = currentTrackObj?.hymn?.images || [];
         if(images.length < 2) return;
         currentImageIndex = (currentImageIndex + 1) % images.length;
+        userOverrodeImage = true;
         renderCurrentImage();
         updateImageNavUI();
     }
@@ -4295,8 +4306,10 @@ function studioOpenImagePreview(images, startIdx) {
         const tsRows = document.getElementById(`gts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
         const timestamps = [];
         tsRows.forEach((row, tsi) => {
-                const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
-                const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const timeEl = document.getElementById(`gts-time-${flatIdx}-${tsi}`) || document.getElementById(`gts-${flatIdx}-time-${tsi}`);
+                const labelEl = document.getElementById(`gts-label-${flatIdx}-${tsi}`) || document.getElementById(`gts-${flatIdx}-label-${tsi}`);
+                const time = timeEl?.value.trim();
+                const label = labelEl?.value.trim();
                 const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
                 const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
                 const imageVal = (imgRow?.dataset.image || '').trim();
@@ -4361,8 +4374,10 @@ function studioOpenImagePreview(images, startIdx) {
             const tsRows = document.getElementById(`gts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
             const timestamps = [];
             tsRows.forEach((row, tsi) => {
-                const time = document.getElementById(`gts-time-${flatIdx}-${tsi}`)?.value.trim();
-                const label = document.getElementById(`gts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const timeEl = document.getElementById(`gts-time-${flatIdx}-${tsi}`) || document.getElementById(`gts-${flatIdx}-time-${tsi}`);
+                const labelEl = document.getElementById(`gts-label-${flatIdx}-${tsi}`) || document.getElementById(`gts-${flatIdx}-label-${tsi}`);
+                const time = timeEl?.value.trim();
+                const label = labelEl?.value.trim();
                 const imgList = document.getElementById(`gts-img-list-${flatIdx}`);
                 const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
                 const imageVal = (imgRow?.dataset.image || '').trim();
@@ -4370,7 +4385,7 @@ function studioOpenImagePreview(images, startIdx) {
             });
             const updated = {
                 beat: document.getElementById(`grec-beat-${flatIdx}`)?.value.trim() || '',
-                src: normalizeSrcValue(srcEl.value || ''),
+                src: normalizeSrcValue(document.getElementById(`grec-src-${flatIdx}`)?.value || ''),
                 chanter: document.getElementById(`grec-chanter-${flatIdx}`)?.value.trim() || '',
                 duration: document.getElementById(`grec-duration-${flatIdx}`)?.value.trim() || '',
                 timestamps
@@ -4596,8 +4611,10 @@ function studioOpenImagePreview(images, startIdx) {
         const tsRows = document.getElementById(`fgts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
         const timestamps = [];
         tsRows.forEach((row, tsi) => {
-                const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
-                const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const timeEl = document.getElementById(`fgts-time-${flatIdx}-${tsi}`) || document.getElementById(`fgts-${flatIdx}-time-${tsi}`);
+                const labelEl = document.getElementById(`fgts-label-${flatIdx}-${tsi}`) || document.getElementById(`fgts-${flatIdx}-label-${tsi}`);
+                const time = timeEl?.value.trim();
+                const label = labelEl?.value.trim();
                 const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
                 const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
                 const imageVal = (imgRow?.dataset.image || '').trim();
@@ -4673,8 +4690,10 @@ function studioOpenImagePreview(images, startIdx) {
             const tsRows = document.getElementById(`fgts-container-${flatIdx}`)?.querySelectorAll('.studio-timestamp-row') || [];
             const timestamps = [];
             tsRows.forEach((row, tsi) => {
-                const time = document.getElementById(`fgts-time-${flatIdx}-${tsi}`)?.value.trim();
-                const label = document.getElementById(`fgts-label-${flatIdx}-${tsi}`)?.value.trim();
+                const timeEl = document.getElementById(`fgts-time-${flatIdx}-${tsi}`) || document.getElementById(`fgts-${flatIdx}-time-${tsi}`);
+                const labelEl = document.getElementById(`fgts-label-${flatIdx}-${tsi}`) || document.getElementById(`fgts-${flatIdx}-label-${tsi}`);
+                const time = timeEl?.value.trim();
+                const label = labelEl?.value.trim();
                 const imgList = document.getElementById(`fgts-img-list-${flatIdx}`);
                 const imgRow = imgList ? Array.from(imgList.children).find(r => r.dataset.tsTime === time) : null;
                 const imageVal = (imgRow?.dataset.image || '').trim();
