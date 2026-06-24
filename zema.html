@@ -1723,7 +1723,14 @@
     let isScrubbing = false;
 
         // helpers
-    function parseTimeToSec(t) { if(!t) return 0; let p=t.split(':'); return p.length===2 ? parseInt(p[0])*60+parseFloat(p[1]) : (p.length===3 ? parseInt(p[0])*3600+parseInt(p[1])*60+parseFloat(p[2]) : 0); }
+function parseTimeToSec(t) {
+    if(!t) return 0;
+    t = t.trim();
+    const p = t.split(':');
+    if(p.length === 2) return parseInt(p[0], 10) * 60 + parseFloat(p[1]);
+    if(p.length === 3) return parseInt(p[0], 10) * 3600 + parseInt(p[1], 10) * 60 + parseFloat(p[2]);
+    return 0;
+}
     function formatSec(sec) { let m=Math.floor(sec/60), s=Math.floor(sec%60); return `${m}:${s<10?'0'+s:s}`; }
 
         // Single source of truth for "today" in the Ethiopian calendar.
@@ -3945,58 +3952,94 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     function studioParseTimestamps(pasteId, containerId, idPrefix) {
         const raw = document.getElementById(pasteId)?.value || '';
         if(!raw.trim()) return;
+
+        // 1. Normalise line endings
+        let cleaned = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+
+        // 2. Strip markdown timestamp links: [1:23](url) -> 1:23
+        cleaned = cleaned.replace(/\[(\d{1,3}:\d{1,2}(?::\d{1,2})?)\]\([^)]*\)/g, '$1');
+
+        // 3. Strip bold/italic markdown
+        cleaned = cleaned.replace(/\*{1,2}([^*]+)\*{1,2}/g, '$1');
+
+        // 4. Normalise em/en dashes to hyphen
+        cleaned = cleaned.replace(/[–—]/g, '-');
+        cleaned = cleaned.replace(/፡/g, ' ');
+
+        // 5. Normalise tabs to spaces
+        cleaned = cleaned.replace(/\t/g, ' ');
+
+        // Core timestamp pattern — m:ss / mm:ss / h:mm:ss / hh:mm:ss / 1-digit seconds
+        const TS_PATTERN = /(\d{1,3}:\d{1,2}(?::\d{1,2})?)/g;
+
+        // Prefix junk that can appear before a timestamp on the same token
+        const PREFIX_RE = /^[•\-\*\[\(]?\s*/;
+        // Suffix junk between timestamp and its label
+        const SUFFIX_RE = /^\s*[\]\)]?\s*[-:]?\s*/;
+
         const results = [];
 
-        // Strip markdown links: [1:17:56](url) -> 1:17:56
-        const cleaned = raw.replace(/\[(\d{1,2}:\d{2}(?::\d{2})?)\]\([^)]*\)/g, '$1');
-
-        // Normalize: collapse multiple spaces, handle newline-separated time+label
+        // Split into lines first, then within each line find all timestamps
         const lines = cleaned.split('\n').map(l => l.trim()).filter(Boolean);
 
-        let i = 0;
-        while(i < lines.length) {
-            const line = lines[i];
-            // Match time at start of line: MM:SS or H:MM:SS or HH:MM:SS
-            const timeMatch = line.match(/^(\d{1,2}:\d{2}(?::\d{2})?)(.*)/);
-            if(timeMatch) {
-                const time = timeMatch[1];
-                let label = timeMatch[2].trim();
-                // if label is empty, check next line
-                if(!label && i + 1 < lines.length) {
-                    const nextLine = lines[i + 1];
-                    // next line is not a timestamp — it's the label
-                    if(!/^\d{1,2}:\d{2}/.test(nextLine)) {
-                        label = nextLine.trim();
-                        i++;
-                    }
-                }
-                if(time) results.push({ time, label: label || '—' });
+        for(const line of lines) {
+            // Find every timestamp occurrence in the line
+            const matches = [...line.matchAll(TS_PATTERN)];
+
+            if(!matches.length) {
+                // Pure commentary line — no timestamp at all
+                results.push({ time: '', label: line });
+                continue;
             }
-            i++;
+
+            matches.forEach((match, mi) => {
+                const time = match[1];
+                const afterTime = match.index + match[0].length;
+                // Label runs from after this timestamp to before the next one (or end of line)
+                const nextMatchIndex = matches[mi + 1] ? matches[mi + 1].index : line.length;
+                let label = line.slice(afterTime, nextMatchIndex).trim();
+
+                // Strip leading separator chars between timestamp and label
+                label = label.replace(SUFFIX_RE, '');
+                // Strip trailing separator chars
+                label = label.replace(/[-:\s]+$/, '').trim();
+
+                results.push({ time, label: label || '—' });
+            });
         }
 
-        if(!results.length) { alert('No timestamps found — check the format.'); return; }
+        if(!results.length) { alert('No content found — check your paste.'); return; }
 
         const container = document.getElementById(containerId);
         if(!container) return;
-        // append (don't replace existing rows)
+
         results.forEach(({ time, label }) => {
             const idx = container.querySelectorAll('.studio-timestamp-row').length;
             const row = document.createElement('div');
             row.className = 'studio-timestamp-row';
             row.innerHTML = `
-                <input class="studio-timestamp-time" placeholder="00:00" id="${idPrefix}-time-${idx}" value="${time}">
-                <input class="studio-timestamp-label" placeholder="Label" id="${idPrefix}-label-${idx}" style="font-family:'Abyssinica SIL',serif;" value="${label}">
+                <input class="studio-timestamp-time" placeholder="m:ss" id="${idPrefix}-time-${idx}" value="${time}">
+                <input class="studio-timestamp-label" placeholder="Label or note" id="${idPrefix}-label-${idx}" style="font-family:'Abyssinica SIL',serif;" value="${label}">
                 <button class="studio-delete-btn" onclick="this.closest('.studio-timestamp-row').remove()">✕</button>`;
             container.appendChild(row);
         });
 
-        // clear the paste box
         const pasteEl = document.getElementById(pasteId);
         if(pasteEl) pasteEl.value = '';
-        studioSetStatus(`✓ ${results.length} timestamps parsed`);
+        studioSetStatus(`✓ ${results.length} entries parsed (${results.filter(r => r.time).length} timed, ${results.filter(r => !r.time).length} notes)`);
     }
 
+    document.addEventListener('input', (e) => {
+        if(e.target.classList.contains('studio-timestamp-time')) {
+            const pos = e.target.selectionStart;
+            const cleaned = e.target.value.replace(/፡/g, ':');
+            if(cleaned !== e.target.value) {
+                e.target.value = cleaned;
+                e.target.setSelectionRange(pos, pos);
+            }
+        }
+    });
+    
     function studioAddNewVerTimestamp() {
         const container = document.getElementById('sNewVerTimestamps');
         if(!container) return;
