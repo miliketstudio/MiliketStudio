@@ -3400,6 +3400,11 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
             fi.value = '';
         });
+        zone.setAttribute('tabindex', '0');
+        zone.title = 'Click, drop, or Ctrl+V to paste image';
+        zone.addEventListener('focus', () => zone.style.outline = '2px solid var(--gold)');
+        zone.addEventListener('blur',  () => zone.style.outline = '');
+        zone.addEventListener('keydown', (e) => { if(e.key === 'Enter' || e.key === ' ') fi.click(); });
     }
 
     // Multi-file image drop zone -> pushes each uploaded URL into hymn.images
@@ -3443,6 +3448,21 @@ function studioDrop(e, type, mi, hi, targetIdx) {
             onFiles(Array.from(fi.files || []));
             fi.value = '';
         });
+        // paste on the URL input — handles copied images (e.g. from Telegram)
+        setTimeout(() => {
+            const urlInput = document.getElementById('sHymnImageUrl');
+            if(!urlInput || urlInput._pastebound) return;
+            urlInput._pastebound = true;
+            urlInput.addEventListener('paste', (e) => {
+                const imageFiles = Array.from(e.clipboardData?.items || [])
+                    .filter(item => item.kind === 'file' && item.type.startsWith('image/'))
+                    .map(item => item.getAsFile())
+                    .filter(Boolean);
+                if(!imageFiles.length) return;
+                e.preventDefault();
+                onFiles(imageFiles);
+            });
+        }, 0);
     }
 
     // Add an image by pasting a URL (holiday-hymn editor)
@@ -3472,24 +3492,92 @@ function studioDrop(e, type, mi, hi, targetIdx) {
 
     // Render the thumbnail list with delete buttons.
     // hi === null means flat (qine/negsh) hymn at index mi.
-    function studioRenderImagesList(mi, hi, hyi) {
-        const list = document.getElementById('sHymnImagesList');
-        if(!list) return;
-        const hymn = (hi === null)
-            ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
-            : studioData[mi].holidays[hi].hymns[hyi];
-        const images = hymn.images || [];
-        if(!images.length) {
-            list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;">No images yet.</div>';
-            return;
-        }
-        list.innerHTML = images.map((url, i) => `
-            <div style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-image:url('${url}'); background-size:cover; background-position:center;">
-                <span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">${i+1}</span>
-                <button onclick="studioRemoveImage(${mi},${hi===null?'null':hi},${hi===null?'null':hyi},${i})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); border:none; color:#f87171; font-size:0.7rem; width:18px; height:18px; border-radius:50%; cursor:pointer; line-height:1;">✕</button>
-            </div>
-        `).join('');
+function studioRenderImagesList(mi, hi, hyi) {
+    const list = document.getElementById('sHymnImagesList');
+    if(!list) return;
+    const hymn = (hi === null)
+        ? (studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh)[mi]
+        : studioData[mi].holidays[hi].hymns[hyi];
+    const images = hymn.images || [];
+    if(!images.length) {
+        list.innerHTML = '<div style="color:var(--muted);font-size:0.75rem;">No images yet.</div>';
+        return;
     }
+    list.innerHTML = images.map((url, i) => `
+        <div draggable="true" data-img-idx="${i}" title="Click to preview" style="position:relative; width:64px; height:64px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background-image:url('${url}'); background-size:cover; background-position:center; cursor:grab;">
+            <span style="position:absolute; top:2px; left:2px; background:rgba(0,0,0,0.6); color:var(--gold); font-size:0.6rem; padding:1px 5px; border-radius:6px;">${i+1}</span>
+            <button onclick="studioRemoveImage(${mi},${hi===null?'null':hi},${hi===null?'null':hyi},${i})" style="position:absolute; top:2px; right:2px; background:rgba(0,0,0,0.6); border:none; color:#f87171; font-size:0.7rem; width:18px; height:18px; border-radius:50%; cursor:pointer; line-height:1;">✕</button>
+        </div>
+    `).join('');
+
+    let dragSrcImgIdx = null;
+    list.querySelectorAll('[data-img-idx]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            if(e.target.tagName === 'BUTTON') return;
+            studioOpenImagePreview(images, parseInt(el.dataset.imgIdx));
+        });
+        el.addEventListener('dragstart', (e) => {
+            dragSrcImgIdx = parseInt(el.dataset.imgIdx);
+            e.dataTransfer.effectAllowed = 'move';
+            setTimeout(() => el.style.opacity = '0.35', 0);
+        });
+        el.addEventListener('dragend', () => { el.style.opacity = ''; el.style.outline = ''; });
+        el.addEventListener('dragover', (e) => { e.preventDefault(); el.style.outline = '2px solid var(--gold)'; });
+        el.addEventListener('dragleave', () => { el.style.outline = ''; });
+        el.addEventListener('drop', (e) => {
+            e.preventDefault();
+            el.style.outline = '';
+            const targetIdx = parseInt(el.dataset.imgIdx);
+            if(dragSrcImgIdx === null || dragSrcImgIdx === targetIdx) return;
+            const [moved] = images.splice(dragSrcImgIdx, 1);
+            images.splice(targetIdx, 0, moved);
+            hymn.images = images;
+            dragSrcImgIdx = null;
+            studioRenderImagesList(mi, hi, hyi);
+        });
+    });
+}
+
+function studioOpenImagePreview(images, startIdx) {
+    document.getElementById('studioImgPreview')?.remove();
+    let current = startIdx;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'studioImgPreview';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(9,9,11,0.45);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);z-index:9999;display:flex;align-items:center;justify-content:center;';
+
+    overlay.innerHTML = `
+        <img id="studioImgPreviewEl" src="${images[current]}" style="max-width:96vw;max-height:92vh;object-fit:contain;display:block;border-radius:8px;">
+        <div id="studioImgPreviewCounter" style="position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.7);border:1px solid rgba(255,255,255,0.12);color:var(--gold);font-size:0.85rem;font-weight:600;padding:6px 22px;border-radius:20px;letter-spacing:0.08em;">${current+1} / ${images.length}</div>
+        <button id="studioImgPreviewClose" style="position:fixed;top:16px;right:20px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:40px;padding:7px 20px;color:#fff;font-size:0.8rem;cursor:pointer;">✕ Close</button>
+        ${images.length > 1 ? `
+        <button id="studioImgPrev" style="position:fixed;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:50%;width:52px;height:52px;color:#fff;font-size:1.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">‹</button>
+        <button id="studioImgNext" style="position:fixed;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:50%;width:52px;height:52px;color:#fff;font-size:1.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;">›</button>
+        ` : ''}
+    `;
+
+    document.body.appendChild(overlay);
+
+    function update() {
+        document.getElementById('studioImgPreviewEl').src = images[current];
+        document.getElementById('studioImgPreviewCounter').innerText = `${current+1} / ${images.length}`;
+    }
+    function goNext() { if(images.length < 2) return; current = (current + 1) % images.length; update(); }
+    function goPrev() { if(images.length < 2) return; current = (current - 1 + images.length) % images.length; update(); }
+
+    document.getElementById('studioImgNext')?.addEventListener('click', (e) => { e.stopPropagation(); goNext(); });
+    document.getElementById('studioImgPrev')?.addEventListener('click', (e) => { e.stopPropagation(); goPrev(); });
+    document.getElementById('studioImgPreviewClose')?.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+
+    function onKey(e) {
+        if(!document.getElementById('studioImgPreview')) { document.removeEventListener('keydown', onKey); return; }
+        if(e.key === 'ArrowRight') goNext();
+        if(e.key === 'ArrowLeft') goPrev();
+        if(e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onKey); }
+    }
+    document.addEventListener('keydown', onKey);
+}
 
     function studioRemoveImage(mi, hi, hyi, idx) {
         const hymn = (hi === null)
@@ -3894,7 +3982,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                             <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image URL" style="flex:1;">
+                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image or image URL" style="flex:1;">
                             <button class="studio-add-btn" onclick="studioAddImageUrl(${mi},${hi},${hyi})">+ Add</button>
                         </div>
                         <div id="sHymnImagesList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
@@ -4324,7 +4412,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
                             <span id="dz_img_status" style="display:block;font-size:0.7rem;"></span>
                         </div>
                         <div style="display:flex; gap:8px;">
-                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image URL" style="flex:1;">
+                            <input class="studio-input" id="sHymnImageUrl" placeholder="or paste image or image URL" style="flex:1;">
                             <button class="studio-add-btn" onclick="studioAddFlatImageUrl(${hyi})">+ Add</button>
                         </div>
                         <div id="sHymnImagesList" style="display:flex; flex-wrap:wrap; gap:8px; margin-top:8px;"></div>
