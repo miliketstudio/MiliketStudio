@@ -3381,7 +3381,7 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         return data.content.download_url;
     }
 
-    function studioBindDropZone(zoneId, fileInputId, statusId, targetInputId, uploadPath) {
+    function studioBindDropZone(zoneId, fileInputId, statusId, targetInputId, uploadPath, fileNameCtx) {
         const zone = document.getElementById(zoneId);
         const fi   = document.getElementById(fileInputId);
         if(!zone || !fi) return;
@@ -3391,11 +3391,13 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         zone.addEventListener('drop', (e) => {
             e.preventDefault(); zone.classList.remove('drag-over');
             const file = e.dataTransfer.files[0];
-            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
+            const ctx = typeof fileNameCtx === 'function' ? fileNameCtx() : fileNameCtx;
+            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath, ctx);
         });
         fi.addEventListener('change', () => {
             const file = fi.files[0];
-            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath);
+            const ctx = typeof fileNameCtx === 'function' ? fileNameCtx() : fileNameCtx;
+            if(file) studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath, ctx);
             fi.value = '';
         });
         zone.setAttribute('tabindex', '0');
@@ -3702,7 +3704,24 @@ function studioOpenImagePreview(images, startIdx) {
         });
     }
 
-async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath) {
+function generateFileName(fileNameCtx, ext) {
+    if(!fileNameCtx) return null;
+    const pad = n => String(n).padStart(2, '0');
+    if(fileNameCtx.type === 'month') {
+        const monthId = fileNameCtx.monthId;
+        const hi = fileNameCtx.hi + 1;
+        const hyi = fileNameCtx.hyi + 1;
+        const ri = fileNameCtx.ri + 1;
+        return `M${pad(monthId)}-H${pad(hi)}-Y${pad(hyi)}-R${pad(ri)}.${ext}`;
+    } else if(fileNameCtx.type === 'qine') {
+        return `Q-Y${pad(fileNameCtx.hyi + 1)}-R${pad(fileNameCtx.ri + 1)}.${ext}`;
+    } else if(fileNameCtx.type === 'negsh') {
+        return `N-Y${pad(fileNameCtx.hyi + 1)}-R${pad(fileNameCtx.ri + 1)}.${ext}`;
+    }
+    return null;
+}
+
+async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath, fileNameCtx) {
     const statusEl = document.getElementById(statusId);
     const targetEl = document.getElementById(targetInputId);
     const zone     = document.getElementById(zoneId);
@@ -3755,8 +3774,34 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
     }
 
     try {
-        let finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
-        finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
+        let finalName;
+        const ext = fileToUpload.type.startsWith('audio/') ? (fileToUpload.name.split('.').pop().toLowerCase() || 'mp3') : fileToUpload.name.split('.').pop().toLowerCase();
+        const generated = generateFileName(fileNameCtx, ext);
+        if(generated && fileToUpload.type.startsWith('audio/')) {
+            finalName = generated;
+        } else {
+            finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+            finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
+        }
+
+        // check if this filename already exists in GitHub
+        if(fileToUpload.type.startsWith('audio/')) {
+            const allAudioUrls = [
+                ...MONTHS_DATA.flatMap(m => m.holidays.flatMap(h => h.hymns.flatMap(hy => [
+                    ...(hy.kum||[]).map(v => v.src),
+                    ...(hy.aqu?.tach||[]).map(v => v.src),
+                    ...(hy.aqu?.lay||[]).map(v => v.src)
+                ]))),
+                ...QINE_DATA.flatMap(hy => [...(hy.kum||[]).map(v => v.src), ...(hy.aqu?.tach||[]).map(v => v.src)]),
+                ...NEGSH_DATA.flatMap(hy => [...(hy.kum||[]).map(v => v.src), ...(hy.aqu?.tach||[]).map(v => v.src)])
+            ].filter(Boolean);
+            const existingUrl = allAudioUrls.find(url => url && url.includes(finalName));
+            if(existingUrl) {
+                if(targetEl) targetEl.value = existingUrl;
+                if(statusEl) { statusEl.innerText = '✓ Reusing existing file'; statusEl.style.color = 'var(--gold)'; }
+                return;
+            }
+        }
         const url = await studioUploadFile(fileToUpload, `${uploadPath}${finalName}`);
         if (url && targetEl) targetEl.value = url;
         if (statusEl) {
@@ -4144,7 +4189,12 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
         if(!Array.isArray(hymn.images)) hymn.images = hymn.image ? [hymn.image] : [];
         setTimeout(() => {
             studioBindImageDropZone('dz_img', 'fi_img', 'dz_img_status', mi, hi, hyi);
-            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
+            const newRecCtxMonth = () => {
+                const hymn = studioData[mi].holidays[hi].hymns[hyi];
+                const ri = (hymn.kum||[]).length + (hymn.aqu?.tach||[]).length + (hymn.aqu?.lay||[]).length;
+                return { type: 'month', monthId: studioData[mi].id, hi, hyi, ri };
+            };
+            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/', newRecCtxMonth);
             studioRenderRecordingsGrid(mi, hi, hyi);
             studioRenderImagesList(mi, hi, hyi);
             const srcEl = document.getElementById('sNewVerSrc');
@@ -4584,7 +4634,13 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
         if(!Array.isArray(hymn.images)) hymn.images = hymn.image ? [hymn.image] : [];
         setTimeout(() => {
             studioBindImageDropZone('dz_img', 'fi_img', 'dz_img_status', hyi, null, null);
-            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/');
+            const newRecCtxFlat = () => {
+                const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
+                const hymn = data[hyi];
+                const ri = (hymn.kum||[]).length + (hymn.aqu?.tach||[]).length;
+                return { type: studioActivePage, hyi, ri };
+            };
+            studioBindDropZone('dz_new_audio', 'fi_new_audio', 'dz_new_audio_status', 'sNewVerSrc', 'audio/', newRecCtxFlat);
             studioRenderFlatRecordingsGrid(hyi);
             studioRenderImagesList(hyi, null, null);
         }, 0);
