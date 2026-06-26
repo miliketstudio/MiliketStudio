@@ -906,7 +906,7 @@
             border-radius: 40px;
             padding: 6px 16px;
             color: var(--muted);
-            font-size: 0.75rem;
+            font-size: 0.863rem;
             cursor: pointer;
             transition: 0.2s;
             font-family: inherit;
@@ -922,7 +922,7 @@
             border-radius: 40px;
             padding: 5px 14px;
             color: var(--text);
-            font-size: 0.75rem;
+            font-size: 0.863rem;
             cursor: pointer;
             transition: 0.2s;
             font-family: inherit;
@@ -944,7 +944,7 @@
             justify-content: space-between;
             padding: 12px 14px;
             cursor: pointer;
-            font-size: 0.85rem;
+            font-size: 0.978rem;
             font-weight: 500;
             transition: background 0.15s;
             gap: 8px;
@@ -969,7 +969,7 @@
             justify-content: space-between;
             padding: 9px 14px 9px 24px;
             cursor: pointer;
-            font-size: 0.8rem;
+            font-size: 0.92rem;
             color: var(--muted);
             transition: background 0.15s;
             border-bottom: 1px solid var(--border);
@@ -987,7 +987,7 @@
             color: var(--gold);
         }
         .studio-field-label {
-            font-size: 0.65rem;
+            font-size: 0.748rem;
             text-transform: uppercase;
             letter-spacing: 0.12em;
             color: var(--muted);
@@ -1005,7 +1005,7 @@
             border-radius: 12px;
             padding: 10px 14px;
             color: var(--text);
-            font-size: 0.85rem;
+            font-size: 0.978rem;
             outline: none;
             font-family: inherit;
             transition: border-color 0.2s;
@@ -1020,7 +1020,7 @@
             border-radius: 12px;
             padding: 10px 14px;
             color: var(--text);
-            font-size: 0.85rem;
+            font-size: 0.978rem;
             outline: none;
             font-family: 'Abyssinica SIL', serif;
             resize: vertical;
@@ -1051,7 +1051,7 @@
             border-radius: 40px;
             padding: 4px 12px;
             color: #f87171;
-            font-size: 0.7rem;
+            font-size: 0.805rem;
             cursor: pointer;
             font-family: inherit;
             transition: 0.2s;
@@ -1081,7 +1081,7 @@
             border-radius: 8px;
             padding: 5px 8px;
             color: var(--text);
-            font-size: 0.75rem;
+            font-size: 0.863rem;
             outline: none;
             font-family: inherit;
             min-width: 0;
@@ -1109,7 +1109,7 @@
             text-align: center;
             cursor: pointer;
             transition: border-color 0.2s, background 0.2s;
-            font-size: 0.8rem;
+            font-size: 0.92rem;
             color: var(--muted);
             margin-bottom: 6px;
         }
@@ -1569,6 +1569,8 @@
 
     const QINE_DATA = [];
     const NEGSH_DATA = [];
+    const QINE_FOLDERS = [];
+    const NEGSH_FOLDERS = [];
     const GIST_ID = 'b070b16ccb4d0eb452d48c3530c32e1c';
     const GIST_USERNAME = 'miliketstudio';
 
@@ -1884,10 +1886,9 @@ function parseTimeToSec(t) {
     function renderHolidayRows(holiday) {
         const container = document.getElementById('recordingList');
         container.innerHTML = '';
-        const grid = document.createElement('div');
-        grid.className = 'rec-grid';
-        container.appendChild(grid);
-        holiday.hymns.forEach((hymn) => {
+        const folders = holiday.folders || [];
+
+        function renderHymnCards(hymn, parentEl) {
             const kumVersions = hymn.kum || [];
             const aquVersions = [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))];
             const allVersions = [
@@ -1919,9 +1920,55 @@ function parseTimeToSec(t) {
                         setTimeout(() => setPlayerPanelState('timestamps-open'), 300);
                     };
                 }
-                grid.appendChild(card);
+                parentEl.appendChild(card);
             });
+        }
+
+        // render folders as bags
+        folders.forEach((folder) => {
+            const folderHymns = (folder.hymnIds || []).map(hyi => holiday.hymns[hyi]).filter(Boolean);
+            if(!folderHymns.length) return;
+
+            const bag = document.createElement('div');
+            bag.style.cssText = `margin-bottom:20px; border-radius:20px; overflow:hidden;`;
+
+            const header = document.createElement('div');
+            header.style.cssText = `display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;background:#ffffff;border-bottom:1px solid transparent;transition:0.2s;`;
+            header.innerHTML = `
+                <div style="width:10px;height:10px;border-radius:50%;background:${folder.color};flex-shrink:0;"></div>
+                <span style="font-size:0.9rem;font-weight:500;color:#000;flex:1;">${folder.name}</span>
+                <span style="font-size:0.75rem;color:#000;">${folderHymns.length} hymn${folderHymns.length !== 1 ? 's' : ''}</span>
+                <span class="bag-arrow" style="font-size:1.3rem;color:#000;transition:transform 0.2s;line-height:1;">▸</span>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'rec-grid';
+            grid.style.cssText = 'display:none;padding:14px;';
+
+            folderHymns.forEach(hymn => renderHymnCards(hymn, grid));
+
+            header.addEventListener('click', () => {
+                const isOpen = grid.style.display !== 'none';
+                grid.style.display = isOpen ? 'none' : 'grid';
+                header.style.borderBottomColor = isOpen ? 'transparent' : folder.color + '22';
+                header.querySelector('.bag-arrow').style.transform = isOpen ? '' : 'rotate(90deg)';
+            });
+
+            bag.appendChild(header);
+            bag.appendChild(grid);
+            container.appendChild(bag);
         });
+
+        // render unassigned hymns freely
+        const assignedHymnIds = new Set(folders.flatMap(f => f.hymnIds || []));
+        const unassigned = holiday.hymns.filter((_, hyi) => !assignedHymnIds.has(hyi));
+
+        if(unassigned.length) {
+            const grid = document.createElement('div');
+            grid.className = 'rec-grid';
+            unassigned.forEach(hymn => renderHymnCards(hymn, grid));
+            container.appendChild(grid);
+        }
     }
 
     function playHymn(hymn, type, versionIdx, seekTime = null) {
@@ -1939,6 +1986,28 @@ function parseTimeToSec(t) {
         currentTrackObj = { hymn, type, version, clipStart: clipStartSec, clipEnd: clipEndSec, timestamps: version.timestamps || [] };
         userOverrodeImage = false;
         lastAppliedTsImage = null;
+
+        // always fully reset book + YT state before loading new track
+        const overlay = document.getElementById('fullPlayer');
+        const bookBtn = document.getElementById('bookToggleBtn');
+        const pc = document.getElementById('playerContainer');
+        const cs = pc?.querySelector('.center-stage');
+        const cp = pc?.querySelector('.center-player');
+        const ytTsEl = document.getElementById('ytTimestampsList');
+        const timeRow = document.querySelector('.time-row');
+        const existingArt = document.getElementById('ytBookArt');
+
+        if(overlay) overlay.classList.remove('book-open');
+        if(bookBtn) { bookBtn.classList.remove('active'); bookBtn.innerHTML = '📖 View Book'; }
+        if(pc) pc.style.cssText = '';
+        if(cs) cs.style.cssText = '';
+        if(cp) { cp.style.cssText = ''; if(cp.firstElementChild) cp.firstElementChild.style.flexBasis = ''; }
+        if(ytTsEl) { ytTsEl.style.cssText = 'display:none; flex-direction:column;'; }
+        if(timeRow) timeRow.style.display = '';
+        if(existingArt) existingArt.remove();
+        const imgSideReset = document.querySelector('.player-image-side');
+        if(imgSideReset) { imgSideReset.style.flex = ''; imgSideReset.style.width = ''; }
+        setPlayerPanelState(null);
 
         // detect YouTube
         const ytId = extractYoutubeId(version.src);
@@ -2867,9 +2936,9 @@ function renderQueue(){
             container.innerHTML += `<div style="color:var(--muted);padding:60px 0;text-align:center;font-size:0.9rem;border:1px dashed var(--border);border-radius:20px;">No ${sectionLabel} recordings yet — add them via Studio.</div>`;
             return;
         }
-        const grid = document.createElement('div');
-        grid.className = 'rec-grid';
-        data.forEach((hymn) => {
+        const folders = data === QINE_DATA ? QINE_FOLDERS : (data === NEGSH_DATA ? NEGSH_FOLDERS : []);
+
+        function renderFlatHymnCards(hymn, parentEl) {
             const kumVersions = hymn.kum || [];
             const aquVersions = [...(hymn.aqu?.tach||[]).map(v=>({...v,_type:'tach'})), ...(hymn.aqu?.lay||[]).map(v=>({...v,_type:'lay'}))];
             const allVersions = [
@@ -2906,10 +2975,55 @@ function renderQueue(){
                         setTimeout(() => setPlayerPanelState('timestamps-open'), 300);
                     };
                 }
-                grid.appendChild(card);
+                parentEl.appendChild(card);
             });
+        }
+
+        // render folders
+        folders.forEach((folder) => {
+            const folderHymns = (folder.hymnIds || []).map(hyi => data[hyi]).filter(Boolean);
+            if(!folderHymns.length) return;
+
+            const bag = document.createElement('div');
+            bag.style.cssText = `margin-bottom:20px;border-radius:20px;overflow:hidden;`;
+
+            const header = document.createElement('div');
+            header.style.cssText = `display:flex;align-items:center;gap:10px;padding:14px 18px;cursor:pointer;background:#ffffff;border-bottom:1px solid transparent;transition:0.2s;`;
+            header.innerHTML = `
+                <div style="width:10px;height:10px;border-radius:50%;background:${folder.color};flex-shrink:0;"></div>
+                <span style="font-size:0.9rem;font-weight:500;color:#000;flex:1;">${folder.name}</span>
+                <span style="font-size:0.75rem;color:#000;">${folderHymns.length} hymn${folderHymns.length !== 1 ? 's' : ''}</span>
+                <span class="bag-arrow" style="font-size:1.3rem;color:#000;transition:transform 0.2s;line-height:1;">▸</span>
+            `;
+
+            const grid = document.createElement('div');
+            grid.className = 'rec-grid';
+            grid.style.cssText = 'display:none;padding:14px;';
+
+            folderHymns.forEach(hymn => renderFlatHymnCards(hymn, grid));
+
+            header.addEventListener('click', () => {
+                const isOpen = grid.style.display !== 'none';
+                grid.style.display = isOpen ? 'none' : 'grid';
+                header.style.borderBottomColor = isOpen ? 'transparent' : folder.color + '22';
+                header.querySelector('.bag-arrow').style.transform = isOpen ? '' : 'rotate(90deg)';
+            });
+
+            bag.appendChild(header);
+            bag.appendChild(grid);
+            container.appendChild(bag);
         });
-        container.appendChild(grid);
+
+        // unassigned hymns
+        const assignedIds = new Set(folders.flatMap(f => f.hymnIds || []));
+        const unassigned = data.filter((_, hyi) => !assignedIds.has(hyi));
+
+        if(unassigned.length) {
+            const grid = document.createElement('div');
+            grid.className = 'rec-grid';
+            unassigned.forEach(hymn => renderFlatHymnCards(hymn, grid));
+            container.appendChild(grid);
+        }
     }
 
     document.getElementById('categoryTabs')?.addEventListener('click', (e) => {
@@ -3177,7 +3291,7 @@ function stopVisualizer() {
     let studioUnlocked = false;
     let testAudio = null;
     let studioData = JSON.parse(JSON.stringify(MONTHS_DATA)); // deep clone
-    let studioFlatData = { qine: [], negsh: [] }; // flat page working copies
+    let studioFlatData = { qine: [], negsh: [], qineFolders: [], negshFolders: [] };
     let studioSelectedMonth = null;
     let studioSelectedHoliday = null;
     let dragSrcIdx = null;
@@ -3291,7 +3405,12 @@ function studioDrop(e, type, mi, hi, targetIdx) {
     function openStudio() {
         // Always sync from live MONTHS_DATA (already populated by loadFromGist)
         studioData = JSON.parse(JSON.stringify(MONTHS_DATA));
-        studioFlatData = { qine: JSON.parse(JSON.stringify(QINE_DATA)), negsh: JSON.parse(JSON.stringify(NEGSH_DATA)) };
+        studioFlatData = {
+            qine: JSON.parse(JSON.stringify(QINE_DATA)),
+            negsh: JSON.parse(JSON.stringify(NEGSH_DATA)),
+            qineFolders: JSON.parse(JSON.stringify(QINE_FOLDERS)),
+            negshFolders: JSON.parse(JSON.stringify(NEGSH_FOLDERS))
+        };
         document.getElementById('studioOverlay').style.display = 'flex';
         document.body.style.overflow = 'hidden';
         studioActivePage = 'months';
@@ -3300,31 +3419,187 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         studioRenderTree();
         studioSwitchTab('structure');
     }
+    
+    function studioRenderFlatDetail() {
+        const flatFolders = studioActivePage === 'qine' ? studioFlatData.qineFolders : studioFlatData.negshFolders;
+        const flatData = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
+        if(!window._flatActiveFolderIdx && window._flatActiveFolderIdx !== 0) window._flatActiveFolderIdx = null;
+
+        function renderFolderSection() {
+            const activeFi = window._flatActiveFolderIdx;
+            const activeFolder = activeFi !== null && activeFi !== undefined ? flatFolders[activeFi] : null;
+            const tabsEl = document.getElementById('flatFolderTabs');
+            const pickerEl = document.getElementById('flatFolderColorPicker');
+            if(!tabsEl) return;
+
+            tabsEl.innerHTML = flatFolders.length ? flatFolders.map((f, fi) => `
+                <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid ${fi === activeFi ? f.color : 'transparent'};background:${fi === activeFi ? f.color + '22' : 'rgba(255,255,255,0.04)'};cursor:pointer;transition:0.15s;" data-fi="${fi}">
+                    <div style="width:10px;height:10px;border-radius:50%;background:${f.color};flex-shrink:0;"></div>
+                    <span style="font-size:0.75rem;color:${fi === activeFi ? f.color : 'var(--text)'};">${f.name}</span>
+                    <button onclick="event.stopPropagation();studioDeleteFlatFolder(${fi})" style="background:none;border:none;color:${fi === activeFi ? f.color : 'var(--muted)'};cursor:pointer;font-size:0.7rem;padding:0 2px;line-height:1;">✕</button>
+                </div>
+            `).join('') : '<div style="font-size:0.75rem;color:var(--muted);">No folders — hymns show freely</div>';
+
+            if(pickerEl) pickerEl.innerHTML = activeFolder ? `
+                <div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid var(--border);">
+                    <span style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;width:100%;margin-bottom:4px;">Editing: <span style="color:${activeFolder.color};">${activeFolder.name}</span></span>
+                    <span style="font-size:0.65rem;color:var(--muted);">Colour:</span>
+                    ${FOLDER_COLORS.map(c => `<div data-flatcolor="${c}" style="width:18px;height:18px;border-radius:50%;background:${c};cursor:pointer;border:2px solid ${c === activeFolder.color ? '#fff' : 'transparent'};flex-shrink:0;"></div>`).join('')}
+                    <input id="flatFolderNameInput" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text);font-size:0.75rem;width:120px;outline:none;font-family:inherit;margin-left:4px;" value="${activeFolder.name}" placeholder="Folder name">
+                </div>
+            ` : '';
+
+            tabsEl.querySelectorAll('[data-fi]').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+                    const fi = parseInt(el.dataset.fi);
+                    window._flatActiveFolderIdx = window._flatActiveFolderIdx === fi ? null : fi;
+                    renderFolderSection();
+                    renderHymnSection();
+                });
+            });
+
+            if(activeFolder && pickerEl) {
+                pickerEl.querySelectorAll('[data-flatcolor]').forEach(dot => {
+                    dot.addEventListener('click', () => {
+                        activeFolder.color = dot.dataset.flatcolor;
+                        renderFolderSection();
+                    });
+                });
+                const nameInput = document.getElementById('flatFolderNameInput');
+                if(nameInput) {
+                    nameInput.addEventListener('input', () => {
+                        activeFolder.name = nameInput.value || 'New Folder';
+                        const activeTab = tabsEl.querySelector(`[data-fi="${activeFi}"] span`);
+                        if(activeTab) activeTab.innerText = activeFolder.name;
+                    });
+                }
+            }
+        }
+
+        function renderHymnSection() {
+            const activeFi = window._flatActiveFolderIdx;
+            const activeFolder = activeFi !== null && activeFi !== undefined ? flatFolders[activeFi] : null;
+            const hymnList = document.getElementById('flatHymnList');
+            const hymnLabel = document.getElementById('flatHymnLabel');
+            if(!hymnList) return;
+
+            if(hymnLabel) hymnLabel.innerHTML = `Hymns (${flatData.length})${activeFolder ? ` <span style="color:${activeFolder.color};font-size:0.7rem;">— click to assign to "${activeFolder.name}"</span>` : ''}`;
+
+            hymnList.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;';
+            hymnList.innerHTML = flatData.map((hymn, hyi) => {
+                const folder = getFolderForHymn(flatFolders, hyi);
+                const isInActiveFolder = activeFolder && activeFolder.hymnIds && activeFolder.hymnIds.includes(hyi);
+                const highlightStyle = isInActiveFolder
+                    ? `border-color:${activeFolder.color};background:${activeFolder.color}18;`
+                    : (folder ? `border-color:${folder.color}55;` : '');
+                return `
+                <div class="rec-card" data-flat-hyi="${hyi}" style="${highlightStyle}cursor:pointer;">
+                    <div style="flex:1;">
+                        <div class="rec-card-beat">${[
+                            ...(hymn.kum||[]).map(v => v.beat || 'ቁም ዜማ'),
+                            ...(hymn.aqu?.tach||[]).map(v => v.beat || 'አቋቋም ታች'),
+                            ...(hymn.aqu?.lay||[]).map(v => v.beat || 'አቋቋም ላይ')
+                        ].join(' · ') || '—'}</div>
+                        <div class="rec-card-title">${hymn.displayTitle || hymn.title}</div>
+                        ${folder ? `<div style="font-size:0.65rem;padding:2px 8px;border-radius:999px;background:${folder.color}22;color:${folder.color};border:1px solid ${folder.color}44;display:inline-block;margin-top:4px;">${folder.name}</div>` : ''}
+                    </div>
+                    <div class="rec-card-actions" style="margin-top:auto;">
+                        <button class="rec-card-play" onclick="event.stopPropagation();studioSelectedMonth=${hyi};studioSelectedHoliday=null;studioRenderTree();studioEditFlatHymn(${hyi})">Edit</button>
+                        <button class="rec-card-ts" onclick="event.stopPropagation();studioDeleteFlatHymn(${hyi})">Delete</button>
+                    </div>
+                </div>`;
+            }).join('') || '<div style="color:var(--muted);font-size:0.8rem;">No hymns yet</div>';
+
+            hymnList.querySelectorAll('[data-flat-hyi]').forEach(el => {
+                el.addEventListener('click', () => {
+                    const hyi = parseInt(el.dataset.flatHyi);
+                    if(activeFolder) {
+                        if(!Array.isArray(activeFolder.hymnIds)) activeFolder.hymnIds = [];
+                        flatFolders.forEach((f, fi) => {
+                            if(fi !== activeFi && f.hymnIds) f.hymnIds = f.hymnIds.filter(id => id !== hyi);
+                        });
+                        const idx = activeFolder.hymnIds.indexOf(hyi);
+                        if(idx === -1) activeFolder.hymnIds.push(hyi);
+                        else activeFolder.hymnIds.splice(idx, 1);
+                        renderHymnSection();
+                    } else {
+                        studioSelectedMonth = hyi;
+                        studioSelectedHoliday = null;
+                        studioRenderTree();
+                        studioEditFlatHymn(hyi);
+                    }
+                });
+            });
+        }
+
+        document.getElementById('studioDetail').innerHTML = `
+            <div style="max-width:960px;">
+                <div style="color:var(--muted);font-size:0.85rem;margin-bottom:24px;">Select an item from the list to edit</div>
+
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);">Folders</span>
+                    <div style="display:flex;gap:8px;">
+                        <button class="studio-add-btn" id="flatAddFolderBtn">+ Folder</button>
+                        <button class="studio-add-btn" style="background:var(--gold);color:#000;border-color:var(--gold);" id="flatSaveFoldersBtn">Save Folders</button>
+                    </div>
+                </div>
+                <div id="flatFolderTabs" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;"></div>
+                <div id="flatFolderColorPicker"></div>
+
+                <hr class="studio-section-divider">
+
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span id="flatHymnLabel" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);">Hymns (${flatData.length})</span>
+                    <button class="studio-add-btn" onclick="studioAddFlatHymn()">+ Hymn</button>
+                </div>
+                <div id="flatHymnList"></div>
+            </div>
+        `;
+
+        document.getElementById('flatAddFolderBtn')?.addEventListener('click', () => {
+            const color = getNextFolderColor(flatFolders);
+            flatFolders.push({ id: 'f' + Date.now(), name: 'New Folder', color, hymnIds: [] });
+            window._flatActiveFolderIdx = flatFolders.length - 1;
+            renderFolderSection();
+            renderHymnSection();
+        });
+
+        document.getElementById('flatSaveFoldersBtn')?.addEventListener('click', () => {
+            studioSetStatus('Folders saved ✓ — click Save JSON to publish');
+        });
+
+        renderFolderSection();
+        renderHymnSection();
+    }
 
     function studioApplyPageMode() {
         const label = document.getElementById('studioTreeLabel');
         const addBtn = document.getElementById('studioAddTopBtn');
+        const labelRow = label?.parentElement;
         if(studioActivePage === 'months') {
+            if(labelRow) labelRow.style.display = '';
             label.innerText = 'Months & Holidays';
             addBtn.innerText = '+ Month';
             addBtn.onclick = () => studioAddMonth();
         } else if(studioActivePage === 'qine') {
-            label.innerText = 'ቅኔ Hymns';
-            addBtn.innerText = '+ Hymn';
-            addBtn.onclick = () => studioAddFlatHymn();
+            if(labelRow) labelRow.style.display = 'none';
         } else {
-            label.innerText = 'ነግሥ Hymns';
-            addBtn.innerText = '+ Hymn';
-            addBtn.onclick = () => studioAddFlatHymn();
+            if(labelRow) labelRow.style.display = 'none';
         }
         studioSelectedMonth = null;
         studioSelectedHoliday = null;
-        document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted);font-size:0.85rem;margin-top:40px;text-align:center;">Select an item from the list</div>';
         studioRenderTree();
+        if(studioActivePage === 'months') {
+            document.getElementById('studioDetail').innerHTML = '<div style="color:var(--muted); font-size:0.85rem; margin-top:40px; text-align:center;">Select a month or holiday from the tree</div>';
+        } else {
+            studioRenderFlatDetail();
+        }
     }
 
     document.getElementById('studioPageSelect')?.addEventListener('change', (e) => {
         studioActivePage = e.target.value;
+        window._flatActiveFolderIdx = null;
         studioApplyPageMode();
     });
     document.getElementById('studioCloseBtn').addEventListener('click', () => {
@@ -3704,6 +3979,26 @@ function studioOpenImagePreview(images, startIdx) {
         });
     }
 
+const FOLDER_COLORS = [
+    '#fef08a', // gold
+    '#818cf8', // indigo
+    '#34d399', // emerald
+    '#fb923c', // amber
+    '#fb7185', // rose
+    '#c084fc', // violet
+];
+
+function getNextFolderColor(folders) {
+    const used = (folders || []).map(f => f.color);
+    const next = FOLDER_COLORS.find(c => !used.includes(c));
+    return next || FOLDER_COLORS[folders.length % FOLDER_COLORS.length];
+}
+
+function getFolderForHymn(folders, hyi) {
+    if(!folders || !folders.length) return null;
+    return folders.find(f => f.hymnIds && f.hymnIds.includes(hyi)) || null;
+}
+
 function generateFileName(fileNameCtx, ext) {
     if(!fileNameCtx) return null;
     const pad = n => String(n).padStart(2, '0');
@@ -3803,7 +4098,15 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
             }
         }
         const url = await studioUploadFile(fileToUpload, `${uploadPath}${finalName}`);
-        if (url && targetEl) targetEl.value = url;
+        if (url && targetEl) {
+            targetEl.value = url;
+            // auto-fill duration if this is an audio drop zone
+            if(fileToUpload.type.startsWith('audio/')) {
+                const durId = targetInputId === 'sNewVerSrc' ? 'sNewVerDuration'
+                    : targetInputId.replace('rec-src-', 'grec-duration-').replace('grec-src-', 'grec-duration-').replace('fgrec-src-', 'fgrec-duration-');
+                autoFillDuration(targetInputId, durId);
+            }
+        }
         if (statusEl) {
             statusEl.innerText = '✓ Uploaded' + (isCompressed ? ' (compressed)' : '');
             statusEl.style.color = 'var(--gold)';
@@ -3820,8 +4123,8 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
     function autoFillDuration(srcId, durId) {
         const src = document.getElementById(srcId)?.value.trim();
         const durEl = document.getElementById(durId);
-        if(!src || !durEl || durEl.value.trim()) return; // don't overwrite manual entry
-        if(extractYoutubeId(src)) return; // skip YouTube
+        if(!src || !durEl || durEl.value.trim()) return;
+        if(extractYoutubeId(src)) return;
         const tmp = new Audio(src);
         tmp.addEventListener('loadedmetadata', () => {
             const m = Math.floor(tmp.duration / 60);
@@ -3853,7 +4156,9 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
             const payload = {
                 months: stripBlobUrls(studioData),
                 qine: stripBlobUrls(QINE_DATA),
-                negsh: stripBlobUrls(NEGSH_DATA)
+                qineFolders: studioFlatData.qineFolders || [],
+                negsh: stripBlobUrls(NEGSH_DATA),
+                negshFolders: studioFlatData.negshFolders || []
             };
             const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                 method: 'PATCH',
@@ -3894,28 +4199,6 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
                 tree.innerHTML = '<div style="color:var(--muted);font-size:0.8rem;padding:16px 4px;">No hymns yet — click + Hymn above.</div>';
                 return;
             }
-            flatData.forEach((hymn, hyi) => {
-                const row = document.createElement('div');
-                row.className = 'studio-tree-month';
-                const isSelected = studioSelectedMonth === hyi && studioSelectedHoliday === null;
-                row.innerHTML = `
-                    <div class="studio-tree-month-header ${isSelected ? 'selected' : ''}" style="cursor:pointer;">
-                        <span style="font-family:'Abyssinica SIL',serif; flex:1;">${hymn.displayTitle || hymn.title}</span>
-                        <span style="color:var(--muted); font-size:0.7rem;">${[
-                            ...(hymn.kum||[]).map(v => v.beat || 'ቁም'),
-                            ...(hymn.aqu?.tach||[]).map(v => v.beat || 'አቋቋም'),
-                            ...(hymn.aqu?.lay||[]).map(v => v.beat || 'አቋቋም ላይ')
-                        ].join(' · ')}</span>
-                    </div>
-                `;
-                row.querySelector('.studio-tree-month-header').onclick = () => {
-                    studioSelectedMonth = hyi;
-                    studioSelectedHoliday = null;
-                    studioRenderTree();
-                    studioEditFlatHymn(hyi);
-                };
-                tree.appendChild(row);
-            });
             return;
         }
 
@@ -4025,55 +4308,221 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
     }
 
     // --- holiday detail ---
+    let studioActiveFolderIdx = null;
+
     function studioShowHolidayDetail(mi, hi) {
         const holiday = studioData[mi].holidays[hi];
-        const hymnsHtml = holiday.hymns.map((hymn, hyi) => `
-            <div class="studio-hymn-row" draggable="true" data-hyi="${hyi}"
-                ondragstart="studioDragStart(event,'hymn',${mi},${hi},${hyi})"
-                ondragover="studioDragOver(event)"
-                ondragleave="studioDragLeave(event)"
-                ondrop="studioDrop(event,'hymn',${mi},${hi},${hyi})">
-                <div style="flex:1;">
-                    <div style="font-size:0.85rem; font-family:'Abyssinica SIL',serif;">${hymn.title}</div>
-                    <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">
-                        ${[
+        if(!Array.isArray(holiday.folders)) holiday.folders = [];
+        studioActiveFolderIdx = null;
+
+        function renderFolderSection() {
+            const folders = holiday.folders;
+            const activeFi = studioActiveFolderIdx;
+            const activeFolder = activeFi !== null ? folders[activeFi] : null;
+
+            const folderSection = document.getElementById('studioFolderSection');
+            if(!folderSection) return;
+
+            const folderTabsHtml = folders.map((f, fi) => `
+                <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:2px solid ${fi === activeFi ? f.color : 'transparent'};background:${fi === activeFi ? f.color + '22' : 'rgba(255,255,255,0.04)'};cursor:pointer;transition:0.15s;" data-fi="${fi}">
+                    <div style="width:12px;height:12px;border-radius:50%;background:${f.color};flex-shrink:0;"></div>
+                    <span style="font-size:0.8rem;color:${fi === activeFi ? f.color : 'var(--text)'};">${f.name}</span>
+                    <button onclick="event.stopPropagation();studioDeleteFolderNoRender(${mi},${hi},${fi})" style="background:none;border:none;color:${fi === activeFi ? f.color : 'var(--muted)'};cursor:pointer;font-size:0.75rem;padding:0 2px;line-height:1;">✕</button>
+                </div>
+            `).join('');
+
+            const colorPickerHtml = activeFolder ? `
+                <div style="display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap;padding:10px 12px;background:rgba(255,255,255,0.03);border-radius:12px;border:1px solid var(--border);">
+                    <span style="font-size:0.65rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;width:100%;margin-bottom:4px;">Editing: <span style="color:${activeFolder.color};">${activeFolder.name}</span></span>
+                    <span style="font-size:0.65rem;color:var(--muted);">Colour:</span>
+                    ${FOLDER_COLORS.map(c => `
+                        <div data-color="${c}" style="width:20px;height:20px;border-radius:50%;background:${c};cursor:pointer;border:2px solid ${c === activeFolder.color ? '#fff' : 'transparent'};transition:0.15s;flex-shrink:0;"></div>
+                    `).join('')}
+                    <input id="folderNameInput" style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:4px 10px;color:var(--text);font-size:0.8rem;width:130px;outline:none;font-family:inherit;margin-left:4px;" 
+                        value="${activeFolder.name}" 
+                        placeholder="Folder name">
+                </div>
+            ` : '';
+
+            folderSection.innerHTML = `
+                <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px;" id="studioFolderTabs">
+                    ${folderTabsHtml || '<div style="font-size:0.75rem;color:var(--muted);">No folders — hymns show freely</div>'}
+                </div>
+                ${colorPickerHtml}
+            `;
+
+            // bind folder tab clicks — toggle active, don't re-render whole panel
+            folderSection.querySelectorAll('[data-fi]').forEach(el => {
+                el.addEventListener('click', (e) => {
+                    if(e.target.tagName === 'BUTTON') return;
+                    const fi = parseInt(el.dataset.fi);
+                    studioActiveFolderIdx = studioActiveFolderIdx === fi ? null : fi;
+                    renderFolderSection();
+                    renderHymnSection();
+                });
+            });
+
+            // colour dots — update without closing
+            if(activeFolder) {
+                folderSection.querySelectorAll('[data-color]').forEach(dot => {
+                    dot.addEventListener('click', () => {
+                        activeFolder.color = dot.dataset.color;
+                        renderFolderSection();
+                        renderHymnSection();
+                    });
+                });
+                const nameInput = document.getElementById('folderNameInput');
+                if(nameInput) {
+                    nameInput.addEventListener('input', () => {
+                        activeFolder.name = nameInput.value || 'New Folder';
+                        // update the tab label live without full re-render
+                        const activeTab = folderSection.querySelector(`[data-fi="${activeFi}"] span:first-of-type`);
+                        if(activeTab) activeTab.innerText = activeFolder.name;
+                    });
+                }
+            }
+        }
+
+        function renderHymnSection() {
+            const activeFi = studioActiveFolderIdx;
+            const activeFolder = activeFi !== null ? holiday.folders[activeFi] : null;
+            const hymnList = document.getElementById('studioHymnList');
+            const hymnLabel = document.getElementById('studioHymnLabel');
+            if(!hymnList) return;
+
+            if(hymnLabel) hymnLabel.innerHTML = `Hymns (${holiday.hymns.length})${activeFolder ? ` <span style="color:${activeFolder.color};font-size:0.7rem;">— click to assign to "${activeFolder.name}"</span>` : ''}`;
+
+            hymnList.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;';
+            hymnList.innerHTML = holiday.hymns.map((hymn, hyi) => {
+                const folder = getFolderForHymn(holiday.folders, hyi);
+                const isInActiveFolder = activeFolder && activeFolder.hymnIds && activeFolder.hymnIds.includes(hyi);
+                const highlightStyle = isInActiveFolder
+                    ? `border-color:${activeFolder.color};background:${activeFolder.color}18;`
+                    : (folder ? `border-color:${folder.color}55;` : '');
+                return `
+                <div class="rec-card" draggable="true" data-hyi="${hyi}" data-toggle-hyi="${hyi}"
+                    style="${highlightStyle}cursor:${activeFolder ? 'pointer' : 'default'};"
+                    ondragstart="studioDragStart(event,'hymn',${mi},${hi},${hyi})"
+                    ondragover="studioDragOver(event)"
+                    ondragleave="studioDragLeave(event)"
+                    ondrop="studioDrop(event,'hymn',${mi},${hi},${hyi})">
+                    <div style="flex:1;">
+                        <div class="rec-card-beat">${[
                             ...(hymn.kum||[]).map(v => v.beat || 'ቁም ዜማ'),
                             ...(hymn.aqu?.tach||[]).map(v => v.beat || 'አቋቋም ታች'),
                             ...(hymn.aqu?.lay||[]).map(v => v.beat || 'አቋቋም ላይ')
-                        ].join(' · ')}
+                        ].join(' · ') || '—'}</div>
+                        <div class="rec-card-title">${hymn.title}</div>
+                        ${folder ? `<div style="font-size:0.65rem;padding:2px 8px;border-radius:999px;background:${folder.color}22;color:${folder.color};border:1px solid ${folder.color}44;display:inline-block;margin-top:4px;">${folder.name}</div>` : ''}
                     </div>
-                </div>
-                <button class="studio-add-btn" onclick="studioEditHymn(${mi},${hi},${hyi})">Edit</button>
-                <button class="studio-delete-btn" onclick="studioDeleteHymn(${mi},${hi},${hyi})">Delete</button>
-            </div>
-        `).join('');
+                    <div class="rec-card-actions" style="margin-top:auto;">
+                        <button class="rec-card-play" onclick="event.stopPropagation();studioEditHymn(${mi},${hi},${hyi})">Edit</button>
+                        <button class="rec-card-ts" onclick="event.stopPropagation();studioDeleteHymn(${mi},${hi},${hyi})">Delete</button>
+                    </div>
+                </div>`;
+            }).join('') || '<div style="color:var(--muted);font-size:0.8rem;">No hymns yet</div>';
+
+            // bind hymn toggle clicks — only on the left side, not edit/delete buttons
+            hymnList.querySelectorAll('[data-toggle-hyi]').forEach(el => {
+                el.addEventListener('click', () => {
+                    if(studioActiveFolderIdx === null) return;
+                    const hyi = parseInt(el.dataset.toggleHyi);
+                    const folder = holiday.folders[studioActiveFolderIdx];
+                    if(!folder) return;
+                    if(!Array.isArray(folder.hymnIds)) folder.hymnIds = [];
+                    holiday.folders.forEach((f, fi) => {
+                        if(fi !== studioActiveFolderIdx && f.hymnIds) f.hymnIds = f.hymnIds.filter(id => id !== hyi);
+                    });
+                    const idx = folder.hymnIds.indexOf(hyi);
+                    if(idx === -1) folder.hymnIds.push(hyi);
+                    else folder.hymnIds.splice(idx, 1);
+                    renderHymnSection();
+                });
+            });
+        }
 
         document.getElementById('studioDetail').innerHTML = `
-            <div style="max-width:600px;">
-                <div style="font-size:1rem; font-weight:500; margin-bottom:24px; color:var(--gold);">${holiday.name}</div>
+            <div style="max-width:960px;">
+                <div style="font-size:1rem;font-weight:500;margin-bottom:24px;color:var(--gold);">${holiday.name}</div>
                 <label class="studio-field-label">Holiday name</label>
-                <input class="studio-input" id="sHolName" value="${holiday.name}">
+                <input class="studio-input" id="sHolName" value="${holiday.name}" style="max-width:320px;">
                 <label class="studio-field-label">Folder slug (used in file paths)</label>
-                <div style="font-size: 0.7rem; color: var(--muted); margin-top: 4px;">
+                <div style="font-size:0.7rem;color:var(--muted);margin-top:4px;">
                     Allowed: a–z 0–9 _ - . &nbsp;&nbsp;|&nbsp;&nbsp;
                     Not allowed: spaces / \\ : ; , ? ! &amp; @ # % * + = &lt; &gt; [ ] { } | " ' and non‑English letters
                 </div>
-                <input class="studio-input" id="sHolFolder" value="${holiday.folder || ''}">
+                <input class="studio-input" id="sHolFolder" value="${holiday.folder || ''}" style="max-width:320px;">
                 <hr class="studio-section-divider">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                    <span style="font-size:0.65rem; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);">Hymns (${holiday.hymns.length})</span>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                    <span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);">Folders</span>
+                    <div style="display:flex;gap:8px;">
+                        <button class="studio-add-btn" onclick="studioAddFolderNoRender(${mi},${hi})">+ Folder</button>
+                        <button class="studio-add-btn" style="background:var(--gold);color:#000;border-color:var(--gold);" onclick="studioSaveFolders(${mi},${hi})">Save Folders</button>
+                    </div>
+                </div>
+                <div id="studioFolderSection"></div>
+                <hr class="studio-section-divider">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <span id="studioHymnLabel" style="font-size:0.65rem;text-transform:uppercase;letter-spacing:0.12em;color:var(--muted);">Hymns (${holiday.hymns.length})</span>
                     <button class="studio-add-btn" onclick="studioAddHymn(${mi},${hi})">+ Hymn</button>
                 </div>
-                <div id="studioHymnList">${hymnsHtml || '<div style="color:var(--muted);font-size:0.8rem;">No hymns yet</div>'}</div>
+                <div id="studioHymnList"></div>
                 <hr class="studio-section-divider">
-                <div style="display:flex; gap:10px;">
+                <div style="display:flex;gap:10px;">
                     <button class="studio-add-btn" onclick="studioSaveHoliday(${mi},${hi})">Save holiday</button>
                     <button class="studio-delete-btn" onclick="studioDeleteHoliday(${mi},${hi})">Delete holiday</button>
                 </div>
             </div>
         `;
+
+        renderFolderSection();
+        renderHymnSection();
     }
 
+    function studioAddFolderNoRender(mi, hi) {
+        const holiday = studioData[mi].holidays[hi];
+        if(!Array.isArray(holiday.folders)) holiday.folders = [];
+        const color = getNextFolderColor(holiday.folders);
+        holiday.folders.push({ id: 'f' + Date.now(), name: 'New Folder', color, hymnIds: [] });
+        studioActiveFolderIdx = holiday.folders.length - 1;
+        const folderSection = document.getElementById('studioFolderSection');
+        if(folderSection) {
+            // re-run render functions without rebuilding whole panel
+            studioShowHolidayDetail(mi, hi);
+        }
+    }
+
+    function studioDeleteFolderNoRender(mi, hi, fi) {
+        const holiday = studioData[mi].holidays[hi];
+        holiday.folders.splice(fi, 1);
+        if(studioActiveFolderIdx === fi) studioActiveFolderIdx = null;
+        else if(studioActiveFolderIdx > fi) studioActiveFolderIdx--;
+        studioShowHolidayDetail(mi, hi);
+    }
+
+    function studioSaveFolders(mi, hi) {
+        // folders are already live on studioData, just show confirmation
+        studioSetStatus('Folders saved ✓ — click Save JSON to publish');
+    }
+
+    function studioAddFolder(mi, hi) { studioAddFolderNoRender(mi, hi); }
+    function studioDeleteFolder(mi, hi, fi) { studioDeleteFolderNoRender(mi, hi, fi); }
+    function studioRenameFolderInline(mi, hi, fi, name) {
+        studioData[mi].holidays[hi].folders[fi].name = name.trim() || 'New Folder';
+    }
+    function studioSetFolderColor(mi, hi, fi, color) {
+        studioData[mi].holidays[hi].folders[fi].color = color;
+    }
+    function studioToggleHymnFolder(mi, hi, hyi) {
+        const holiday = studioData[mi].holidays[hi];
+        if(studioActiveFolderIdx === null) return;
+        const folder = holiday.folders[studioActiveFolderIdx];
+        if(!folder || !Array.isArray(folder.hymnIds)) return;
+        const idx = folder.hymnIds.indexOf(hyi);
+        if(idx === -1) folder.hymnIds.push(hyi);
+        else folder.hymnIds.splice(idx, 1);
+    }
+    
     function studioSaveHoliday(mi, hi) {
         studioData[mi].holidays[hi].name = document.getElementById('sHolName').value.trim();
         studioData[mi].holidays[hi].folder = document.getElementById('sHolFolder').value.trim();
@@ -4198,7 +4647,10 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
             studioRenderRecordingsGrid(mi, hi, hyi);
             studioRenderImagesList(mi, hi, hyi);
             const srcEl = document.getElementById('sNewVerSrc');
-            if(srcEl) srcEl.addEventListener('change', () => autoFillDuration('sNewVerSrc', 'sNewVerDuration'));
+            if(srcEl) {
+                srcEl.addEventListener('change', () => autoFillDuration('sNewVerSrc', 'sNewVerDuration'));
+                srcEl.addEventListener('input', () => autoFillDuration('sNewVerSrc', 'sNewVerDuration'));
+            }
         }, 0);
     }
 
@@ -4929,6 +5381,14 @@ function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
     });
 }
 
+    function studioDeleteFlatFolder(fi) {
+        const flatFolders = studioActivePage === 'qine' ? studioFlatData.qineFolders : studioFlatData.negshFolders;
+        flatFolders.splice(fi, 1);
+        if(window._flatActiveFolderIdx === fi) window._flatActiveFolderIdx = null;
+        else if(window._flatActiveFolderIdx > fi) window._flatActiveFolderIdx--;
+        studioRenderTree();
+    }
+
     function studioAddFlatHymn() {
         const data = studioActivePage === 'qine' ? studioFlatData.qine : studioFlatData.negsh;
         data.push({ title: 'New Hymn', kum: [], aqu: { tach: [], lay: [] } });
@@ -4959,12 +5419,14 @@ function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
         const payload = {
             months: studioData,
             qine: QINE_DATA,
-            negsh: NEGSH_DATA
+            qineFolders: QINE_FOLDERS,
+            negsh: NEGSH_DATA,
+            negshFolders: NEGSH_FOLDERS
         };
         document.getElementById('studioJsonPreview').value = JSON.stringify(payload, null, 2);
     }
     function studioDownloadJson() {
-        const payload = { months: studioData, qine: QINE_DATA, negsh: NEGSH_DATA };
+        const payload = { months: studioData, qine: QINE_DATA, qineFolders: QINE_FOLDERS, negsh: NEGSH_DATA, negshFolders: NEGSH_FOLDERS };
         const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
@@ -4987,6 +5449,8 @@ function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
                     if(Array.isArray(parsed.months)) studioData = parsed.months;
                     if(Array.isArray(parsed.qine))  { QINE_DATA.length=0;  parsed.qine.forEach(h=>QINE_DATA.push(h));  }
                     if(Array.isArray(parsed.negsh)) { NEGSH_DATA.length=0; parsed.negsh.forEach(h=>NEGSH_DATA.push(h)); }
+                    if(Array.isArray(parsed.qineFolders))  { QINE_FOLDERS.length=0;  parsed.qineFolders.forEach(f=>QINE_FOLDERS.push(f));  }
+                    if(Array.isArray(parsed.negshFolders)) { NEGSH_FOLDERS.length=0; parsed.negshFolders.forEach(f=>NEGSH_FOLDERS.push(f)); }
                 } else { throw new Error('Unrecognized format'); }
                 studioSelectedMonth = null;
                 studioSelectedHoliday = null;
@@ -5019,6 +5483,10 @@ function studioRenderTsImgList(containerId, timestamps, flatIdx, isFlat) {
         stripBlobUrls(studioFlatData.qine).forEach(h => QINE_DATA.push(h));
         NEGSH_DATA.length = 0;
         stripBlobUrls(studioFlatData.negsh).forEach(h => NEGSH_DATA.push(h));
+        QINE_FOLDERS.length = 0;
+        (studioFlatData.qineFolders || []).forEach(f => QINE_FOLDERS.push(f));
+        NEGSH_FOLDERS.length = 0;
+        (studioFlatData.negshFolders || []).forEach(f => NEGSH_FOLDERS.push(f));
         renderMonths();
         if(activeTab === 'qine') renderFlatHymnList('qineView', QINE_DATA, 'ቅኔ');
         if(activeTab === 'negsh') renderFlatHymnList('negshView', NEGSH_DATA, 'ነግሥ');
@@ -5073,6 +5541,8 @@ async function loadFromGist() {
             if (Array.isArray(data.months) && data.months.length > 0) { MONTHS_DATA.length = 0; data.months.forEach(m => MONTHS_DATA.push(m)); }
             if (Array.isArray(data.qine))  { QINE_DATA.length  = 0; data.qine.forEach(h  => QINE_DATA.push(h));  }
             if (Array.isArray(data.negsh)) { NEGSH_DATA.length = 0; data.negsh.forEach(h => NEGSH_DATA.push(h)); }
+            if (Array.isArray(data.qineFolders))  { QINE_FOLDERS.length  = 0; data.qineFolders.forEach(f  => QINE_FOLDERS.push(f));  }
+            if (Array.isArray(data.negshFolders)) { NEGSH_FOLDERS.length = 0; data.negshFolders.forEach(f => NEGSH_FOLDERS.push(f)); }
         }
         migrateHymnImages();
         renderMonths();
@@ -5089,6 +5559,8 @@ async function loadFromGist() {
             if (Array.isArray(data.months) && data.months.length > 0) { MONTHS_DATA.length = 0; data.months.forEach(m => MONTHS_DATA.push(m)); }
             if (Array.isArray(data.qine))  { QINE_DATA.length  = 0; data.qine.forEach(h  => QINE_DATA.push(h));  }
             if (Array.isArray(data.negsh)) { NEGSH_DATA.length = 0; data.negsh.forEach(h => NEGSH_DATA.push(h)); }
+            if (Array.isArray(data.qineFolders))  { QINE_FOLDERS.length  = 0; data.qineFolders.forEach(f  => QINE_FOLDERS.push(f));  }
+            if (Array.isArray(data.negshFolders)) { NEGSH_FOLDERS.length = 0; data.negshFolders.forEach(f => NEGSH_FOLDERS.push(f)); }
         }
         sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));   // ← inside try
         sessionStorage.setItem(CACHE_TS, Date.now());              // ← inside try
@@ -5256,14 +5728,54 @@ async function loadFromGist() {
     });
 
     // Fullscreen
+    let fakeFullscreenActive = false;
+
+    function enterFakeFullscreen() {
+        const imgSide = document.querySelector('.player-image-side');
+        const ctrlSide = document.querySelector('.player-controls-side');
+        const btn = document.getElementById('imgFullscreenBtn');
+        if(!imgSide) return;
+        fakeFullscreenActive = true;
+        imgSide.style.cssText = 'position:fixed;inset:0;z-index:9999;width:100vw;height:100vh;border-radius:0;background:#000;display:flex;align-items:center;justify-content:center;flex:none;';
+        if(ctrlSide) ctrlSide.style.display = 'none';
+        if(btn) { btn.innerText = '✕ Exit'; btn.style.zIndex = '10000'; }
+        document.body.style.overflow = 'hidden';
+    }
+
+    function exitFakeFullscreen() {
+        const imgSide = document.querySelector('.player-image-side');
+        const ctrlSide = document.querySelector('.player-controls-side');
+        const btn = document.getElementById('imgFullscreenBtn');
+        if(!imgSide) return;
+        fakeFullscreenActive = false;
+        imgSide.style.cssText = '';
+        if(ctrlSide) ctrlSide.style.display = '';
+        if(btn) { btn.innerText = '⛶ Fullscreen'; btn.style.zIndex = ''; }
+        document.body.style.overflow = 'hidden'; // player is still open
+    }
+
+    function isTouchDevice() {
+        return ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+    }
+
     document.getElementById('imgFullscreenBtn')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const el = document.getElementById('playerBigImage');
         if(!el) return;
-        if(!document.fullscreenElement) {
-            el.requestFullscreen?.() || el.webkitRequestFullscreen?.();
+
+        if(fakeFullscreenActive) {
+            exitFakeFullscreen();
+            return;
+        }
+
+        if(isTouchDevice() || !document.documentElement.requestFullscreen) {
+            enterFakeFullscreen();
         } else {
-            document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+            if(!document.fullscreenElement) {
+                el.requestFullscreen?.() || el.webkitRequestFullscreen?.();
+            } else {
+                document.exitFullscreen?.() || document.webkitExitFullscreen?.();
+            }
         }
     });
 
@@ -5272,6 +5784,21 @@ async function loadFromGist() {
         if(!btn) return;
         btn.innerText = document.fullscreenElement ? '✕ Exit' : '⛶ Fullscreen';
     });
+
+    // exit fake fullscreen on swipe down
+    document.querySelector('.player-image-side')?.addEventListener('touchend', (e) => {
+        if(!fakeFullscreenActive) return;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        const dt = Date.now() - swipeStartTime;
+        if(dt < 400 && dy > 80) exitFakeFullscreen();
+    }, { passive: true });
+
+    // exit fake fullscreen if player is closed
+    const origClosePlayer = closeFullPlayer;
+    closeFullPlayer = function() {
+        if(fakeFullscreenActive) exitFakeFullscreen();
+        origClosePlayer();
+    };
 
     loadFromGist();
 </script>
