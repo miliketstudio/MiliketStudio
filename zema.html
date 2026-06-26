@@ -3702,63 +3702,75 @@ function studioOpenImagePreview(images, startIdx) {
         });
     }
 
-    async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath) {
-        const statusEl = document.getElementById(statusId);
-        const targetEl = document.getElementById(targetInputId);
-        const zone     = document.getElementById(zoneId);
-        
-        let fileToUpload = file;
-        let isCompressed = false;
-        let previewUrl = null;
-        
-        if (file.type.startsWith('image/')) {
-            if (statusEl) { statusEl.innerText = 'Compressing…'; statusEl.style.color = 'var(--gold)'; }
-            try {
-                const compressedBlob = await compressImage(file);
-                // Extract base name without extension safely
-                const baseNameOnly = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
-                fileToUpload = new File([compressedBlob], baseNameOnly + '.jpg', { type: 'image/jpeg' });
-                isCompressed = true;
-                
-                // Render UI preview
-                previewUrl = URL.createObjectURL(fileToUpload);
-                if (zone) {
-                    zone.style.backgroundImage = `url('${previewUrl}')`;
-                    zone.style.backgroundSize = 'cover';
-                    zone.style.backgroundPosition = 'center';
-                }
-            } catch(err) {
-                if (statusEl) { statusEl.innerText = '⚠ Compression failed, using original'; statusEl.style.color = '#f87171'; }
-                fileToUpload = file;
-            }
-        }
-        
-        if (statusEl) { 
-            statusEl.innerText = isCompressed ? 'Uploading compressed…' : 'Uploading…'; 
-            statusEl.style.color = 'var(--gold)';
-        }
-        
+async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploadPath) {
+    const statusEl = document.getElementById(statusId);
+    const targetEl = document.getElementById(targetInputId);
+    const zone     = document.getElementById(zoneId);
+
+    // If it's a WAV file, convert to MP3 via Cloudflare Worker first
+    if (file.type === 'audio/wav' || file.name.toLowerCase().endsWith('.wav')) {
+        if (statusEl) { statusEl.innerText = '🔄 Converting WAV to MP3…'; statusEl.style.color = 'var(--gold)'; }
         try {
-            // Clean up unsafe characters from filename string
-            let finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
-            // Safeguard to prevent double extensions like file-.jpg.jpg
-            finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
-            
-            const url = await studioUploadFile(fileToUpload, `${uploadPath}${finalName}`);
-            if (url && targetEl) targetEl.value = url;
-            if (statusEl) { 
-                statusEl.innerText = '✓ Uploaded' + (isCompressed ? ' (compressed)' : ''); 
-                statusEl.style.color = 'var(--gold)'; 
-            }
+            const res = await fetch('https://wild-hill-4221.miliketstudio.workers.dev', {
+                method: 'POST',
+                body: file
+            });
+            if (!res.ok) throw new Error('Conversion failed: ' + await res.text());
+            const mp3Blob = await res.blob();
+            const baseName = file.name.replace(/\.wav$/i, '');
+            file = new File([mp3Blob], baseName + '.mp3', { type: 'audio/mpeg' });
+            if (statusEl) { statusEl.innerText = '✓ Converted to MP3, uploading…'; statusEl.style.color = 'var(--gold)'; }
         } catch(err) {
-            if (statusEl) { statusEl.innerText = '⚠ ' + err.message; statusEl.style.color = '#f87171'; }
-        } finally {
-            // Free up the preview resource allocation once the upload sequence finishes
-            if (previewUrl) {
-                setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
-            }
+            if (statusEl) { statusEl.innerText = '⚠ WAV conversion failed: ' + err.message; statusEl.style.color = '#f87171'; }
+            return;
         }
     }
+
+    let fileToUpload = file;
+    let isCompressed = false;
+    let previewUrl = null;
+
+    if (file.type.startsWith('image/')) {
+        if (statusEl) { statusEl.innerText = 'Compressing…'; statusEl.style.color = 'var(--gold)'; }
+        try {
+            const compressedBlob = await compressImage(file);
+            const baseNameOnly = file.name.substring(0, file.name.lastIndexOf('.')) || file.name;
+            fileToUpload = new File([compressedBlob], baseNameOnly + '.jpg', { type: 'image/jpeg' });
+            isCompressed = true;
+            previewUrl = URL.createObjectURL(fileToUpload);
+            if (zone) {
+                zone.style.backgroundImage = `url('${previewUrl}')`;
+                zone.style.backgroundSize = 'cover';
+                zone.style.backgroundPosition = 'center';
+            }
+        } catch(err) {
+            if (statusEl) { statusEl.innerText = '⚠ Compression failed, using original'; statusEl.style.color = '#f87171'; }
+            fileToUpload = file;
+        }
+    }
+
+    if (statusEl) {
+        statusEl.innerText = isCompressed ? 'Uploading compressed…' : 'Uploading…';
+        statusEl.style.color = 'var(--gold)';
+    }
+
+    try {
+        let finalName = fileToUpload.name.replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+        finalName = finalName.replace(/-+/g, '-').replace(/\.jpg\.jpg$/, '.jpg');
+        const url = await studioUploadFile(fileToUpload, `${uploadPath}${finalName}`);
+        if (url && targetEl) targetEl.value = url;
+        if (statusEl) {
+            statusEl.innerText = '✓ Uploaded' + (isCompressed ? ' (compressed)' : '');
+            statusEl.style.color = 'var(--gold)';
+        }
+    } catch(err) {
+        if (statusEl) { statusEl.innerText = '⚠ ' + err.message; statusEl.style.color = '#f87171'; }
+    } finally {
+        if (previewUrl) {
+            setTimeout(() => URL.revokeObjectURL(previewUrl), 1000);
+        }
+    }
+}
 
     function autoFillDuration(srcId, durId) {
         const src = document.getElementById(srcId)?.value.trim();
