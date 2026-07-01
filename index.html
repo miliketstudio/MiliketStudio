@@ -907,6 +907,7 @@
         <div id="projects-grid" class="studio-grid"></div>
         <div class="transfer-row">
             <button class="transfer-btn" style="background:#27ae60;" onclick="exportAllData()">💾 Export Data</button>
+            <button id="gist-backup-btn" class="transfer-btn" style="background:#6a4a9a;" onclick="backupToGist()">📦 Backup to Gist</button>
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
             <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
@@ -1958,6 +1959,45 @@ function showSyncStatus(state) {
 }
 
 // --- Gist sync ---
+async function backupToGist() {
+    const btn = document.getElementById('gist-backup-btn');
+    if (btn) { btn.textContent = '⏳ Backing up...'; btn.disabled = true; }
+    try {
+        const files = {};
+        files[GIST_INDEX_FILE] = { content: JSON.stringify(buildIndexData()) };
+        Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
+            (appData[projName].folders || []).forEach(folder => {
+                (folder.pieces || []).forEach(piece => {
+                    if (piece.id) {
+                        files[PIECE_FILE_PREFIX + piece.id + '.json'] = {
+                            content: JSON.stringify({ visualData: compressForCloud(piece.visualData || '') })
+                        };
+                    }
+                });
+            });
+        });
+        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `token ${getGistToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files })
+        });
+        if (!res.ok) throw new Error('Backup failed: ' + res.status);
+        if (btn) { btn.textContent = '✓ Backed up!'; setTimeout(() => { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }, 1800); }
+    } catch(e) {
+        console.error('Gist backup failed:', e);
+        if (e.message && (e.message.includes('403') || e.message.includes('401'))) {
+            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
+            if (token && token.trim()) {
+                localStorage.setItem('miliket_gist_token', token.trim());
+                if (btn) { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }
+                await backupToGist();
+                return;
+            }
+        }
+        if (btn) { btn.textContent = '✕ Failed'; setTimeout(() => { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }, 1800); }
+    }
+}
+
 async function pushToGist() {
     if (!navigator.onLine) { showSyncStatus('failed'); return; }
     try {
@@ -3852,8 +3892,6 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
 async function loadFromFirestore(uid) {
     try {
         const doc = await fsdb.collection('users').doc(uid).get({ source: 'server' });
-        console.log('hasPendingWrites=' + doc.metadata.hasPendingWrites);
-        console.log('Immutable server snapshot=' + JSON.stringify(doc.data()));
         if (!doc.exists) { showSyncStatus('saved'); return; }
 
         const cloudIndex = doc.data().index || {};
@@ -4069,7 +4107,7 @@ async function enterStudio() {
         }
         console.log('Signed in as UID:', firebaseUser.uid);
         if (firebaseUser.email) {
-            fsdb.collection('users').doc(firebaseUser.uid).set(
+            await fsdb.collection('users').doc(firebaseUser.uid).set(
                 { email: firebaseUser.email },
                 { merge: true }
             );
@@ -4122,7 +4160,6 @@ function checkSyncReminder() {
 }
 
 window.addEventListener('beforeunload', (e) => {
-    saveData();
     if (unsavedChanges) {
         e.preventDefault();
         e.returnValue = '';
