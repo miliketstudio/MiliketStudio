@@ -1192,7 +1192,7 @@
             <h3 id="tm-title" style="margin:0;font-size:15px;color:#1a2a3a;">Translation</h3>
             <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
         </div>
-        <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied + Gemini opened. Paste the translation below, then click ✕ to save.</p>
+        <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied. A Gemini tab is opening now — paste it there (Ctrl+V) and hit Enter, then copy Gemini's reply and come back here to paste it below.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
     </div>
@@ -2599,6 +2599,7 @@ function openTranslationModal(index) {
     const modal = document.getElementById('translation-modal');
     modal.style.display = 'flex';
     setTimeout(() => document.getElementById('tm-input').focus(), 80);
+    setTimeout(() => window.open('https://gemini.google.com/app', '_blank'), 1000);
 }
 
 function closeTranslationModal() {
@@ -2831,6 +2832,8 @@ function renderSlideBuilder() {
 
     const exportBtn = document.getElementById('export-pptx-btn');
     if (exportBtn) exportBtn.style.display = 'none';
+    const exportExactBtn = document.getElementById('export-pptx-exact-btn');
+    if (exportExactBtn) exportExactBtn.style.display = 'none';
     const grid = document.createElement('div');
     grid.id = 'line-grid';
 
