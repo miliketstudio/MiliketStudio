@@ -3851,7 +3851,9 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
 
 async function loadFromFirestore(uid) {
     try {
-        const doc = await fsdb.collection('users').doc(uid).get();
+        const doc = await fsdb.collection('users').doc(uid).get({ source: 'server' });
+        console.log('hasPendingWrites=' + doc.metadata.hasPendingWrites);
+        console.log('Immutable server snapshot=' + JSON.stringify(doc.data()));
         if (!doc.exists) { showSyncStatus('saved'); return; }
 
         const cloudIndex = doc.data().index || {};
