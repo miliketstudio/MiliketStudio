@@ -1852,7 +1852,7 @@ function decompressFromCloud(raw) {
 
 // --- Build index (no visualData) ---
 function buildIndexData() {
-    const index = { _lastSaved: appData._lastSaved };
+    const index = { _lastSaved: appData._lastSaved || Date.now() };
     Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
         index[projName] = {
             folders: (appData[projName].folders || []).map(folder => ({
@@ -3899,7 +3899,7 @@ async function pushToFirestore() {
 
         // Build index without visualData
         const index = buildIndexData();
-        batch.set(fsdb.collection('users').doc(user.uid), { index });
+        batch.set(fsdb.collection('users').doc(user.uid), { index }, { merge: true });
 
         // Each dirty piece gets its own document
         _dirtyPieceIds.forEach(pieceId => {
