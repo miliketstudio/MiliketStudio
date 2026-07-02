@@ -1161,7 +1161,7 @@
 <footer class="bg-dark text-white text-center p-3" id="main-footer" style="display:none;">© ምልክት Studio</footer>
 
 <!-- Slideshow Presentation Overlay -->
-<div id="slideshow-overlay" style="display:none;position:fixed;inset:0;background:#fffdf8;z-index:99000;flex-direction:column;border-top:3px solid #b8860b;">
+<div id="slideshow-overlay" style="display:none;position:fixed;inset:0;background:#fffdf8;z-index:99000;flex-direction:column;">
     <!-- Top HUD -->
     <div id="ss-hud" style="position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:rgba(0,0,0,0.5);opacity:1;transition:opacity 0.3s;z-index:20;">
     <span id="ss-counter" style="color:#1a2a3a;font-size:13px;font-weight:bold;font-family:sans-serif;background:rgba(255,255,255,0.8);padding:3px 10px;border-radius:4px;"></span>
@@ -2872,7 +2872,7 @@ function renderSlideReorder(container) {
     container.innerHTML = '';
     const header = document.createElement('div');
     header.style.cssText = 'text-align:center;padding:24px 40px 12px;';
-    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p><div style="display:flex;justify-content:center;margin-top:14px;"><button onclick="enterAddSlidesPass()" style="background:#8e44ad;border:none;color:white;border-radius:7px;padding:9px 28px;font-size:0.9rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">＋ Add Slides</button></div>';
+    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p><p style="font-size:1.1rem;color:#b8860b;margin:8px 0 0;font-weight:bold;">Tip: enter fullscreen mode before exporting for better results.</p><div style="display:flex;justify-content:center;margin-top:14px;"><button onclick="enterAddSlidesPass()" style="background:#8e44ad;border:none;color:white;border-radius:7px;padding:9px 28px;font-size:0.9rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">＋ Add Slides</button></div>';
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -2975,7 +2975,7 @@ async function exportToPptx() {
                     el.style.backgroundImage = 'linear-gradient(' + s.color + ',' + s.color + ')';
                     el.style.backgroundSize  = '100% ' + thickness + 'px';
                     el.style.backgroundRepeat   = 'no-repeat';
-                    el.style.backgroundPosition = '0 0px'; // ← tune this to raise/lower the line
+                    el.style.backgroundPosition = '0 11px';
                 }
             });
 
@@ -3131,7 +3131,7 @@ async function exportToPptxExact() {
                     el.style.backgroundImage    = `linear-gradient(${s.color},${s.color})`;
                     el.style.backgroundSize     = `100% ${thickness}px`;
                     el.style.backgroundRepeat   = 'no-repeat';
-                    el.style.backgroundPosition = '0 0';
+                    el.style.backgroundPosition = '0 11px';
                 }
             });
 
@@ -3312,6 +3312,7 @@ function ssGetZoom() {
     return _ssZoomLevels[_ssIndex] || 1.0;
 }
 function ssSetZoom(val) {
+    _removeTransToast();
     val = Math.min(3.0, Math.max(0.25, val));
     _ssZoomLevels[_ssIndex] = val;
     const label = document.getElementById('ss-zoom-label');
@@ -3521,11 +3522,13 @@ function showSsHud() {
 }
 
 function hideHudPermanently() {
+    _removeTransToast();
     _ssHudHidden = true;
     document.getElementById('ss-hud').style.opacity = '0';
 }
 
 function exitSlideshow() {
+    _removeTransToast();
     const overlay = document.getElementById('slideshow-overlay');
     overlay.style.transform = '';
     overlay.style.width = '';
@@ -3579,7 +3582,7 @@ async function copyCurrentSlide(btn) {
             el.style.backgroundImage    = 'linear-gradient(' + s.color + ',' + s.color + ')';
             el.style.backgroundSize     = '100% ' + thickness + 'px';
             el.style.backgroundRepeat   = 'no-repeat';
-            el.style.backgroundPosition = '0 0px';
+            el.style.backgroundPosition = '0 11px';
         }
     });
 
@@ -3644,10 +3647,14 @@ async function copyCurrentSlide(btn) {
     }
 }
 
+function _removeTransToast() {
+    const t = document.getElementById('ss-trans-toast');
+    if (t) t.remove();
+}
+
 function _showTranslationToast(translation) {
     // Remove any existing toast
-    const existing = document.getElementById('ss-trans-toast');
-    if (existing) existing.remove();
+    _removeTransToast();
 
     const toast = document.createElement('div');
     toast.id = 'ss-trans-toast';
