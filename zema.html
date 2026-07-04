@@ -3386,6 +3386,20 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         const hymns = studioData[mi].holidays[hi].hymns;
         const [moved] = hymns.splice(dragSrcIdx, 1);
         hymns.splice(targetIdx, 0, moved);
+
+        // Remap folder hymnIds so they follow the hymn, not its old array position.
+        // Mirrors the same splice(1)+splice(0,moved) shift on the index list itself.
+        const folders = studioData[mi].holidays[hi].folders || [];
+        folders.forEach(f => {
+            if(!Array.isArray(f.hymnIds)) return;
+            f.hymnIds = f.hymnIds.map(idx => {
+                if(idx === dragSrcIdx) return targetIdx;
+                if(dragSrcIdx < targetIdx && idx > dragSrcIdx && idx <= targetIdx) return idx - 1;
+                if(dragSrcIdx > targetIdx && idx >= targetIdx && idx < dragSrcIdx) return idx + 1;
+                return idx;
+            });
+        });
+
         studioShowHolidayDetail(mi, hi);
     } else if(type === 'holiday') {
         const holidays = studioData[mi].holidays;
@@ -3614,6 +3628,13 @@ function studioDrop(e, type, mi, hi, targetIdx) {
         studioSwitchTab(btn.dataset.tab);
     });
     function studioSwitchTab(tab) {
+        // Leaving the editor tab means any image-drop-zone paste listener it registered
+        // is now orphaned — unhook it immediately instead of waiting for the next paste
+        // event to notice the zone is gone.
+        if(tab !== 'editor' && document._zemaPasteHandler) {
+            document.removeEventListener('paste', document._zemaPasteHandler);
+            document._zemaPasteHandler = null;
+        }
         document.querySelectorAll('.studio-tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
         document.querySelectorAll('.studio-tab-content').forEach(el => el.style.display = 'none');
         const target = document.getElementById('studioTab' + tab.charAt(0).toUpperCase() + tab.slice(1));
@@ -4146,24 +4167,18 @@ async function studioHandleDropFile(file, zoneId, statusId, targetInputId, uploa
         const token = localStorage.getItem('zemaStudioToken');
         if(!token) { studioSetStatus('⚠ Add your token in Settings first'); return false; }
         function stripBlobUrls(data) {
-            return JSON.parse(JSON.stringify(data, (key, val) => {
+            return JSON.stringify(data, (key, val) => {
                 if(key === 'images' && Array.isArray(val)) return val.filter(u => u && !u.startsWith('blob:'));
                 if(key === 'image' && typeof val === 'string' && val.startsWith('blob:')) return undefined;
                 return val;
-            }));
+            });
         }
         try {
-            const payload = {
-                months: stripBlobUrls(studioData),
-                qine: stripBlobUrls(QINE_DATA),
-                qineFolders: studioFlatData.qineFolders || [],
-                negsh: stripBlobUrls(NEGSH_DATA),
-                negshFolders: studioFlatData.negshFolders || []
-            };
+            const payloadStr = `{"months":${stripBlobUrls(studioData)},"qine":${stripBlobUrls(QINE_DATA)},"qineFolders":${JSON.stringify(studioFlatData.qineFolders || [])},"negsh":${stripBlobUrls(NEGSH_DATA)},"negshFolders":${JSON.stringify(studioFlatData.negshFolders || [])}}`;
             const r = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
                 method: 'PATCH',
                 headers: { 'Authorization': `token ${token}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ files: { 'recs.json': { content: JSON.stringify(payload, null, 2) } } })
+                body: JSON.stringify({ files: { 'recs.json': { content: payloadStr } } })
             });
             if(!r.ok) throw new Error(`GitHub ${r.status}`);
             return true;
