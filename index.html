@@ -29,12 +29,13 @@
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
 
     let currentUserId = null;
+    let studioEntryRequested = false;
 
     auth.onAuthStateChanged((user) => {
         if (user) {
         currentUserId = user.uid;
         console.log("Seamless login active. User UID:", currentUserId);
-        if (!user.isAnonymous && document.getElementById('page-welcome').classList.contains('active')) {
+        if (!user.isAnonymous && studioEntryRequested) {
             proceedToStudio();
         }
         } else {
@@ -48,9 +49,6 @@
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@700&display=swap" rel="stylesheet">
     <style>
-        /* ============================================================
-           ORIGINAL IDEFISSEHA CSS — NOT TOUCHED
-        ============================================================ */
         * { box-sizing: border-box; margin: 0; scrollbar-width: none; }
         *::-webkit-scrollbar { display: none; }
         body { background: #ffffff; }
@@ -627,6 +625,32 @@
 .translate-link-wrap { position: relative; display: inline-block; }
 .translate-link-wrap:hover .translation-tooltip { display: block; }
 
+/* ---- Slideshow selectable frames (Ge'ez block + translation box) ---- */
+.ss-frame { position:absolute; box-sizing:border-box; }
+.ss-frame.ss-edit-mode { cursor:move; }
+.ss-frame.ss-edit-mode:hover { outline:1px dashed rgba(184,134,11,0.4); }
+.ss-frame.ss-edit-mode.ss-selected { outline:2px solid var(--gold); outline-offset:0px; }
+.ss-handle {
+    position:absolute; width:14px; height:14px;
+    background:#fffdf8; border:2px solid var(--gold); border-radius:50%;
+    z-index:50; display:none; box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+.ss-frame.ss-selected .ss-handle { display:block; }
+.ss-handle[data-pos="nw"]{top:-7px;left:-7px;cursor:nwse-resize;}
+.ss-handle[data-pos="n"] {top:-7px;left:50%;margin-left:-7px;cursor:ns-resize;}
+.ss-handle[data-pos="ne"]{top:-7px;right:-7px;cursor:nesw-resize;}
+.ss-handle[data-pos="e"] {top:50%;right:-7px;margin-top:-7px;cursor:ew-resize;}
+.ss-handle[data-pos="se"]{bottom:-7px;right:-7px;cursor:nwse-resize;}
+.ss-handle[data-pos="s"] {bottom:-7px;left:50%;margin-left:-7px;cursor:ns-resize;}
+.ss-handle[data-pos="sw"]{bottom:-7px;left:-7px;cursor:nesw-resize;}
+.ss-handle[data-pos="w"] {top:50%;left:-7px;margin-top:-7px;cursor:ew-resize;}
+
+.ss-snap-guide {
+    position:absolute; background:#ff4d6d; z-index:60; pointer-events:none; display:none;
+}
+.ss-snap-guide.ss-snap-v { width:1px; top:0; bottom:0; }
+.ss-snap-guide.ss-snap-h { height:1px; left:0; right:0; }
+
 /* ---- slides line-grid cards ---- */
         #line-grid {
             display: grid;
@@ -838,7 +862,7 @@
             <p>Where would you like to go?</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:32px;max-width:900px;width:100%;">
-            <div class="studio-card" style="padding:48px 24px;" onclick="showStudioPage('page-login')">
+            <div class="studio-card" style="padding:48px 24px;" onclick="studioEntryRequested=true; showStudioPage('page-login')">
                 <div class="card-icon">✏️</div>
                 <div class="card-name" style="font-size:1.1rem;">Miliket Studio</div>
                 <div class="card-meta">Create &amp; present pieces</div>
@@ -1176,16 +1200,22 @@
         <span id="ss-zoom-label" onclick="ssZoomClickLabel()" style="font-family:monospace;font-size:13px;font-weight:bold;color:white;background:rgba(0,0,0,0.4);padding:4px 10px;border-radius:6px;min-width:52px;text-align:center;cursor:pointer;user-select:none;" title="Click to type exact %">100%</span>
         <button onclick="ssZoomIn()" id="ss-zoom-in" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 10px;font-size:15px;cursor:pointer;font-family:sans-serif;line-height:1;">+</button>
         <input id="ss-zoom-input" type="text" maxlength="5" placeholder="100" style="display:none;width:56px;padding:4px 6px;font-size:13px;border:1px solid #b8860b;border-radius:6px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;" />
+        <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
+        <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
         <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
         <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
     </div>
 </div>
     <!-- Full-width Ge'ez, translation floats as overlay on right -->
-    <div id="ss-slide-content" style="flex:1;position:relative;min-height:0;overflow:hidden;display:flex;flex-direction:column;">
-    <div id="ss-geez" style="flex:1;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;min-height:0;"></div>
-    <div id="ss-translation" style="flex:0 0 18%;background:#eef3ff;border-top:2px solid #b8d4ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;"></div>
-</div>
+    <div id="ss-slide-content" style="flex:1;position:relative;min-height:0;overflow:hidden;">
+        <div id="ss-geez-frame" class="ss-frame">
+            <div id="ss-geez" style="width:100%;height:100%;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:10px;box-sizing:border-box;"></div>
+        </div>
+        <div id="ss-translation-frame" class="ss-frame">
+            <div id="ss-translation" style="width:100%;height:100%;background:#eef3ff;border-top:2px solid #b8d4ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;box-sizing:border-box;"></div>
+        </div>
+    </div>
     <!-- Nav buttons -->
     <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
     <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
@@ -2922,6 +2952,50 @@ function renderSlideReorder(container) {
     container.appendChild(list);
 }
 
+function fitTranslationFontSize(text, widthInches, heightInches, minPt = 30, maxPt = 60) {
+    let probe = document.getElementById('pptx-font-probe');
+    if (!probe) {
+        probe = document.createElement('div');
+        probe.id = 'pptx-font-probe';
+        document.body.appendChild(probe);
+    }
+
+    probe.style.position = 'absolute';
+    probe.style.visibility = 'hidden';
+    probe.style.whiteSpace = 'normal';
+    probe.style.wordBreak = 'break-word';
+    probe.style.boxSizing = 'border-box';
+    probe.style.padding = '0px';
+    probe.style.margin = '0px';
+    probe.style.fontFamily = 'Lexend';
+    probe.style.fontWeight = '700';
+    probe.style.lineHeight = '1.2';
+
+    const targetWidthPx = widthInches * 96;
+    const targetHeightPx = heightInches * 96;
+
+    probe.style.width = targetWidthPx + 'px';
+    probe.textContent = text;
+
+    let low = minPt;
+    let high = maxPt;
+    let optimalSize = minPt;
+
+    while (low <= high) {
+        const mid = Math.floor((low + high) / 2);
+        probe.style.fontSize = mid + 'pt';
+
+        if (probe.scrollHeight <= targetHeightPx) {
+            optimalSize = mid;
+            low = mid + 1;
+        } else {
+            high = mid - 1;
+        }
+    }
+
+    return optimalSize;
+}
+
 async function exportToPptx() {
     if (!_builtSlides.length) { alert('No slides to export.'); return; }
     const btn = document.getElementById('export-pptx-btn');
@@ -2930,12 +3004,14 @@ async function exportToPptx() {
         const pptx = new PptxGenJS();
         pptx.layout = 'LAYOUT_WIDE';
         const PW = 13.33, PH = 7.5;
-        const geezH = PH * 0.75;
-        const transY = geezH;
-        const transH = PH - geezH;
         const rW = 1920, rH = 810;  // 144 DPI × slide dimensions (13.33" × 5.625")
 
         for (let si = 0; si < _builtSlides.length; si++) {
+            // Use this slide's actual layout (respects Edit Layout drag/resize/snap), not a fixed split
+            const layoutForThisSlide = ssGetLayoutForSlide(si);
+            const geezH  = PH * (layoutForThisSlide.geez.hPct / 100);
+            const transY = PH * (layoutForThisSlide.translation.yPct / 100);
+            const transH = PH * (layoutForThisSlide.translation.hPct / 100);
             const indices = _builtSlides[si];
             const chunks = indices.map(i => _allLines[i]);
             const geezHtml = chunks.map(c => c.segmentHtml).join('')
@@ -2958,8 +3034,8 @@ async function exportToPptx() {
             document.body.appendChild(wrap);
 
             // Binary search scale — same logic as the live presenter
-            const availW = rW - 80;
-            const availH = rH - 40;
+            const availW = rW - 40;
+            const availH = rH - 20;
             let lo = 0.05, hi = 8;
             for (let iter = 0; iter < 24; iter++) {
                 const mid = (lo + hi) / 2;
@@ -2968,7 +3044,7 @@ async function exportToPptx() {
                 void inner.offsetHeight;
                 (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
             }
-            const finalScale = lo * 0.97;
+            const finalScale = lo * 0.995;
             inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
             inner.style.transform = 'scale(' + finalScale + ')';
             inner.style.transformOrigin = 'top left';
@@ -3017,15 +3093,18 @@ async function exportToPptx() {
                 line: { color: 'B8D4EE', width: 1 }
             });
             if (translation) {
+                const fitted = fitTranslationFontSize(translation, PW - 0.6, transH - 0.2);
                 slide.addText(translation, {
                     x: 0.3, y: transY + 0.1,
                     w: PW - 0.6, h: transH - 0.2,
-                    fontSize: 36,
+                    fontSize: fitted,
                     bold: true, italic: false,
                     color: '000000',
                     fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
-                    wrap: true, autoFitType: 'resize'
+                    wrap: true,
+                    margin: 0,
+                    lineSpacingMultiple: 1.2
                 });
             }
         }
@@ -3189,13 +3268,16 @@ async function exportToPptxExact() {
                 line: { color: 'B8D4EE', width: 1 }
             });
             if (_ssSlides[si].translation) {
+                const fitted = fitTranslationFontSize(_ssSlides[si].translation, PW - 0.6, nativeTransH - 0.1);
                 slide.addText(_ssSlides[si].translation, {
                     x: 0.3, y: nativeTransY + 0.05,
                     w: PW - 0.6, h: nativeTransH - 0.1,
-                    fontSize: 36, bold: true,
+                    fontSize: fitted, bold: true,
                     color: '000000', fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
-                    wrap: true, autoFitType: 'resize'
+                    wrap: true,
+                    margin: 0,
+                    lineSpacingMultiple: 1.2
                 });
             }
         }
@@ -3319,6 +3401,247 @@ let _passUsedIndices = new Set();
 let _isSecondPass = false;
 let _secondPassSlideStartIndex = 0;
 
+// ============================================================
+// SLIDE LAYOUT FRAMES — click to select, drag to move, drag
+// handles to resize. Stored as PERCENTAGES so F11/resize/nav
+// always recalculate correctly against the live container size.
+// ============================================================
+let _ssLayoutOverrides = {}; // { [slideIndex]: { geez:{xPct,yPct,wPct,hPct}, translation:{...} } }
+let _ssEditMode = false;
+let _ssSelectedFrame = null;
+
+function ssDefaultLayout() {
+    return {
+        geez:        { xPct: 0, yPct: 0,    wPct: 100, hPct: 82 },
+        translation: { xPct: 0, yPct: 82,   wPct: 100, hPct: 18 }
+    };
+}
+
+function ssGetLayoutForSlide(idx) {
+    if (!_ssLayoutOverrides[idx]) _ssLayoutOverrides[idx] = ssDefaultLayout();
+    return _ssLayoutOverrides[idx];
+}
+
+function ssApplyFrameGeometry(frameEl, state) {
+    frameEl.style.left   = state.xPct + '%';
+    frameEl.style.top    = state.yPct + '%';
+    frameEl.style.width  = state.wPct + '%';
+    frameEl.style.height = state.hPct + '%';
+}
+
+function ssEnsureHandles(frameEl) {
+    if (frameEl.querySelector('.ss-handle')) return;
+    ['nw','n','ne','e','se','s','sw','w'].forEach(pos => {
+        const h = document.createElement('div');
+        h.className = 'ss-handle';
+        h.dataset.pos = pos;
+        frameEl.appendChild(h);
+    });
+    ssWireFrameInteractions(frameEl);
+}
+
+function ssLayoutKeyForFrame(frameEl) {
+    return frameEl.id === 'ss-geez-frame' ? 'geez' : 'translation';
+}
+
+function ssRenderFramesForCurrentSlide() {
+    const layout = ssGetLayoutForSlide(_ssIndex);
+    const geezFrame = document.getElementById('ss-geez-frame');
+    const transFrame = document.getElementById('ss-translation-frame');
+    ssEnsureHandles(geezFrame);
+    ssEnsureHandles(transFrame);
+    ssApplyFrameGeometry(geezFrame, layout.geez);
+    ssApplyFrameGeometry(transFrame, layout.translation);
+}
+
+function toggleSsEditMode() {
+    _ssEditMode = !_ssEditMode;
+    const btn = document.getElementById('ss-edit-toggle-btn');
+    if (btn) btn.style.background = _ssEditMode ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+    document.querySelectorAll('.ss-frame').forEach(f => f.classList.toggle('ss-edit-mode', _ssEditMode));
+    if (!_ssEditMode) ssDeselectFrame();
+}
+
+function ssSelectFrame(frameEl) {
+    if (_ssSelectedFrame) _ssSelectedFrame.classList.remove('ss-selected');
+    _ssSelectedFrame = frameEl;
+    frameEl.classList.add('ss-selected');
+}
+function ssDeselectFrame() {
+    if (_ssSelectedFrame) _ssSelectedFrame.classList.remove('ss-selected');
+    _ssSelectedFrame = null;
+}
+
+function resetSsLayout() {
+    _ssLayoutOverrides[_ssIndex] = ssDefaultLayout();
+    ssRenderFramesForCurrentSlide();
+    renderSlideshowSlide();
+}
+
+const SS_SNAP_THRESHOLD_PCT = 1.5; // within this many % of a guide, snap to it
+
+function ssOtherFrameKey(key) {
+    return key === 'geez' ? 'translation' : 'geez';
+}
+
+function ssGetSnapTargets(excludeKey) {
+    const layout = ssGetLayoutForSlide(_ssIndex);
+    const vertical = [0, 50, 100];
+    const horizontal = [0, 50, 100];
+    const other = layout[ssOtherFrameKey(excludeKey)];
+    vertical.push(other.xPct, other.xPct + other.wPct / 2, other.xPct + other.wPct);
+    horizontal.push(other.yPct, other.yPct + other.hPct / 2, other.yPct + other.hPct);
+    return { vertical, horizontal };
+}
+
+function ssSnapValue(rawPct, candidates) {
+    let best = null, bestDist = SS_SNAP_THRESHOLD_PCT;
+    for (const c of candidates) {
+        const dist = Math.abs(rawPct - c);
+        if (dist <= bestDist) { best = c; bestDist = dist; }
+    }
+    return best === null ? { value: rawPct, guide: null } : { value: best, guide: best };
+}
+
+function ssShowGuide(type, pct) {
+    const contentEl = document.getElementById('ss-slide-content');
+    let guide = contentEl.querySelector('.ss-snap-guide.ss-snap-' + type);
+    if (!guide) {
+        guide = document.createElement('div');
+        guide.className = 'ss-snap-guide ss-snap-' + type;
+        contentEl.appendChild(guide);
+    }
+    if (type === 'v') guide.style.left = pct + '%';
+    else guide.style.top = pct + '%';
+    guide.style.display = 'block';
+}
+
+function ssHideGuideAxis(type) {
+    const contentEl = document.getElementById('ss-slide-content');
+    const guide = contentEl.querySelector('.ss-snap-guide.ss-snap-' + type);
+    if (guide) guide.style.display = 'none';
+}
+
+function ssHideGuides() {
+    document.querySelectorAll('.ss-snap-guide').forEach(g => g.style.display = 'none');
+}
+
+function ssWireFrameInteractions(frameEl) {
+    // Click-drag to reposition
+    frameEl.addEventListener('mousedown', e => {
+        if (!_ssEditMode) return;
+        if (e.target.classList.contains('ss-handle')) return;
+        ssSelectFrame(frameEl);
+        e.preventDefault();
+        const contentEl = document.getElementById('ss-slide-content');
+        const key = ssLayoutKeyForFrame(frameEl);
+        const state = ssGetLayoutForSlide(_ssIndex)[key];
+        const startX = e.clientX, startY = e.clientY;
+        const origXPct = state.xPct, origYPct = state.yPct;
+        const targets = ssGetSnapTargets(key);
+        function onMove(e2) {
+            const totalW = contentEl.clientWidth, totalH = contentEl.clientHeight;
+            let rawX = origXPct + ((e2.clientX - startX) / totalW) * 100;
+            let rawY = origYPct + ((e2.clientY - startY) / totalH) * 100;
+
+            const leftSnap   = ssSnapValue(rawX, targets.vertical);
+            const centerSnap = ssSnapValue(rawX + state.wPct / 2, targets.vertical);
+            const rightSnap  = ssSnapValue(rawX + state.wPct, targets.vertical);
+            let vGuide = null;
+            if (centerSnap.guide !== null && (leftSnap.guide === null || Math.abs(centerSnap.value - (rawX + state.wPct/2)) < Math.abs(leftSnap.value - rawX))) {
+                rawX = centerSnap.value - state.wPct / 2; vGuide = centerSnap.guide;
+            } else if (leftSnap.guide !== null) {
+                rawX = leftSnap.value; vGuide = leftSnap.guide;
+            } else if (rightSnap.guide !== null) {
+                rawX = rightSnap.value - state.wPct; vGuide = rightSnap.guide;
+            }
+
+            const topSnap    = ssSnapValue(rawY, targets.horizontal);
+            const midSnap    = ssSnapValue(rawY + state.hPct / 2, targets.horizontal);
+            const bottomSnap = ssSnapValue(rawY + state.hPct, targets.horizontal);
+            let hGuide = null;
+            if (midSnap.guide !== null && (topSnap.guide === null || Math.abs(midSnap.value - (rawY + state.hPct/2)) < Math.abs(topSnap.value - rawY))) {
+                rawY = midSnap.value - state.hPct / 2; hGuide = midSnap.guide;
+            } else if (topSnap.guide !== null) {
+                rawY = topSnap.value; hGuide = topSnap.guide;
+            } else if (bottomSnap.guide !== null) {
+                rawY = bottomSnap.value - state.hPct; hGuide = bottomSnap.guide;
+            }
+
+            state.xPct = rawX; state.yPct = rawY;
+            ssApplyFrameGeometry(frameEl, state);
+
+            if (vGuide !== null) ssShowGuide('v', vGuide); else ssHideGuideAxis('v');
+            if (hGuide !== null) ssShowGuide('h', hGuide); else ssHideGuideAxis('h');
+        }
+        function onUp() {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            ssHideGuides();
+            renderSlideshowSlide();
+        }
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+
+    // Drag handles to resize
+    frameEl.querySelectorAll('.ss-handle').forEach(h => {
+        h.addEventListener('mousedown', e => {
+            e.preventDefault(); e.stopPropagation();
+            ssSelectFrame(frameEl);
+            const contentEl = document.getElementById('ss-slide-content');
+            const pos = h.dataset.pos;
+            const key = ssLayoutKeyForFrame(frameEl);
+            const state = ssGetLayoutForSlide(_ssIndex)[key];
+            const startX = e.clientX, startY = e.clientY;
+            const orig = { ...state };
+            const targets = ssGetSnapTargets(key);
+            function onMove(e2) {
+                const totalW = contentEl.clientWidth, totalH = contentEl.clientHeight;
+                const dxPct = ((e2.clientX - startX) / totalW) * 100;
+                const dyPct = ((e2.clientY - startY) / totalH) * 100;
+                let { xPct, yPct, wPct, hPct } = orig;
+                if (pos.includes('e')) wPct = Math.max(10, orig.wPct + dxPct);
+                if (pos.includes('s')) hPct = Math.max(5,  orig.hPct + dyPct);
+                if (pos.includes('w')) { wPct = Math.max(10, orig.wPct - dxPct); xPct = orig.xPct + orig.wPct - wPct; }
+                if (pos.includes('n')) { hPct = Math.max(5,  orig.hPct - dyPct); yPct = orig.yPct + orig.hPct - hPct; }
+
+                let vGuide = null, hGuide = null;
+                if (pos.includes('e')) {
+                    const s = ssSnapValue(xPct + wPct, targets.vertical);
+                    if (s.guide !== null) { wPct = s.value - xPct; vGuide = s.guide; }
+                }
+                if (pos.includes('w')) {
+                    const s = ssSnapValue(xPct, targets.vertical);
+                    if (s.guide !== null) { wPct = wPct + (xPct - s.value); xPct = s.value; vGuide = s.guide; }
+                }
+                if (pos.includes('s')) {
+                    const s = ssSnapValue(yPct + hPct, targets.horizontal);
+                    if (s.guide !== null) { hPct = s.value - yPct; hGuide = s.guide; }
+                }
+                if (pos.includes('n')) {
+                    const s = ssSnapValue(yPct, targets.horizontal);
+                    if (s.guide !== null) { hPct = hPct + (yPct - s.value); yPct = s.value; hGuide = s.guide; }
+                }
+
+                state.xPct = xPct; state.yPct = yPct; state.wPct = wPct; state.hPct = hPct;
+                ssApplyFrameGeometry(frameEl, state);
+                renderSlideshowSlide();
+
+                if (vGuide !== null) ssShowGuide('v', vGuide); else ssHideGuideAxis('v');
+                if (hGuide !== null) ssShowGuide('h', hGuide); else ssHideGuideAxis('h');
+            }
+            function onUp() {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+                ssHideGuides();
+            }
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+    });
+}
+
 function ssGetZoom() {
     return _ssZoomLevels[_ssIndex] || 1.0;
 }
@@ -3381,6 +3704,7 @@ function renderSlideshowSlide() {
     const transEl = document.getElementById('ss-translation');
     const counter = document.getElementById('ss-counter');
     showSsHud();
+    ssRenderFramesForCurrentSlide();
 
     // Scale the Ge'ez content to fit the available area
     // Strip any inline width/max-width from letter-containers so they reflow freely
@@ -3402,8 +3726,9 @@ function renderSlideshowSlide() {
 
         inner.querySelectorAll('br').forEach(br => br.remove());
 
-        const availW = geezEl.clientWidth - 30;
-        const availH = geezEl.clientHeight - 10;
+        const rightBuffer = 12; // extra breathing room on the right, independent of the 10px left padding
+        const availW = geezEl.clientWidth - rightBuffer;
+        const availH = geezEl.clientHeight;
         if (availW <= 0 || availH <= 0) return;
 
         // Pin inner to top-left so transform-origin:top-left math is exact — no centering offset
@@ -3440,7 +3765,7 @@ function renderSlideshowSlide() {
             (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
         }
 
-        const finalScale = lo * 0.98;
+        const finalScale = lo * 0.995;
         inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
 
         // Fix last row: a flex:auto spacer absorbs leftover space so last row packs left
