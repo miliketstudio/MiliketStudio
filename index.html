@@ -3402,8 +3402,8 @@ function renderSlideshowSlide() {
 
         inner.querySelectorAll('br').forEach(br => br.remove());
 
-        const availW = geezEl.clientWidth - 120;
-        const availH = geezEl.clientHeight - 20;
+        const availW = geezEl.clientWidth - 10;
+        const availH = geezEl.clientHeight - 10;
         if (availW <= 0 || availH <= 0) return;
 
         // Pin inner to top-left so transform-origin:top-left math is exact — no centering offset
@@ -3440,8 +3440,11 @@ function renderSlideshowSlide() {
             (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
         }
 
-        const finalScale = lo * 0.98;
+        let finalScale = lo * 0.98;
+
+        // Lay out at the unclamped scale so children can wrap and be measured
         inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
+        void inner.offsetHeight;
 
         // Fix last row: a flex:auto spacer absorbs leftover space so last row packs left
         let spacer = inner.querySelector('.ss-last-row-fix');
@@ -3453,10 +3456,39 @@ function renderSlideshowSlide() {
         }
         void inner.offsetHeight;
 
+        // Measure true content width at this layout (excludes the spacer, which has 0 width anyway)
+        let maxContentWidth = 0;
+        Array.from(inner.children).forEach(child => {
+            if (child.classList.contains('ss-last-row-fix')) return;
+            const rightEdge = child.offsetLeft + child.offsetWidth;
+            if (rightEdge > maxContentWidth) maxContentWidth = rightEdge;
+        });
+
+        // Guard: if the height-driven scale would overflow the real content width,
+        // clamp it — then re-layout and re-measure, since wrap points can shift
+        // when the container width changes.
+        const scaleCapForWidth = availW / maxContentWidth;
+        if (finalScale > scaleCapForWidth) {
+            finalScale = scaleCapForWidth;
+            inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
+            void inner.offsetHeight;
+            maxContentWidth = 0;
+            Array.from(inner.children).forEach(child => {
+                if (child.classList.contains('ss-last-row-fix')) return;
+                const rightEdge = child.offsetLeft + child.offsetWidth;
+                if (rightEdge > maxContentWidth) maxContentWidth = rightEdge;
+            });
+        }
+
         const scaledH = Math.round(inner.scrollHeight * finalScale);
+        const scaledContentW = maxContentWidth * finalScale;
+        const offsetX = Math.max(0, (availW - scaledContentW) / 2);
+        console.log('finalScale:', finalScale, 'scaleCapForWidth:', scaleCapForWidth, 'maxContentWidth:', maxContentWidth, 'availW:', availW, 'scaledContentW:', scaledContentW, 'offsetX:', offsetX);
+
         inner.style.transform       = 'scale(' + finalScale + ')';
         inner.style.transformOrigin = 'top left';
         inner.style.height          = Math.round(inner.scrollHeight * finalScale) + 'px';
+        inner.style.marginLeft      = offsetX + 'px';
         const zLabel = document.getElementById('ss-zoom-label');
         if (zLabel) zLabel.textContent = Math.round(ssGetZoom() * 100) + '%';
 
