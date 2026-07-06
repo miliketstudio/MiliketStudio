@@ -2952,7 +2952,7 @@ function renderSlideReorder(container) {
     container.appendChild(list);
 }
 
-function fitTranslationFontSize(text, widthInches, heightInches, minPt = 30, maxPt = 60) {
+function fitTranslationFontSize(text, widthInches, heightInches, minPt = 35, maxPt = 60) {
     let probe = document.getElementById('pptx-font-probe');
     if (!probe) {
         probe = document.createElement('div');
@@ -2971,8 +2971,8 @@ function fitTranslationFontSize(text, widthInches, heightInches, minPt = 30, max
     probe.style.fontWeight = '700';
     probe.style.lineHeight = '1.2';
 
-    const targetWidthPx = widthInches * 96;
-    const targetHeightPx = heightInches * 96;
+    const targetWidthPx = widthInches * 72;
+    const targetHeightPx = heightInches * 72;
 
     probe.style.width = targetWidthPx + 'px';
     probe.textContent = text;
