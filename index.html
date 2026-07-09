@@ -179,6 +179,15 @@
         }
         .studio-topbar .back-btn:hover { background: rgba(255,255,255,0.1); }
 
+        #main-navbar .nav-link { color: var(--topbar-color) !important; }
+        #main-navbar .nav-link:hover { opacity: 0.75; }
+        #main-navbar .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(26,42,58,0.75)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+        }
+        body.dark-mode #main-navbar .navbar-toggler-icon {
+            background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='rgba(224,224,224,0.75)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E");
+        }
+
         /* Content area */
         .studio-content {
             padding: 32px 40px;
@@ -853,7 +862,7 @@
 <!-- PAGE: WELCOME -->
 <div id="page-welcome" class="studio-page active">
     <div class="studio-topbar">
-        <h1>☦ ምልክት Studio</h1>
+        <h1 onclick="goToProjectsFromLogo()" style="cursor:pointer;">☦ ምልክት Studio</h1>
         <button id="theme-toggle-welcome" onclick="toggleTheme()">☾ Dark</button>
     </div>
     <div class="studio-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 70px);">
@@ -884,7 +893,7 @@
 <!-- PAGE: LOGIN -->
 <div id="page-login" class="studio-page">
     <div class="studio-topbar">
-        <h1>☦ ምልክት Studio</h1>
+        <h1 onclick="goToProjectsFromLogo()" style="cursor:pointer;">☦ ምልክት Studio</h1>
     </div>
     <div class="studio-content" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:calc(100vh - 70px);">
         <div class="login-hero">
@@ -920,7 +929,7 @@
 <!-- PAGE: LOGIN / PROJECTS -->
 <div id="page-projects" class="studio-page">
     <div class="studio-topbar">
-        <h1>☦ ምልክት Studio</h1>
+        <h1 onclick="goToProjectsFromLogo()" style="cursor:pointer;">☦ ምልክት Studio</h1>
         <button id="theme-toggle" onclick="toggleTheme()">☾ Dark</button>
         <div id="sync-indicator">✓ Synced</div>
     </div>
@@ -952,7 +961,7 @@
 <!-- PAGE: DASHBOARD / FOLDERS -->
 <div id="page-folders" class="studio-page">
     <div class="studio-topbar">
-        <h1>☦ ምልክት Studio</h1>
+        <h1 onclick="goToProjectsFromLogo()" style="cursor:pointer;">☦ ምልክት Studio</h1>
         <button id="theme-toggle-folders" onclick="toggleTheme()">☾ Dark</button>
         <div id="sync-indicator-folders">✓ Synced</div>
     </div>
@@ -1005,7 +1014,7 @@
 <!-- PAGE: PIECES -->
 <div id="page-pieces" class="studio-page">
     <div class="studio-topbar">
-        <h1>☦ ምልክት Studio</h1>
+        <h1 onclick="goToProjectsFromLogo()" style="cursor:pointer;">☦ ምልክት Studio</h1>
         <button id="theme-toggle-pieces" onclick="toggleTheme()">☾ Dark</button>
         <div id="sync-indicator-pieces">✓ Synced</div>
     </div>
@@ -1025,14 +1034,14 @@
 
 <!-- PAGE: SLIDES -->
 <div id="page-slides" class="page" style="background:#f5f9ff;min-height:100vh;font-family:'Abyssinica SIL',serif;">
-    <div style="background:#1a2a3a;border-bottom:3px solid #b8860b;padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;">
-        <button onclick="undoLastSlide()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Undo Slide</button>
-    <button onclick="exitSlides()" style="background:transparent;border:1px solid rgba(255,255,255,0.3);color:white;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">✕ Exit</button>
-        <span style="color:#f0c040;font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
+    <div style="background:var(--topbar-bg);border-bottom:1px solid var(--topbar-border);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;">
+        <button onclick="undoLastSlide()" style="background:transparent;border:1px solid var(--card-border);color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">← Undo Slide</button>
+    <button onclick="exitSlides()" style="background:transparent;border:1px solid var(--card-border);color:var(--text);padding:6px 14px;border-radius:6px;cursor:pointer;font-size:0.85rem;">✕ Exit</button>
+        <span style="color:var(--gold);font-weight:bold;font-size:1.1rem;letter-spacing:1px;">🎞 Slides</span>
         <button id="export-pptx-btn" onclick="exportToPptx()" style="display:none;position:absolute;left:calc(50% - 90px);transform:translateX(-50%);background:#4a7c59;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📥 Export to Slides</button>
         <button id="export-pptx-exact-btn" onclick="exportToPptxExact()" style="display:none;position:absolute;left:calc(50% + 90px);transform:translateX(-50%);background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.82rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">📋 Export (Exact Copy)</button>
-        <span id="slides-count" style="color:#7eb8f7;font-size:0.8rem;margin-left:auto;"></span>
-        <span id="selection-count" style="color:#7eb8f7;font-size:11px;margin-left:6px;"></span>
+        <span id="slides-count" style="color:var(--text-muted);font-size:0.8rem;margin-left:auto;"></span>
+        <span id="selection-count" style="color:var(--text-muted);font-size:11px;margin-left:6px;"></span>
         <button id="next-slide-btn" onclick="saveAndNextSlide()" style="background:#3a5a82;border:none;color:white;border-radius:6px;padding:6px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:12px;">Next Slide →</button>
         <button id="view-results-btn" onclick="viewResults()" style="background:#27ae60;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:6px;display:none;">✓ View Results</button>
         <button id="finish-present-btn" onclick="finishAndPresent()" style="background:#b8860b;border:none;color:white;border-radius:6px;padding:6px 18px;font-size:0.85rem;font-weight:bold;cursor:pointer;margin-left:6px;display:none;">Finish &amp; ▶ Present</button>
@@ -1044,7 +1053,7 @@
      ORIGINAL IDEFISSEHA PAGES — NOT TOUCHED
 ============================================================ -->
 
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark p-3" id="main-navbar" style="display:none;">
+<nav class="navbar navbar-expand-lg" id="main-navbar" style="display:none;background:var(--topbar-bg);padding:6px 16px;">
     <div class="container-fluid">
         <a class="navbar-brand d-lg-none">Menu</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -1052,7 +1061,7 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item"><a class="nav-link" href="#" onclick="exitToStudio(); return false;">Home</a></li>
+                <li class="nav-item"><a class="nav-link" href="#" onclick="exitToStudio(); return false;">☦ ምልክት Studio</a></li>
                 <li class="nav-item"><a class="nav-link" href="#" data-page="present">Present</a></li>
                 <li class="nav-item">
                     <a class="nav-link" href="#" onclick="exitToStudio(); return false;" style="color:#f0c040;">← Studio</a>
@@ -1144,16 +1153,16 @@
 
 <div id="page-present" class="page">
 
-    <div id="present-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:10px 20px;background:#1a2a3a;border-bottom:3px solid #b8860b;position:relative;z-index:200;flex-wrap:nowrap;min-width:0;">
-        <p style="margin:0;font-size:0.8rem;color:#7eb8f7;">Click a piece to add to queue, then Print Queue.</p>
+    <div id="present-topbar" style="display:flex;align-items:center;justify-content:space-between;padding:6px 20px;background:var(--topbar-bg);border-bottom:1px solid var(--topbar-border);position:relative;z-index:200;flex-wrap:nowrap;min-width:0;">
+        <p style="margin:0;font-size:0.8rem;color:var(--text-muted);">Click a piece to add to queue, then Print Queue.</p>
         <button onclick="togglePresentFullscreen()" style="margin-left:auto;background:#3a5a82;border:none;color:white;border-radius:6px;padding:7px 12px;font-size:0.85rem;font-weight:bold;cursor:pointer;">⛶ Fullscreen</button>
         <div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">
-            <div style="display:flex;align-items:center;gap:6px;background:#243040;border-radius:8px;padding:6px 10px;border:1px solid #3a5a82;">
-                <button id="chrono-mode-btn" onclick="toggleChronoMode()" style="background:none;border:none;color:#f0c040;font-size:11px;font-weight:bold;cursor:pointer;padding:0 4px;">SW</button>
-                <span id="chrono-display" style="font-family:monospace;font-size:1.3rem;font-weight:bold;color:white;min-width:80px;text-align:center;">00:00</span>
+            <div style="display:flex;align-items:center;gap:6px;background:var(--card-bg);border-radius:6px;padding:4px 10px;border:1px solid var(--card-border);">
+                <button id="chrono-mode-btn" onclick="toggleChronoMode()" style="background:none;border:none;color:var(--gold);font-size:11px;font-weight:bold;cursor:pointer;padding:0 4px;">SW</button>
+                <span id="chrono-display" style="font-family:monospace;font-size:1.3rem;font-weight:bold;color:var(--text);min-width:80px;text-align:center;">00:00</span>
                 <button id="chrono-start-btn" onclick="chronoStartStop()" style="background:#27ae60;border:none;color:white;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Start</button>
                 <button onclick="chronoReset()" style="background:#c0392b;border:none;color:white;border-radius:4px;padding:3px 8px;font-size:11px;font-weight:bold;cursor:pointer;">Reset</button>
-                <input id="timer-set-input" type="text" placeholder="mm:ss" maxlength="5" style="display:none;width:56px;padding:3px 5px;font-size:12px;border:1px solid #3a5a82;border-radius:4px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;">
+                <input id="timer-set-input" type="text" placeholder="mm:ss" maxlength="5" style="display:none;width:56px;padding:3px 5px;font-size:12px;border:1px solid var(--card-border);border-radius:4px;background:var(--card-bg);color:var(--text);text-align:center;font-family:monospace;">
             </div>
         </div>
     </div>
@@ -1204,6 +1213,7 @@
         <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
         <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
+        <button onclick="openMulticopyModal()" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📑 Copy Slides</button>
         <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
     </div>
 </div>
@@ -1219,6 +1229,19 @@
     <!-- Nav buttons -->
     <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
     <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
+</div>
+
+<!-- Multi-Slide Copy Modal -->
+<div id="multicopy-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:#fffdf8;border-radius:12px;padding:24px;width:90%;max-width:900px;max-height:85vh;display:flex;flex-direction:column;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.4);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <h3 id="multicopy-title" style="margin:0;font-size:16px;color:#1a2a3a;">Batch Copy Slides</h3>
+            <button onclick="closeMulticopyModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+        </div>
+        <p id="multicopy-desc" style="margin:0 0 14px;font-size:12px;color:#3a5a82;">Select the slides you want, then click Copy and Continue — they'll all be copied together as one paste.</p>
+        <div id="multicopy-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;padding:2px;"></div>
+        </div>
+    </div>
 </div>
 
 <!-- Translation Modal -->
@@ -2199,6 +2222,12 @@ async function saveAndSync() {
 }
 
 // --- Studio page navigation ---
+function goToProjectsFromLogo() {
+    if (!currentUser) { showStudioPage('page-welcome'); return; }
+    showStudioPage('page-projects');
+    renderProjects();
+}
+
 function showStudioPage(id) {
     document.querySelectorAll('.studio-page').forEach(p => p.classList.remove('active'));
     // Hide original pages too
@@ -4045,6 +4074,269 @@ function _showTranslationToast(translation) {
 
     document.getElementById('slideshow-overlay').appendChild(toast);
 
+}
+
+// ============================================================
+// MULTI-SLIDE COPY — per-card image + translation buttons.
+// One render pass builds everything up front (image + text both
+// captured together), then every button after that is a pure
+// clipboard write with no further rendering — no flashing.
+// ============================================================
+let _multicopyData = []; // [{ idx, imgSrc, translation }]
+let _multicopySelected = new Set();
+
+async function openMulticopyModal() {
+    if (!_ssSlides.length) { alert('No slides available.'); return; }
+    _multicopyData = [];
+    _multicopySelected = new Set();
+    const modal = document.getElementById('multicopy-modal');
+    const grid = document.getElementById('multicopy-grid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:30px;color:#888;font-size:13px;">Rendering slides…</div>';
+    modal.style.display = 'flex';
+
+    const hud = document.getElementById('ss-hud');
+    const prev = document.getElementById('ss-prev');
+    const next = document.getElementById('ss-next');
+    const overlay = document.getElementById('slideshow-overlay');
+    const wasVisible = overlay.style.display !== 'none';
+    const prevIndex = _ssIndex;
+
+    if (!wasVisible) { overlay.style.display = 'flex'; }
+    hud.style.visibility = 'hidden';
+    prev.style.visibility = 'hidden';
+    next.style.visibility = 'hidden';
+
+    // PHASE 1 render pass — every slide, before any selection is made, so
+    // the picker itself shows real thumbnails as identifiers.
+    for (let i = 0; i < _ssSlides.length; i++) {
+        _ssIndex = i;
+        renderSlideshowSlide();
+        await new Promise(r => setTimeout(r, 150));
+        await new Promise(r => requestAnimationFrame(r));
+        await new Promise(r => requestAnimationFrame(r));
+
+        const transEl = document.getElementById('ss-translation');
+        const transTextEl = transEl?.querySelector('p');
+        if (transTextEl) transTextEl.style.visibility = 'hidden';
+
+        const geezEl = document.getElementById('ss-geez');
+        const reverts = [];
+        geezEl.querySelectorAll('*').forEach(el => {
+            const s = window.getComputedStyle(el);
+            if (s.textDecorationLine?.includes('underline')) {
+                const thickness = Math.max(3, Math.round((parseFloat(s.fontSize) || 16) * 0.12));
+                reverts.push({ el, textDecoration: el.style.textDecoration, backgroundImage: el.style.backgroundImage, backgroundSize: el.style.backgroundSize, backgroundRepeat: el.style.backgroundRepeat, backgroundPosition: el.style.backgroundPosition });
+                el.style.textDecoration = 'none';
+                el.style.backgroundImage = `linear-gradient(${s.color},${s.color})`;
+                el.style.backgroundSize = `100% ${thickness}px`;
+                el.style.backgroundRepeat = 'no-repeat';
+                el.style.backgroundPosition = '0 11px';
+            }
+        });
+
+        await new Promise(r => requestAnimationFrame(r));
+
+        let imgSrc = '';
+        try {
+            const zoom = _ssZoomLevels[i] || 1.0;
+            const visualW = Math.round(overlay.offsetWidth * zoom);
+            const visualH = Math.round(overlay.offsetHeight * zoom);
+            const canvas = await html2canvas(overlay, {
+                scale: 1.5, useCORS: true, allowTaint: true,
+                backgroundColor: '#fffdf8',
+                width: visualW, height: visualH,
+                windowWidth: visualW, windowHeight: visualH
+            });
+            imgSrc = canvas.toDataURL('image/png');
+        } catch (e) {
+            console.error('Slide capture failed for index', i, e);
+        }
+
+        reverts.forEach(o => {
+            o.el.style.textDecoration = o.textDecoration;
+            o.el.style.backgroundImage = o.backgroundImage;
+            o.el.style.backgroundSize = o.backgroundSize;
+            o.el.style.backgroundRepeat = o.backgroundRepeat;
+            o.el.style.backgroundPosition = o.backgroundPosition;
+        });
+        if (transTextEl) transTextEl.style.visibility = '';
+
+        _multicopyData.push({ idx: i, imgSrc, translation: (_ssSlides[i].translation || '').trim() });
+    }
+
+    _ssIndex = prevIndex;
+    renderSlideshowSlide();
+    hud.style.visibility = '';
+    prev.style.visibility = '';
+    next.style.visibility = '';
+    if (!wasVisible) overlay.style.display = 'none';
+
+    renderMulticopySelectionScreen();
+}
+
+function renderMulticopySelectionScreen() {
+    const titleEl = document.getElementById('multicopy-title');
+    if (titleEl) titleEl.textContent = 'Batch Copy Slides';
+    const descEl = document.getElementById('multicopy-desc');
+    if (descEl) descEl.textContent = "Select the slides you want, then click Copy and Continue — they'll all be copied together as one paste.";
+    const grid = document.getElementById('multicopy-grid');
+    grid.innerHTML = '';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+    header.innerHTML = `
+        <span id="multicopy-selcount" style="font-size:12px;color:#666;">0 selected</span>
+        <button id="multicopy-confirm-btn" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:8px 20px;font-weight:bold;font-size:13px;cursor:pointer;">Copy and Continue →</button>
+    `;
+    grid.appendChild(header);
+
+    _multicopyData.forEach(item => {
+        const card = document.createElement('div');
+        card.dataset.idx = item.idx;
+        card.style.cssText = 'border:2px solid #b8d4ee;border-radius:8px;overflow:hidden;cursor:pointer;background:white;transition:0.12s;';
+        card.innerHTML = `
+            <div style="background:#eef3ff;font-size:10px;font-weight:bold;color:#3a5a82;padding:4px 8px;">Slide ${item.idx + 1}</div>
+            <div style="height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fffdf8;">
+                ${item.imgSrc ? `<img src="${item.imgSrc}" style="max-width:100%;max-height:100%;object-fit:contain;">` : '<span style="font-size:10px;color:#e74c3c;">capture failed</span>'}
+            </div>
+            <div style="font-size:11px;color:#666;padding:5px 8px;max-height:40px;overflow:hidden;">${item.translation || '—'}</div>
+        `;
+        card.onclick = () => toggleMulticopySelection(item.idx, card);
+        grid.appendChild(card);
+    });
+
+    document.getElementById('multicopy-confirm-btn').addEventListener('click', confirmMulticopySelectionAndRender);
+}
+
+function toggleMulticopySelection(idx, card) {
+    if (_multicopySelected.has(idx)) {
+        _multicopySelected.delete(idx);
+        card.style.borderColor = '#b8d4ee';
+        card.style.background = 'white';
+    } else {
+        _multicopySelected.add(idx);
+        card.style.borderColor = '#b8860b';
+        card.style.background = '#fff9e6';
+    }
+    document.getElementById('multicopy-selcount').textContent = _multicopySelected.size + ' selected';
+}
+
+async function confirmMulticopySelectionAndRender() {
+    if (!_multicopySelected.size) { alert('Select at least one slide.'); return; }
+    const indices = Array.from(_multicopySelected).sort((a, b) => a - b);
+
+    // Everything is already rendered from Phase 1 — just pull the selected
+    // subset out of _multicopyData. No re-rendering, no second flash.
+    const selectedData = indices
+        .map(i => _multicopyData.find(d => d.idx === i))
+        .filter(Boolean);
+
+    // Automatic batch copy — images only, no translation text, fires the
+    // instant selection is confirmed. Same shape test C validated: one
+    // <img> per slide, in sequence, blue box baked in from Phase 1's capture.
+    const batchParts = selectedData
+        .filter(item => item.imgSrc)
+        .map(item => `<div style="margin-bottom:20px;"><img src="${item.imgSrc}" style="display:block;width:800px;"/></div>`);
+
+    const confirmBtn = document.getElementById('multicopy-confirm-btn');
+    const originalLabel = confirmBtn ? confirmBtn.textContent : '';
+
+    if (batchParts.length) {
+        try {
+            await navigator.clipboard.write([new ClipboardItem({
+                'text/html': new Blob([batchParts.join('')], { type: 'text/html' })
+            })]);
+            if (confirmBtn) { confirmBtn.textContent = '✓ Copied!'; confirmBtn.style.background = '#27ae60'; }
+        } catch (e) {
+            console.error('Automatic batch copy failed:', e);
+            if (confirmBtn) { confirmBtn.textContent = '✕ Copy failed'; confirmBtn.style.background = '#e74c3c'; }
+        }
+    } else if (confirmBtn) {
+        confirmBtn.textContent = '✕ Nothing to copy';
+        confirmBtn.style.background = '#e74c3c';
+    }
+
+    setTimeout(() => renderMulticopyFallbackScreen(selectedData), 600);
+}
+
+function renderMulticopyFallbackScreen(items) {
+    const titleEl = document.getElementById('multicopy-title');
+    if (titleEl) titleEl.textContent = 'Copy Slides — one at a time';
+    const descEl = document.getElementById('multicopy-desc');
+    if (descEl) descEl.textContent = 'Click Copy Image or Copy Text on a slide, switch to your Slides tab, paste, come back and repeat for the next one.';
+    const grid = document.getElementById('multicopy-grid');
+    grid.innerHTML = '';
+
+    items.forEach(item => {
+        const card = document.createElement('div');
+        card.style.cssText = 'border:2px solid #b8d4ee;border-radius:8px;overflow:hidden;background:white;display:flex;flex-direction:column;';
+        card.innerHTML = `
+            <div style="background:#eef3ff;font-size:10px;font-weight:bold;color:#3a5a82;padding:4px 8px;">Slide ${item.idx + 1}</div>
+            <div style="height:100px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fffdf8;border-bottom:1px solid #eee;">
+                ${item.imgSrc ? `<img src="${item.imgSrc}" style="max-width:100%;max-height:100%;object-fit:contain;">` : '<span style="font-size:10px;color:#e74c3c;">capture failed</span>'}
+            </div>
+            <div style="font-size:11px;color:#666;padding:6px 8px;max-height:40px;overflow:hidden;">${item.translation || '—'}</div>
+            <div style="display:flex;gap:6px;padding:8px;border-top:1px solid #eee;">
+                <button class="mc-copy-img" data-idx="${item.idx}" style="flex:1;background:#3a5a82;color:white;border:none;border-radius:5px;padding:6px 4px;font-size:11px;font-weight:bold;cursor:pointer;">🖼 Copy Image</button>
+                <button class="mc-copy-trans" data-idx="${item.idx}" ${!item.translation ? 'disabled' : ''} style="flex:1;background:${item.translation ? '#b8860b' : '#ccc'};color:white;border:none;border-radius:5px;padding:6px 4px;font-size:11px;font-weight:bold;cursor:${item.translation ? 'pointer' : 'not-allowed'};">📋 Copy Text</button>
+            </div>
+        `;
+        grid.appendChild(card);
+    });
+
+    grid.querySelectorAll('.mc-copy-img').forEach(btn => {
+        btn.addEventListener('click', () => copyMulticopyImage(parseInt(btn.dataset.idx), btn));
+    });
+    grid.querySelectorAll('.mc-copy-trans').forEach(btn => {
+        btn.addEventListener('click', () => copyMulticopyTranslation(parseInt(btn.dataset.idx), btn));
+    });
+}
+
+async function copyMulticopyImage(idx, btn) {
+    const item = _multicopyData.find(d => d.idx === idx);
+    if (!item || !item.imgSrc) return;
+    const original = btn.textContent;
+    try {
+        const res = await fetch(item.imgSrc);
+        const blob = await res.blob();
+        await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = original, 1400);
+    } catch (e) {
+        console.error('Copy image failed:', e);
+        btn.textContent = '✕ Failed';
+        setTimeout(() => btn.textContent = original, 1400);
+    }
+}
+
+async function copyMulticopyTranslation(idx, btn) {
+    const item = _multicopyData.find(d => d.idx === idx);
+    if (!item || !item.translation) return;
+    const original = btn.textContent;
+    const htmlPayload = '<p style="font-style:normal;font-weight:700;font-size:25px;font-family:Lexend,sans-serif;color:#000000;">' + item.translation + '</p>';
+    try {
+        await navigator.clipboard.write([new ClipboardItem({
+            'text/plain': new Blob([item.translation], { type: 'text/plain' }),
+            'text/html': new Blob([htmlPayload], { type: 'text/html' })
+        })]);
+        btn.textContent = '✓ Copied!';
+        setTimeout(() => btn.textContent = original, 1400);
+    } catch (e) {
+        console.error('Copy translation failed:', e);
+        try {
+            await navigator.clipboard.writeText(item.translation);
+            btn.textContent = '✓ Copied!';
+            setTimeout(() => btn.textContent = original, 1400);
+        } catch (e2) {
+            btn.textContent = '✕ Failed';
+            setTimeout(() => btn.textContent = original, 1400);
+        }
+    }
+}
+
+function closeMulticopyModal() {
+    document.getElementById('multicopy-modal').style.display = 'none';
+    _multicopyData = [];
 }
 
 function _downloadSlide(canvas, btn) {
