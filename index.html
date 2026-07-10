@@ -1311,7 +1311,10 @@
     <div style="background:white;border-radius:12px;padding:28px;width:540px;max-width:92%;border-top:4px solid #3a5a82;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
             <h3 id="tm-title" style="margin:0;font-size:15px;color:#1a2a3a;">Translation</h3>
-            <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button id="tm-retranslate-btn" onclick="retranslateCurrentPiece()" title="Re-run translation" style="display:none;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">↻ Retranslate</button>
+                <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+            </div>
         </div>
         <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied. A Gemini tab is opening now — paste it there (Ctrl+V) and hit Enter, then copy Gemini's reply and come back here to paste it below.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
@@ -2696,12 +2699,16 @@ function importAllData() {
 let _translatingIndex = null;
 
 const MILIKET_TRANSLATE_WORKER_URL = 'https://empty-violet-911c.miliketstudio.workers.dev';
+let _translatingRawText = ''; // holds the extracted Ge'ez text for the currently-open modal, so retranslate doesn't need to re-extract
 
 function openTranslationModal(index) {
     _translatingIndex = index;
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
     document.getElementById('tm-title').textContent = 'Translation — ' + piece.name;
-    document.getElementById('tm-input').value = piece.translation || '';
+
+    const input = document.getElementById('tm-input');
+    const retranslateBtn = document.getElementById('tm-retranslate-btn');
+    const modal = document.getElementById('translation-modal');
 
     // Extract raw text from visualData using the same DOM method as before
     let rawText = '';
@@ -2727,11 +2734,30 @@ function openTranslationModal(index) {
         return;
     }
 
-    const modal = document.getElementById('translation-modal');
-    const input = document.getElementById('tm-input');
+    _translatingRawText = rawText;
     modal.style.display = 'flex';
 
-    // Show a loading state while the Worker call is in flight
+    if (piece.translation && piece.translation.trim()) {
+        // Already have a translation — show it as-is, don't call the Worker.
+        input.value = piece.translation;
+        input.disabled = false;
+        input.placeholder = 'Paste translation here...';
+        retranslateBtn.style.display = 'inline-block';
+        input.focus();
+    } else {
+        // Nothing saved yet — auto-translate, same as before.
+        retranslateBtn.style.display = 'none';
+        runTranslation(rawText);
+    }
+}
+
+function retranslateCurrentPiece() {
+    if (!_translatingRawText) return;
+    runTranslation(_translatingRawText);
+}
+
+function runTranslation(rawText) {
+    const input = document.getElementById('tm-input');
     input.value = '';
     input.placeholder = 'Translating…';
     input.disabled = true;
@@ -2747,6 +2773,7 @@ function openTranslationModal(index) {
             if (ok && data.translation) {
                 input.value = data.translation;
                 input.placeholder = 'Paste translation here...';
+                document.getElementById('tm-retranslate-btn').style.display = 'inline-block';
             } else {
                 input.placeholder = 'Paste translation here...';
                 alert('Translation failed: ' + (data.error || 'Unknown error.') + '\n\nYou can paste a translation in manually below.');
