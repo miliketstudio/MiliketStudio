@@ -1313,10 +1313,11 @@
             <h3 id="tm-title" style="margin:0;font-size:15px;color:#1a2a3a;">Translation</h3>
             <div style="display:flex;align-items:center;gap:8px;">
                 <button id="tm-retranslate-btn" onclick="retranslateCurrentPiece()" title="Re-run translation" style="display:none;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">↻ Retranslate</button>
+                <button id="tm-manual-gemini-btn" onclick="openManualGeminiFallback()" title="Copies the translation prompt and opens Gemini in a new tab, in case the automatic translator is unavailable" style="background:#fff8e6;border:1px solid #b8860b;color:#8e6a00;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📋 Copy to Gemini</button>
                 <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
             </div>
         </div>
-        <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Prompt copied. A Gemini tab is opening now — paste it there (Ctrl+V) and hit Enter, then copy Gemini's reply and come back here to paste it below.</p>
+        <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Processing your prompt now! If the automatic translation doesn't appear in a few moments, a Gemini tab will open—just paste your prompt there (Ctrl+V) and bring the response back here.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
     </div>
@@ -2786,6 +2787,22 @@ function runTranslation(rawText) {
             alert('Could not reach the translation service: ' + err.message + '\n\nYou can paste a translation in manually below.');
             input.focus();
         });
+}
+
+// Manual fallback — restores the original copy-prompt-and-open-Gemini flow.
+// Always available next to Retranslate, regardless of whether the automatic
+// Worker translation succeeded, failed, or hasn't been run yet. Exists so a
+// Worker outage or bad API key never fully blocks translation mid-service-prep.
+function openManualGeminiFallback() {
+    if (!_translatingRawText) {
+        alert('No text found. Open the piece in the editor and save it first.');
+        return;
+    }
+
+    const geminiPrompt = `You are a Ge'ez liturgical translator for the Ethiopian Orthodox Tewahedo Church. \nYour translations appear as subtitles on church congregation slides, shown line by \nline in sync with the original Ge'ez text.\n\nCRITICAL RULE — PUNCTUATION BOUNDARIES:\nThe original Ge'ez text uses these characters as phrase boundaries: ። ፤ ፡ ፠ ፨ ፣\nEvery single one of these characters is a sync point. Your translation MUST contain \nexactly the same number of these characters in exactly the same order as the original.\nDo NOT replace them with semicolons, commas, dashes, or any other character.\nDo NOT add any of these characters where they do not exist in the original.\nDo NOT remove any of these characters that exist in the original.\n\nSTYLE RULES:\n- Use simple, clear, reverent English that a congregation can read at a glance\n- Do not use archaic language (no "thee", "thou", "dost", "hath")\n- Be faithful to the liturgical meaning, not word-for-word literal\n- Use ordinary English commas freely wherever they make the sentence clearer to read (setting off clauses, lists, asides, etc). Commas are NOT sync points and do not need to match anything in the original Ge'ez — add or omit them purely based on what reads clearly in English\n\nOUTPUT RULES:\n- Return ONLY the translation\n- No commentary, no notes, no explanations, no alternatives\n- No markdown, no bullet points, no numbering\n- No semicolons (;) anywhere in your output\n- Capitalise the first letter of the word that follows every sync point (። ፤ ፡ ፠ ፨ ፣)\n\nTranslate the following Ge'ez text:\n\n` + _translatingRawText;
+
+    navigator.clipboard.writeText(geminiPrompt).catch(() => {});
+    window.open('https://gemini.google.com/app', '_blank');
 }
 
 function closeTranslationModal() {
