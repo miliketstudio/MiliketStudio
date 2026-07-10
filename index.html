@@ -2695,13 +2695,15 @@ function importAllData() {
 // --- Translation modal ---
 let _translatingIndex = null;
 
+const MILIKET_TRANSLATE_WORKER_URL = 'https://empty-violet-911c.miliketstudio.workers.dev';
+
 function openTranslationModal(index) {
     _translatingIndex = index;
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
     document.getElementById('tm-title').textContent = 'Translation — ' + piece.name;
     document.getElementById('tm-input').value = piece.translation || '';
 
-    // Extract raw text from visualData using the same DOM method as the old translatePiece
+    // Extract raw text from visualData using the same DOM method as before
     let rawText = '';
     if (piece.visualData && piece.visualData.trim()) {
         const temp = document.createElement('div');
@@ -2725,13 +2727,38 @@ function openTranslationModal(index) {
         return;
     }
 
-    const geminiPrompt = `You are a Ge'ez liturgical translator for the Ethiopian Orthodox Tewahedo Church. \nYour translations appear as subtitles on church congregation slides, shown line by \nline in sync with the original Ge'ez text.\n\nCRITICAL RULE — PUNCTUATION BOUNDARIES:\nThe original Ge'ez text uses these characters as phrase boundaries: ። ፤ ፡ ፠ ፨ ፣\nEvery single one of these characters is a sync point. Your translation MUST contain \nexactly the same number of these characters in exactly the same order as the original.\nDo NOT replace them with semicolons, commas, dashes, or any other character.\nDo NOT add any of these characters where they do not exist in the original.\nDo NOT remove any of these characters that exist in the original.\n\nSTYLE RULES:\n- Use simple, clear, reverent English that a congregation can read at a glance\n- Do not use archaic language (no "thee", "thou", "dost", "hath")\n- Be faithful to the liturgical meaning, not word-for-word literal\n\nOUTPUT RULES:\n- Return ONLY the translation\n- No commentary, no notes, no explanations, no alternatives\n- No markdown, no bullet points, no numbering\n- No semicolons (;) anywhere in your output\n- Capitalise the first letter of the word that follows every sync point (። ፤ ፡ ፠ ፨ ፣)\n\nTranslate the following Ge'ez text:\n\n` + rawText;
-    navigator.clipboard.writeText(geminiPrompt).catch(() => {});
-
     const modal = document.getElementById('translation-modal');
+    const input = document.getElementById('tm-input');
     modal.style.display = 'flex';
-    setTimeout(() => document.getElementById('tm-input').focus(), 80);
-    setTimeout(() => window.open('https://gemini.google.com/app', '_blank'), 1000);
+
+    // Show a loading state while the Worker call is in flight
+    input.value = '';
+    input.placeholder = 'Translating…';
+    input.disabled = true;
+
+    fetch(MILIKET_TRANSLATE_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: rawText })
+    })
+        .then(res => res.json().then(data => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+            input.disabled = false;
+            if (ok && data.translation) {
+                input.value = data.translation;
+                input.placeholder = 'Paste translation here...';
+            } else {
+                input.placeholder = 'Paste translation here...';
+                alert('Translation failed: ' + (data.error || 'Unknown error.') + '\n\nYou can paste a translation in manually below.');
+            }
+            input.focus();
+        })
+        .catch(err => {
+            input.disabled = false;
+            input.placeholder = 'Paste translation here...';
+            alert('Could not reach the translation service: ' + err.message + '\n\nYou can paste a translation in manually below.');
+            input.focus();
+        });
 }
 
 function closeTranslationModal() {
