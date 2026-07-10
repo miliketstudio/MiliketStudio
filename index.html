@@ -680,6 +680,28 @@
     color:#ccc; padding:6px 18px; border-radius:6px; cursor:pointer; font-size:0.85rem;
 }
 
+/* ---- Google account picker (shown before OAuth popup, only if a saved session exists) ---- */
+#gslides-account-picker {
+    display:none; position:fixed; inset:0; z-index:100010;
+    background:rgba(0,0,0,0.6); align-items:center; justify-content:center;
+    font-family:sans-serif;
+}
+#gslides-account-picker .gap-box {
+    background:#fffdf8; border-radius:12px; padding:26px 28px; width:340px;
+    border-top:4px solid #b8860b; box-shadow:0 10px 40px rgba(0,0,0,0.35);
+}
+#gslides-account-picker h3 { margin:0 0 6px; font-size:15px; color:#1a2a3a; }
+#gslides-account-picker p { margin:0 0 18px; font-size:12px; color:#666; }
+#gslides-account-picker .gap-email {
+    font-weight:bold; color:#3a5a82; word-break:break-all;
+}
+#gslides-account-picker button {
+    width:100%; padding:11px; border:none; border-radius:8px; font-weight:bold;
+    font-size:13px; cursor:pointer; margin-bottom:10px; font-family:sans-serif;
+}
+#gslides-account-picker .gap-continue { background:#b8860b; color:white; }
+#gslides-account-picker .gap-switch { background:#eee; color:#333; }
+
 /* ---- slides line-grid cards ---- */
         #line-grid {
             display: grid;
@@ -1250,6 +1272,16 @@
     <!-- Nav buttons -->
     <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
     <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
+</div>
+
+<!-- Google account picker — shown only when a saved session exists -->
+<div id="gslides-account-picker">
+    <div class="gap-box">
+        <h3>Continue to Google Slides</h3>
+        <p>Signed in as <span class="gap-email" id="gap-email-label"></span></p>
+        <button class="gap-continue" id="gap-continue-btn">Continue with this account</button>
+        <button class="gap-switch" id="gap-switch-btn">Use a different account</button>
+    </div>
 </div>
 
 <!-- Google Slides Export Overlay -->
@@ -4380,11 +4412,51 @@ function closeMulticopyModal() {
 // ============================================================
 
 const GSLIDES_CLIENT_ID = '404061254593-9i15ulmfnhhfau1213q0ha1934fr56n8.apps.googleusercontent.com';
-const GSLIDES_SCOPE = 'https://www.googleapis.com/auth/presentations';
+const GSLIDES_SCOPE = 'https://www.googleapis.com/auth/presentations openid email profile';
 const GSLIDES_WORKER_URL = 'https://miliket-slides.miliketstudio.workers.dev';
 
 let _gslidesTokenClient = null;
 let _gslidesAccessToken = null;
+
+// ---- Session persistence for Google sign-in ----
+// sessionStorage clears automatically when the browser/tab closes — this is
+// exactly the "signed in for this session only" behavior requested. Within
+// that session, the token is reused silently unless the person explicitly
+// switches accounts or signs out.
+const GSLIDES_SESSION_KEY = 'gslides_session';
+
+function _gslidesSaveSession(token, email, expiresInSeconds) {
+    const expiresAt = Date.now() + (expiresInSeconds || 3600) * 1000;
+    sessionStorage.setItem(GSLIDES_SESSION_KEY, JSON.stringify({ token, email, expiresAt }));
+}
+function _gslidesGetSession() {
+    try {
+        const raw = sessionStorage.getItem(GSLIDES_SESSION_KEY);
+        if (!raw) return null;
+        const session = JSON.parse(raw);
+        if (!session.token || !session.expiresAt || Date.now() >= session.expiresAt) return null;
+        return session;
+    } catch(e) { return null; }
+}
+function _gslidesClearSession() {
+    sessionStorage.removeItem(GSLIDES_SESSION_KEY);
+}
+function gslidesSignOut() {
+    _gslidesClearSession();
+    _gslidesAccessToken = null;
+    alert('Signed out of Google Slides. Next export will ask you to sign in again.');
+}
+
+async function _gslidesFetchEmail(token) {
+    try {
+        const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        if (!res.ok) return null;
+        const data = await res.json();
+        return data.email || null;
+    } catch(e) { return null; }
+}
 
 function _gslidesSetMsg(main, sub) {
     const msgEl = document.getElementById('gslides-msg');
@@ -4412,6 +4484,23 @@ function _gslidesShowError(msg) {
     document.getElementById('gslides-close-btn').style.display = 'inline-block';
 }
 
+function _gslidesShowAccountPicker(email) {
+    return new Promise(resolve => {
+        const picker = document.getElementById('gslides-account-picker');
+        document.getElementById('gap-email-label').textContent = email;
+        picker.style.display = 'flex';
+        const continueBtn = document.getElementById('gap-continue-btn');
+        const switchBtn = document.getElementById('gap-switch-btn');
+        function cleanup() {
+            picker.style.display = 'none';
+            continueBtn.onclick = null;
+            switchBtn.onclick = null;
+        }
+        continueBtn.onclick = () => { cleanup(); resolve('continue'); };
+        switchBtn.onclick = () => { cleanup(); resolve('switch'); };
+    });
+}
+
 function _gslidesEnsureTokenClient() {
     return new Promise((resolve, reject) => {
         if (!window.google || !google.accounts || !google.accounts.oauth2) {
@@ -4432,13 +4521,33 @@ function _gslidesEnsureTokenClient() {
 function _gslidesRequestToken() {
     return new Promise(async (resolve, reject) => {
         try {
+            // 1. Check for a valid saved session first — no popup needed if one exists.
+            const saved = _gslidesGetSession();
+            let promptMode = ''; // '' = silent reuse if possible
+
+            if (saved) {
+                const choice = await _gslidesShowAccountPicker(saved.email);
+                if (choice === 'continue') {
+                    // Try to reuse the saved token directly — skip Google entirely if still valid.
+                    _gslidesAccessToken = saved.token;
+                    resolve(_gslidesAccessToken);
+                    return;
+                }
+                // choice === 'switch' — force Google's account chooser
+                promptMode = 'select_account';
+            }
+            // No saved session at all — first time this browser session, show normal consent.
+            if (!saved) promptMode = 'consent';
+
             const client = await _gslidesEnsureTokenClient();
-            client.callback = (resp) => {
+            client.callback = async (resp) => {
                 if (resp.error) { reject(new Error('Google sign-in failed: ' + resp.error)); return; }
                 _gslidesAccessToken = resp.access_token;
+                const email = await _gslidesFetchEmail(resp.access_token);
+                _gslidesSaveSession(resp.access_token, email || 'Google account', resp.expires_in);
                 resolve(_gslidesAccessToken);
             };
-            client.requestAccessToken({ prompt: 'consent' });
+            client.requestAccessToken({ prompt: promptMode });
         } catch (e) { reject(e); }
     });
 }
@@ -4650,7 +4759,7 @@ async function exportToGoogleSlides() {
                         objectId: boxId,
                         style: {
                             bold: true,
-                            fontSize: { magnitude: 25, unit: 'PT' },
+                            fontSize: { magnitude: 23, unit: 'PT' },
                             fontFamily: 'Lexend',
                             foregroundColor: { opaqueColor: { rgbColor: { red: 0, green: 0, blue: 0 } } }
                         },
