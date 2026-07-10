@@ -4594,7 +4594,13 @@ async function exportToGoogleSlides() {
         const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + _gslidesAccessToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title: 'Miliket Studio — ' + new Date().toLocaleString() })
+            body: JSON.stringify({
+                title: 'Miliket Studio — ' + new Date().toLocaleString(),
+                pageSize: {
+                    width: { magnitude: PW_EMU, unit: 'EMU' },
+                    height: { magnitude: PH_EMU, unit: 'EMU' }
+                }
+            })
         });
         if (!createRes.ok) throw new Error('Could not create presentation: ' + createRes.status + ' ' + await createRes.text());
         const presentation = await createRes.json();
@@ -4602,8 +4608,8 @@ async function exportToGoogleSlides() {
         const firstSlideId = presentation.slides && presentation.slides[0] ? presentation.slides[0].objectId : null;
         if (!firstSlideId) throw new Error('Unexpected response creating presentation — no default slide found.');
 
-        const PW_EMU = 12192000; // 13.33in widescreen, in EMU
-        const PH_EMU = 6858000;  // 7.5in
+        const PW_EMU = 9144000;  // Google Slides API always creates 10in-wide presentations — pageSize can't be set via the API, confirmed by Google as intended behavior
+        const PH_EMU = 5143500;  // 5.625in — exact 16:9 of 10in width
 
         const requests = [];
         imageRequests.forEach((item, i) => {
@@ -4647,9 +4653,14 @@ async function exportToGoogleSlides() {
                 requests.push({
                     updateTextStyle: {
                         objectId: boxId,
-                        style: { bold: true, fontSize: { magnitude: 25, unit: 'PT' } },
+                        style: {
+                            bold: true,
+                            fontSize: { magnitude: 25, unit: 'PT' },
+                            fontFamily: 'Lexend',
+                            foregroundColor: { opaqueColor: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+                        },
                         textRange: { type: 'ALL' },
-                        fields: 'bold,fontSize'
+                        fields: 'bold,fontSize,fontFamily,foregroundColor'
                     }
                 });
                 requests.push({
