@@ -660,6 +660,25 @@
 .ss-snap-guide.ss-snap-v { width:1px; top:0; bottom:0; }
 .ss-snap-guide.ss-snap-h { height:1px; left:0; right:0; }
 
+/* ---- Google Slides export overlay ---- */
+#gslides-export-overlay {
+    display:none; position:fixed; inset:0; z-index:100000;
+    background:rgba(0,0,0,0.72); flex-direction:column;
+    align-items:center; justify-content:center;
+    font-family:sans-serif; color:#fff;
+}
+#gslides-export-overlay .gslides-spinner { font-size:2rem; margin-bottom:0.5rem; }
+#gslides-export-overlay .gslides-msg { font-size:1.1rem; font-weight:600; }
+#gslides-export-overlay .gslides-sub { font-size:0.85rem; opacity:0.7; margin-top:0.3rem; max-width:80%; text-align:center; }
+#gslides-export-overlay .gslides-link {
+    margin-top:20px; background:#b8860b; color:white; text-decoration:none;
+    padding:10px 24px; border-radius:8px; font-weight:bold; font-size:0.95rem;
+}
+#gslides-export-overlay .gslides-close {
+    margin-top:14px; background:transparent; border:1px solid rgba(255,255,255,0.3);
+    color:#ccc; padding:6px 18px; border-radius:6px; cursor:pointer; font-size:0.85rem;
+}
+
 /* ---- slides line-grid cards ---- */
         #line-grid {
             display: grid;
@@ -1214,6 +1233,7 @@
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
         <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
         <button onclick="openMulticopyModal()" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📑 Copy Slides</button>
+        <button onclick="exportToGoogleSlides()" style="background:rgba(184,134,11,0.9);border:1px solid #f0c040;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📊 Google Slides</button>
         <button onclick="exitSlideshow()" style="background:rgba(180,0,0,0.7);border:1px solid #e74c3c;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✕ Exit</button>
     </div>
 </div>
@@ -1229,6 +1249,15 @@
     <!-- Nav buttons -->
     <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
     <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
+</div>
+
+<!-- Google Slides Export Overlay -->
+<div id="gslides-export-overlay">
+    <div class="gslides-spinner">⏳</div>
+    <div class="gslides-msg" id="gslides-msg">Preparing export…</div>
+    <div class="gslides-sub" id="gslides-sub"></div>
+    <a id="gslides-link" class="gslides-link" style="display:none;" target="_blank" rel="noopener">Open in Google Slides →</a>
+    <button id="gslides-close-btn" class="gslides-close" style="display:none;" onclick="document.getElementById('gslides-export-overlay').style.display='none';">Close</button>
 </div>
 
 <!-- Multi-Slide Copy Modal -->
@@ -4337,6 +4366,326 @@ async function copyMulticopyTranslation(idx, btn) {
 function closeMulticopyModal() {
     document.getElementById('multicopy-modal').style.display = 'none';
     _multicopyData = [];
+}
+
+// ============================================================
+// GOOGLE SLIDES EXPORT — loops the whole deck (_ssSlides), captures
+// each slide via the same technique as copyCurrentSlide, uploads
+// through the miliket-slides Worker (which pushes to GitHub and
+// returns a public raw.githubusercontent.com URL), builds one
+// batchUpdate covering every slide, then deletes every uploaded
+// image immediately after the call resolves — success or failure —
+// since nothing downstream needs them once batchUpdate is done.
+// ============================================================
+
+const GSLIDES_CLIENT_ID = '404061254593-9i15ulmfnhhfau1213q0ha1934fr56n8.apps.googleusercontent.com';
+const GSLIDES_SCOPE = 'https://www.googleapis.com/auth/presentations';
+const GSLIDES_WORKER_URL = 'https://miliket-slides.miliketstudio.workers.dev';
+
+let _gslidesTokenClient = null;
+let _gslidesAccessToken = null;
+
+function _gslidesSetMsg(main, sub) {
+    const msgEl = document.getElementById('gslides-msg');
+    const subEl = document.getElementById('gslides-sub');
+    if (msgEl) msgEl.textContent = main || '';
+    if (subEl) subEl.textContent = sub || '';
+}
+
+function _gslidesShowOverlay() {
+    const overlay = document.getElementById('gslides-export-overlay');
+    document.getElementById('gslides-link').style.display = 'none';
+    document.getElementById('gslides-close-btn').style.display = 'none';
+    overlay.style.display = 'flex';
+}
+
+function _gslidesShowResult(url) {
+    const linkEl = document.getElementById('gslides-link');
+    linkEl.href = url;
+    linkEl.style.display = 'inline-block';
+    document.getElementById('gslides-close-btn').style.display = 'inline-block';
+}
+
+function _gslidesShowError(msg) {
+    _gslidesSetMsg('❌ Export failed', msg);
+    document.getElementById('gslides-close-btn').style.display = 'inline-block';
+}
+
+function _gslidesEnsureTokenClient() {
+    return new Promise((resolve, reject) => {
+        if (!window.google || !google.accounts || !google.accounts.oauth2) {
+            reject(new Error('Google auth library not loaded. Check your internet connection and try again.'));
+            return;
+        }
+        if (!_gslidesTokenClient) {
+            _gslidesTokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: GSLIDES_CLIENT_ID,
+                scope: GSLIDES_SCOPE,
+                callback: () => {}, // overridden per-call below
+            });
+        }
+        resolve(_gslidesTokenClient);
+    });
+}
+
+function _gslidesRequestToken() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const client = await _gslidesEnsureTokenClient();
+            client.callback = (resp) => {
+                if (resp.error) { reject(new Error('Google sign-in failed: ' + resp.error)); return; }
+                _gslidesAccessToken = resp.access_token;
+                resolve(_gslidesAccessToken);
+            };
+            client.requestAccessToken({ prompt: 'consent' });
+        } catch (e) { reject(e); }
+    });
+}
+
+// Captures the currently-rendered slide overlay to a PNG blob.
+// Mirrors copyCurrentSlide's hide-HUD / overline-fix / html2canvas
+// sequence exactly, but returns a Blob instead of writing to clipboard.
+async function _gslidesCaptureCurrentSlideBlob() {
+    const hud = document.getElementById('ss-hud');
+    const prev = document.getElementById('ss-prev');
+    const next = document.getElementById('ss-next');
+    const overlay = document.getElementById('slideshow-overlay');
+    const geezEl = document.getElementById('ss-geez');
+    const transEl = document.getElementById('ss-translation');
+
+    hud.style.visibility = 'hidden';
+    prev.style.visibility = 'hidden';
+    next.style.visibility = 'hidden';
+    const transTextEl = transEl.querySelector('p');
+    if (transTextEl) transTextEl.style.visibility = 'hidden';
+    const zoomOutBtn = document.getElementById('ss-zoom-out');
+    const zoomInBtn = document.getElementById('ss-zoom-in');
+    const zoomLabel = document.getElementById('ss-zoom-label');
+    if (zoomOutBtn) zoomOutBtn.style.visibility = 'hidden';
+    if (zoomInBtn) zoomInBtn.style.visibility = 'hidden';
+    if (zoomLabel) zoomLabel.style.visibility = 'hidden';
+
+    const _overlineReverts = [];
+    geezEl.querySelectorAll('*').forEach(function(el) {
+        const s = window.getComputedStyle(el);
+        if (s.textDecorationLine && s.textDecorationLine.includes('underline')) {
+            const fontSize = parseFloat(s.fontSize) || 16;
+            const thickness = Math.max(3, Math.round(fontSize * 0.12));
+            _overlineReverts.push({
+                el,
+                textDecoration: el.style.textDecoration,
+                backgroundImage: el.style.backgroundImage,
+                backgroundSize: el.style.backgroundSize,
+                backgroundRepeat: el.style.backgroundRepeat,
+                backgroundPosition: el.style.backgroundPosition
+            });
+            el.style.textDecoration = 'none';
+            el.style.backgroundImage = 'linear-gradient(' + s.color + ',' + s.color + ')';
+            el.style.backgroundSize = '100% ' + thickness + 'px';
+            el.style.backgroundRepeat = 'no-repeat';
+            el.style.backgroundPosition = '0 11px';
+        }
+    });
+
+    await new Promise(r => requestAnimationFrame(r));
+    await new Promise(r => requestAnimationFrame(r));
+
+    let blob = null;
+    try {
+        const zoom = ssGetZoom();
+        const visualW = Math.round(overlay.offsetWidth * zoom);
+        const visualH = Math.round(overlay.offsetHeight * zoom);
+        const canvas = await html2canvas(overlay, {
+            scale: 1.5, useCORS: true, allowTaint: true,
+            backgroundColor: '#fffdf8',
+            width: visualW, height: visualH,
+            windowWidth: visualW, windowHeight: visualH
+        });
+        blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    } finally {
+        _overlineReverts.forEach(function(o) {
+            o.el.style.textDecoration = o.textDecoration;
+            o.el.style.backgroundImage = o.backgroundImage;
+            o.el.style.backgroundSize = o.backgroundSize;
+            o.el.style.backgroundRepeat = o.backgroundRepeat;
+            o.el.style.backgroundPosition = o.backgroundPosition;
+        });
+        hud.style.visibility = '';
+        prev.style.visibility = '';
+        next.style.visibility = '';
+        if (transTextEl) transTextEl.style.visibility = '';
+        if (zoomOutBtn) zoomOutBtn.style.visibility = '';
+        if (zoomInBtn) zoomInBtn.style.visibility = '';
+        if (zoomLabel) zoomLabel.style.visibility = '';
+    }
+    return blob;
+}
+
+async function _gslidesUploadImage(blob) {
+    const res = await fetch(GSLIDES_WORKER_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'image/png' },
+        body: blob
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('Image upload failed: ' + (data.error || res.status));
+    return data; // { url, path }
+}
+
+async function _gslidesDeleteImage(path) {
+    try {
+        await fetch(GSLIDES_WORKER_URL, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path })
+        });
+    } catch (e) {
+        console.warn('Cleanup delete failed for', path, e);
+        // Non-fatal — a leftover temp image in the repo isn't harmful,
+        // just untidy. Don't block or fail the export over this.
+    }
+}
+
+async function exportToGoogleSlides() {
+    if (!_ssSlides.length) { alert('No slides to export.'); return; }
+
+    _gslidesShowOverlay();
+    _gslidesSetMsg('Connecting to Google…', '');
+
+    const prevIndex = _ssIndex;
+    const prevHudHidden = _ssHudHidden;
+    const uploadedPaths = [];
+
+    try {
+        await _gslidesRequestToken();
+
+        const total = _ssSlides.length;
+        const imageRequests = [];
+        const geezHeights = [];
+
+        // ── Phase 1: capture + upload every slide ──────────────────────
+        for (let si = 0; si < total; si++) {
+            _gslidesSetMsg(`Capturing slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
+            _ssIndex = si;
+            renderSlideshowSlide();
+            await new Promise(r => setTimeout(r, 150));
+            await new Promise(r => requestAnimationFrame(r));
+
+            const blob = await _gslidesCaptureCurrentSlideBlob();
+            if (!blob) throw new Error(`Failed to capture slide ${si + 1}.`);
+
+            _gslidesSetMsg(`Uploading slide ${si + 1} of ${total}`, '');
+            const uploaded = await _gslidesUploadImage(blob);
+            uploadedPaths.push(uploaded.path);
+
+            const overlay = document.getElementById('slideshow-overlay');
+            const overlayH = overlay.offsetHeight;
+            const transElH = document.getElementById('ss-translation').offsetHeight;
+            const transFrac = transElH / overlayH;
+            geezHeights.push(1 - transFrac);
+
+            imageRequests.push({ url: uploaded.url, translation: _ssSlides[si].translation || '' });
+        }
+
+        // ── Phase 2: build one batchUpdate for the whole deck ───────────
+        _gslidesSetMsg('Creating presentation…', '');
+
+        const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + _gslidesAccessToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title: 'Miliket Studio — ' + new Date().toLocaleString() })
+        });
+        if (!createRes.ok) throw new Error('Could not create presentation: ' + createRes.status + ' ' + await createRes.text());
+        const presentation = await createRes.json();
+        const presentationId = presentation.presentationId;
+        const firstSlideId = presentation.slides && presentation.slides[0] ? presentation.slides[0].objectId : null;
+        if (!firstSlideId) throw new Error('Unexpected response creating presentation — no default slide found.');
+
+        const PW_EMU = 12192000; // 13.33in widescreen, in EMU
+        const PH_EMU = 6858000;  // 7.5in
+
+        const requests = [];
+        imageRequests.forEach((item, i) => {
+            const geezFrac = geezHeights[i] !== undefined ? geezHeights[i] : 0.82;
+            const geezH = Math.round(PH_EMU * geezFrac);
+            const transY = geezH;
+            const transH = PH_EMU - geezH;
+
+            let slideObjectId = firstSlideId;
+            if (i > 0) {
+                slideObjectId = 'slide_' + i + '_' + Date.now();
+                requests.push({ createSlide: { objectId: slideObjectId } });
+            }
+
+            requests.push({
+                createImage: {
+                    objectId: 'img_' + i + '_' + Date.now(),
+                    url: item.url,
+                    elementProperties: {
+                        pageObjectId: slideObjectId,
+                        size: { height: { magnitude: geezH, unit: 'EMU' }, width: { magnitude: PW_EMU, unit: 'EMU' } },
+                        transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0, unit: 'EMU' }
+                    }
+                }
+            });
+
+            if (item.translation) {
+                const boxId = 'txt_' + i + '_' + Date.now();
+                requests.push({
+                    createShape: {
+                        objectId: boxId,
+                        shapeType: 'TEXT_BOX',
+                        elementProperties: {
+                            pageObjectId: slideObjectId,
+                            size: { height: { magnitude: transH, unit: 'EMU' }, width: { magnitude: PW_EMU, unit: 'EMU' } },
+                            transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: transY, unit: 'EMU' }
+                        }
+                    }
+                });
+                requests.push({ insertText: { objectId: boxId, text: item.translation } });
+                requests.push({
+                    updateTextStyle: {
+                        objectId: boxId,
+                        style: { bold: true, fontSize: { magnitude: 25, unit: 'PT' } },
+                        textRange: { type: 'ALL' },
+                        fields: 'bold,fontSize'
+                    }
+                });
+                requests.push({
+                    updateParagraphStyle: {
+                        objectId: boxId,
+                        style: { alignment: 'CENTER' },
+                        textRange: { type: 'ALL' },
+                        fields: 'alignment'
+                    }
+                });
+            }
+        });
+
+        _gslidesSetMsg('Building presentation…', `${total} slide${total !== 1 ? 's' : ''}`);
+
+        const batchRes = await fetch(`https://slides.googleapis.com/v1/presentations/${presentationId}:batchUpdate`, {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + _gslidesAccessToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ requests })
+        });
+        if (!batchRes.ok) throw new Error('batchUpdate failed: ' + batchRes.status + ' ' + await batchRes.text());
+
+        const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
+        _gslidesSetMsg('✓ Done!', `${total} slide${total !== 1 ? 's' : ''} exported.`);
+        _gslidesShowResult(slidesUrl);
+
+    } catch (e) {
+        console.error('Google Slides export failed:', e);
+        _gslidesShowError(e.message || String(e));
+    } finally {
+        // Cleanup fires on both success and failure — nothing downstream
+        // still needs these temp images once batchUpdate has resolved either way.
+        for (const path of uploadedPaths) { _gslidesDeleteImage(path); }
+        _ssIndex = prevIndex;
+        _ssHudHidden = prevHudHidden;
+        renderSlideshowSlide();
+    }
 }
 
 function _downloadSlide(canvas, btn) {
