@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Slides API — Cheap Test</title>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  body { font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #1a2a3a; }
+  button { background: #b8860b; color: white; border: none; border-radius: 6px; padding: 12px 24px; font-size: 1rem; cursor: pointer; }
+  button:disabled { background: #ccc; cursor: default; }
+  #log { margin-top: 24px; padding: 16px; background: #f5f9ff; border: 1px solid #b8d4ee; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; }
+  a { color: #3a5a82; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Google Slides API — Cheap Test</h1>
+<p>Click the button. It will ask you to sign in and grant access, then create one real Google Slides presentation with one image on it.</p>
+
+<button id="go-btn" disabled>Loading…</button>
+
+<div id="log">Waiting…</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const CLIENT_ID = '404061254593-9i15ulmfnhhfau1213q0ha1934fr56n8.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/presentations';
+const TEST_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png';
+// ────────────────────────────────────────────────────────
+
+const btn = document.getElementById('go-btn');
+const logEl = document.getElementById('log');
+
+function log(msg) {
+    logEl.textContent += '\n' + msg;
+    console.log(msg);
+}
+
+let tokenClient;
+let accessToken = null;
+
+// Wait for the Google Identity Services script to actually load before
+// wiring anything up — it's loaded async/defer so it may not be ready yet.
+function waitForGis() {
+    if (window.google && google.accounts && google.accounts.oauth2) {
+        initTokenClient();
+    } else {
+        setTimeout(waitForGis, 100);
+    }
+}
+
+function initTokenClient() {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPES,
+        callback: (tokenResponse) => {
+            if (tokenResponse.error) {
+                log('❌ Auth error: ' + JSON.stringify(tokenResponse));
+                btn.disabled = false;
+                btn.textContent = 'Connect Google';
+                return;
+            }
+            accessToken = tokenResponse.access_token;
+            log('✓ Got access token (starts with): ' + accessToken.slice(0, 12) + '…');
+            createTestSlide();
+        },
+    });
+    btn.disabled = false;
+    btn.textContent = 'Connect Google';
+}
+
+btn.addEventListener('click', () => {
+    btn.disabled = true;
+    btn.textContent = 'Waiting for Google sign-in…';
+    logEl.textContent = 'Requesting access token…';
+    // prompt: 'consent' forces the consent screen every time, which is what
+    // we want for a repeatable test — otherwise a returning user might get
+    // silently re-authorized with no visible screen at all.
+    tokenClient.requestAccessToken({ prompt: 'consent' });
+});
+
+async function createTestSlide() {
+    btn.textContent = 'Creating presentation…';
+    log('\n— Step 1: creating blank presentation —');
+
+    try {
+        // 1. Create a new, empty presentation.
+        const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + accessToken,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                title: 'Miliket Studio — API Test ' + new Date().toLocaleString(),
+            }),
+        });
+
+        if (!createRes.ok) {
+            const errText = await createRes.text();
+            throw new Error('Create presentation failed: ' + createRes.status + ' — ' + errText);
+        }
+
+        const presentation = await createRes.json();
+        const presentationId = presentation.presentationId;
+        log('✓ Created presentation. ID: ' + presentationId);
+
+        // Google auto-creates one default slide. We grab its objectId so we
+        // can add our image to that existing slide rather than creating a
+        // second one — simplest possible first test.
+        const firstSlideId = presentation.slides && presentation.slides[0]
+            ? presentation.slides[0].objectId
+            : null;
+
+        if (!firstSlideId) {
+            throw new Error('No default slide found on the new presentation — unexpected response shape.');
+        }
+        log('✓ Default slide objectId: ' + firstSlideId);
+
+        // 2. batchUpdate: insert one image onto that slide.
+        log('\n— Step 2: inserting image via batchUpdate —');
+
+        const imageObjectId = 'testImage001';
+        const batchRes = await fetch(
+            `https://slides.googleapis.com/v1/presentations/${presentationId}:batchUpdate`,
+            {
+                method: 'POST',
+                headers: {
+                    'Authorization': 'Bearer ' + accessToken,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    requests: [
+                        {
+                            createImage: {
+                                objectId: imageObjectId,
+                                url: TEST_IMAGE_URL,
+                                elementProperties: {
+                                    pageObjectId: firstSlideId,
+                                    size: {
+                                        height: { magnitude: 3000000, unit: 'EMU' },
+                                        width: { magnitude: 3000000, unit: 'EMU' },
+                                    },
+                                    transform: {
+                                        scaleX: 1,
+                                        scaleY: 1,
+                                        translateX: 1000000,
+                                        translateY: 1000000,
+                                        unit: 'EMU',
+                                    },
+                                },
+                            },
+                        },
+                    ],
+                }),
+            }
+        );
+
+        if (!batchRes.ok) {
+            const errText = await batchRes.text();
+            throw new Error('batchUpdate failed: ' + batchRes.status + ' — ' + errText);
+        }
+
+        log('✓ Image inserted successfully.');
+
+        // 3. Done — hand back a real, clickable link.
+        const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
+        log('\n🎉 DONE. Real Slides link:');
+        logEl.innerHTML += '\n<a href="' + slidesUrl + '" target="_blank">' + slidesUrl + '</a>';
+
+        btn.textContent = 'Done — see link below';
+
+    } catch (err) {
+        log('\n❌ FAILED: ' + err.message);
+        btn.disabled = false;
+        btn.textContent = 'Try again';
+    }
+}
+
+waitForGis();
+</script>
+
+</body>
+</html>
