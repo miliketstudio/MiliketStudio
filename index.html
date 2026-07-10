@@ -4574,6 +4574,7 @@ async function exportToGoogleSlides() {
             renderSlideshowSlide();
             await new Promise(r => setTimeout(r, 150));
             await new Promise(r => requestAnimationFrame(r));
+            console.log('Slide', si, 'zoom:', ssGetZoom(), 'overlay size:', document.getElementById('slideshow-overlay').offsetWidth, 'x', document.getElementById('slideshow-overlay').offsetHeight);
 
             const blob = await _gslidesCaptureCurrentSlideBlob();
             if (!blob) throw new Error(`Failed to capture slide ${si + 1}.`);
