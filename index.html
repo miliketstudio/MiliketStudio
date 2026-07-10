@@ -4550,6 +4550,9 @@ async function _gslidesDeleteImage(path) {
 async function exportToGoogleSlides() {
     if (!_ssSlides.length) { alert('No slides to export.'); return; }
 
+    const PW_EMU = 9144000;  // Google Slides API always creates 10in-wide presentations — pageSize can't be set via the API, confirmed by Google as intended behavior
+    const PH_EMU = 5143500;  // 5.625in — exact 16:9 of 10in width
+
     _gslidesShowOverlay();
     _gslidesSetMsg('Connecting to Google…', '');
 
@@ -4594,22 +4597,13 @@ async function exportToGoogleSlides() {
         const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + _gslidesAccessToken, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                title: 'Miliket Studio — ' + new Date().toLocaleString(),
-                pageSize: {
-                    width: { magnitude: PW_EMU, unit: 'EMU' },
-                    height: { magnitude: PH_EMU, unit: 'EMU' }
-                }
-            })
+            body: JSON.stringify({ title: 'Miliket Studio — ' + new Date().toLocaleString() })
         });
         if (!createRes.ok) throw new Error('Could not create presentation: ' + createRes.status + ' ' + await createRes.text());
         const presentation = await createRes.json();
         const presentationId = presentation.presentationId;
         const firstSlideId = presentation.slides && presentation.slides[0] ? presentation.slides[0].objectId : null;
         if (!firstSlideId) throw new Error('Unexpected response creating presentation — no default slide found.');
-
-        const PW_EMU = 9144000;  // Google Slides API always creates 10in-wide presentations — pageSize can't be set via the API, confirmed by Google as intended behavior
-        const PH_EMU = 5143500;  // 5.625in — exact 16:9 of 10in width
 
         const requests = [];
         imageRequests.forEach((item, i) => {
