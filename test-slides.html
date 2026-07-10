@@ -2,182 +2,133 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Slides API — Cheap Test</title>
-<script src="https://accounts.google.com/gsi/client" async defer></script>
+<title>miliket-slides Worker — Test</title>
 <style>
   body { font-family: sans-serif; max-width: 600px; margin: 60px auto; padding: 0 20px; color: #1a2a3a; }
-  button { background: #b8860b; color: white; border: none; border-radius: 6px; padding: 12px 24px; font-size: 1rem; cursor: pointer; }
+  button { background: #b8860b; color: white; border: none; border-radius: 6px; padding: 10px 20px; font-size: 0.95rem; cursor: pointer; margin-right: 8px; margin-top: 8px; }
   button:disabled { background: #ccc; cursor: default; }
-  #log { margin-top: 24px; padding: 16px; background: #f5f9ff; border: 1px solid #b8d4ee; border-radius: 8px; font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; }
+  #log { margin-top: 20px; padding: 16px; background: #f5f9ff; border: 1px solid #b8d4ee; border-radius: 8px; font-size: 0.82rem; white-space: pre-wrap; word-break: break-all; }
   a { color: #3a5a82; font-weight: bold; }
+  img#preview { max-width: 100%; margin-top: 16px; border: 2px solid #b8d4ee; border-radius: 8px; display: none; }
+  input[type="file"] { margin-top: 8px; }
 </style>
 </head>
 <body>
 
-<h1>Google Slides API — Cheap Test</h1>
-<p>Click the button. It will ask you to sign in and grant access, then create one real Google Slides presentation with one image on it.</p>
+<h1>miliket-slides Worker — Test</h1>
+<p>Pick a PNG, click Upload. This confirms the Worker can push to GitHub and that the returned URL is actually publicly fetchable — the exact thing Google's API will need.</p>
 
-<button id="go-btn" disabled>Loading…</button>
+<input type="file" id="fileInput" accept="image/png">
+<br>
+<button id="uploadBtn" disabled>Upload</button>
+<button id="deleteBtn" style="display:none;">Delete this test image</button>
 
-<div id="log">Waiting…</div>
+<img id="preview" alt="Uploaded image preview">
+<div id="log">Pick a PNG file to begin…</div>
 
 <script>
-// ── CONFIG ──────────────────────────────────────────────
-const CLIENT_ID = '404061254593-9i15ulmfnhhfau1213q0ha1934fr56n8.apps.googleusercontent.com';
-const SCOPES = 'https://www.googleapis.com/auth/presentations';
-const TEST_IMAGE_URL = 'https://upload.wikimedia.org/wikipedia/commons/b/b6/Image_created_with_a_mobile_phone.png';
-// ────────────────────────────────────────────────────────
+const WORKER_URL = 'https://miliket-slides.miliketstudio.workers.dev';
 
-const btn = document.getElementById('go-btn');
+const fileInput = document.getElementById('fileInput');
+const uploadBtn = document.getElementById('uploadBtn');
+const deleteBtn = document.getElementById('deleteBtn');
 const logEl = document.getElementById('log');
+const preview = document.getElementById('preview');
+
+let selectedFile = null;
+let uploadedPath = null;
 
 function log(msg) {
     logEl.textContent += '\n' + msg;
     console.log(msg);
 }
 
-let tokenClient;
-let accessToken = null;
-
-// Wait for the Google Identity Services script to actually load before
-// wiring anything up — it's loaded async/defer so it may not be ready yet.
-function waitForGis() {
-    if (window.google && google.accounts && google.accounts.oauth2) {
-        initTokenClient();
-    } else {
-        setTimeout(waitForGis, 100);
-    }
-}
-
-function initTokenClient() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: CLIENT_ID,
-        scope: SCOPES,
-        callback: (tokenResponse) => {
-            if (tokenResponse.error) {
-                log('❌ Auth error: ' + JSON.stringify(tokenResponse));
-                btn.disabled = false;
-                btn.textContent = 'Connect Google';
-                return;
-            }
-            accessToken = tokenResponse.access_token;
-            log('✓ Got access token (starts with): ' + accessToken.slice(0, 12) + '…');
-            createTestSlide();
-        },
-    });
-    btn.disabled = false;
-    btn.textContent = 'Connect Google';
-}
-
-btn.addEventListener('click', () => {
-    btn.disabled = true;
-    btn.textContent = 'Waiting for Google sign-in…';
-    logEl.textContent = 'Requesting access token…';
-    // prompt: 'consent' forces the consent screen every time, which is what
-    // we want for a repeatable test — otherwise a returning user might get
-    // silently re-authorized with no visible screen at all.
-    tokenClient.requestAccessToken({ prompt: 'consent' });
+fileInput.addEventListener('change', () => {
+    selectedFile = fileInput.files[0] || null;
+    uploadBtn.disabled = !selectedFile;
+    logEl.textContent = selectedFile
+        ? `Selected: ${selectedFile.name} (${(selectedFile.size / 1024).toFixed(1)} KB)`
+        : 'Pick a PNG file to begin…';
 });
 
-async function createTestSlide() {
-    btn.textContent = 'Creating presentation…';
-    log('\n— Step 1: creating blank presentation —');
+uploadBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading…';
+    logEl.textContent = '— Step 1: uploading to Worker —';
 
     try {
-        // 1. Create a new, empty presentation.
-        const createRes = await fetch('https://slides.googleapis.com/v1/presentations', {
+        const res = await fetch(WORKER_URL, {
             method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + accessToken,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                title: 'Miliket Studio — API Test ' + new Date().toLocaleString(),
-            }),
+            headers: { 'Content-Type': 'image/png' },
+            body: selectedFile,
         });
 
-        if (!createRes.ok) {
-            const errText = await createRes.text();
-            throw new Error('Create presentation failed: ' + createRes.status + ' — ' + errText);
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch (e) {
+            throw new Error('Worker did not return valid JSON. Raw response: ' + text);
         }
 
-        const presentation = await createRes.json();
-        const presentationId = presentation.presentationId;
-        log('✓ Created presentation. ID: ' + presentationId);
-
-        // Google auto-creates one default slide. We grab its objectId so we
-        // can add our image to that existing slide rather than creating a
-        // second one — simplest possible first test.
-        const firstSlideId = presentation.slides && presentation.slides[0]
-            ? presentation.slides[0].objectId
-            : null;
-
-        if (!firstSlideId) {
-            throw new Error('No default slide found on the new presentation — unexpected response shape.');
-        }
-        log('✓ Default slide objectId: ' + firstSlideId);
-
-        // 2. batchUpdate: insert one image onto that slide.
-        log('\n— Step 2: inserting image via batchUpdate —');
-
-        const imageObjectId = 'testImage001';
-        const batchRes = await fetch(
-            `https://slides.googleapis.com/v1/presentations/${presentationId}:batchUpdate`,
-            {
-                method: 'POST',
-                headers: {
-                    'Authorization': 'Bearer ' + accessToken,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    requests: [
-                        {
-                            createImage: {
-                                objectId: imageObjectId,
-                                url: TEST_IMAGE_URL,
-                                elementProperties: {
-                                    pageObjectId: firstSlideId,
-                                    size: {
-                                        height: { magnitude: 3000000, unit: 'EMU' },
-                                        width: { magnitude: 3000000, unit: 'EMU' },
-                                    },
-                                    transform: {
-                                        scaleX: 1,
-                                        scaleY: 1,
-                                        translateX: 1000000,
-                                        translateY: 1000000,
-                                        unit: 'EMU',
-                                    },
-                                },
-                            },
-                        },
-                    ],
-                }),
-            }
-        );
-
-        if (!batchRes.ok) {
-            const errText = await batchRes.text();
-            throw new Error('batchUpdate failed: ' + batchRes.status + ' — ' + errText);
+        if (!res.ok) {
+            throw new Error(`Worker returned ${res.status}: ${JSON.stringify(data)}`);
         }
 
-        log('✓ Image inserted successfully.');
+        log('✓ Upload succeeded.');
+        log('URL: ' + data.url);
+        log('Path: ' + data.path);
+        uploadedPath = data.path;
 
-        // 3. Done — hand back a real, clickable link.
-        const slidesUrl = `https://docs.google.com/presentation/d/${presentationId}/edit`;
-        log('\n🎉 DONE. Real Slides link:');
-        logEl.innerHTML += '\n<a href="' + slidesUrl + '" target="_blank">' + slidesUrl + '</a>';
+        log('\n— Step 2: verifying the URL is actually publicly fetchable —');
+        // Fetch it back directly, the same way Google's servers would —
+        // no auth header, just a plain GET.
+        const verifyRes = await fetch(data.url, { cache: 'no-store' });
+        if (!verifyRes.ok) {
+            log(`⚠ Public fetch returned ${verifyRes.status} — the file may not have propagated yet. Try refreshing this check in ~10 seconds by re-fetching the URL manually.`);
+        } else {
+            const blob = await verifyRes.blob();
+            log(`✓ Public URL is fetchable — got back ${blob.type}, ${(blob.size / 1024).toFixed(1)} KB.`);
+            preview.src = URL.createObjectURL(blob);
+            preview.style.display = 'block';
+        }
 
-        btn.textContent = 'Done — see link below';
+        logEl.innerHTML += '\n\n🎉 Done. Public link:\n<a href="' + data.url + '" target="_blank">' + data.url + '</a>';
+
+        uploadBtn.textContent = 'Upload another';
+        uploadBtn.disabled = false;
+        deleteBtn.style.display = 'inline-block';
 
     } catch (err) {
         log('\n❌ FAILED: ' + err.message);
-        btn.disabled = false;
-        btn.textContent = 'Try again';
+        uploadBtn.textContent = 'Try again';
+        uploadBtn.disabled = false;
     }
-}
+});
 
-waitForGis();
+deleteBtn.addEventListener('click', async () => {
+    if (!uploadedPath) return;
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting…';
+    log('\n— Testing cleanup: deleting via DELETE —');
+
+    try {
+        const res = await fetch(WORKER_URL, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ path: uploadedPath }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(`Worker returned ${res.status}: ${JSON.stringify(data)}`);
+        }
+        log('✓ Delete succeeded: ' + JSON.stringify(data));
+        deleteBtn.textContent = 'Deleted ✓';
+    } catch (err) {
+        log('❌ Delete failed: ' + err.message);
+        deleteBtn.disabled = false;
+        deleteBtn.textContent = 'Delete this test image';
+    }
+});
 </script>
 
 </body>
