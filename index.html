@@ -2322,13 +2322,20 @@ function goToPresent() {
 }
 
 function exitToStudio() {
-    // Auto-save current piece before leaving
     savePieceNow();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('main-navbar').style.display = 'none';
     document.getElementById('main-footer').style.display = 'none';
-    showStudioPage('page-pieces');
-    renderPieces();
+    if (currentUser && currentFolder !== null) {
+        showStudioPage('page-pieces');
+        renderPieces();
+    } else if (currentUser) {
+        showStudioPage('page-folders');
+        renderFolders();
+    } else {
+        showStudioPage('page-projects');
+        renderProjects();
+    }
 }
 
 // --- Projects ---
