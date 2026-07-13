@@ -4592,38 +4592,54 @@ function _gslidesEnsureTokenClient() {
 function _gslidesRequestToken() {
     return new Promise(async (resolve, reject) => {
         try {
-            // 1. Check for a valid saved session first — no popup needed if one exists.
             const saved = _gslidesGetSession();
-            let promptMode = ''; // '' = silent reuse if possible
+            let promptMode = '';
 
             if (saved) {
                 const choice = await _gslidesShowAccountPicker(saved.email);
                 if (choice === 'continue') {
-                    // Try to reuse the saved token directly — skip Google entirely if still valid.
                     _gslidesAccessToken = saved.token;
                     resolve(_gslidesAccessToken);
                     return;
                 }
-                // choice === 'switch' — force Google's account chooser
                 promptMode = 'select_account';
             }
-            // No saved session at all — first time this browser session, show normal consent.
             if (!saved) promptMode = 'consent';
 
             const client = await _gslidesEnsureTokenClient();
+
+            let settled = false;
+            let popupCheckInterval = null;
+
             client.callback = async (resp) => {
-                if (resp.error) { reject(new Error('Google sign-in failed: ' + resp.error)); return; }
+                if (settled) return;
+                settled = true;
+                clearInterval(popupCheckInterval);
+                if (resp.error) { reject(new Error('Google sign-in was cancelled.')); return; }
                 _gslidesAccessToken = resp.access_token;
                 const email = await _gslidesFetchEmail(resp.access_token);
                 _gslidesSaveSession(resp.access_token, email || 'Google account', resp.expires_in);
                 resolve(_gslidesAccessToken);
             };
+
             client.requestAccessToken({ prompt: promptMode });
+
+            popupCheckInterval = setInterval(() => {
+                if (settled) { clearInterval(popupCheckInterval); return; }
+                if (document.hasFocus()) {
+                    setTimeout(() => {
+                        if (!settled) {
+                            settled = true;
+                            clearInterval(popupCheckInterval);
+                            reject(new Error('Google sign-in was cancelled.'));
+                        }
+                    }, 800);
+                }
+            }, 400);
+
         } catch (e) { reject(e); }
     });
 }
-
-// Captures the currently-rendered slide overlay to a PNG blob.
 // Mirrors copyCurrentSlide's hide-HUD / overline-fix / html2canvas
 // sequence exactly, but returns a Blob instead of writing to clipboard.
 async function _gslidesCaptureCurrentSlideBlob() {
