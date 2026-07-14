@@ -236,39 +236,74 @@
             margin-top: 6px;
         }
 
-        /* Card action buttons */
-        .card-actions {
+        /* Card options button (kebab) — visible on tap always, on hover for mouse users */
+        .card-menu-btn {
             position: absolute;
             top: 6px;
             right: 6px;
-            display: flex;
-            gap: 4px;
-            opacity: 0;
-            transition: 0.15s;
-        }
-        .studio-card:hover .card-actions,
-        .studio-card.touch-active .card-actions { opacity: 1; }
-        .card-action-btn {
-            width: 22px;
-            height: 22px;
+            width: 26px;
+            height: 26px;
             border: none;
             border-radius: 50%;
-            font-size: 11px;
+            background: rgba(0,0,0,0.06);
+            color: var(--text);
+            font-size: 15px;
+            font-weight: bold;
+            line-height: 1;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
+            z-index: 5;
             transition: 0.15s;
         }
-        .card-action-btn.del { background: #e74c3c; }
-        .card-action-btn.del:hover { background: #c0392b; }
-        .card-action-btn.ren { background: #3498db; }
-        .card-action-btn.ren:hover { background: #2980b9; }
-        .card-action-btn.dup { background: #27ae60; }
-        .card-action-btn.dup:hover { background: #1e8449; }
-        .card-action-btn.mov { background: #9b59b6; }
-        .card-action-btn.mov:hover { background: #7d3c98; }
+        .card-menu-btn:hover, .card-menu-btn.open { background: rgba(0,0,0,0.14); }
+
+        /* Laptop/mouse only: hide kebab until you hover the card, same as your old behavior */
+        @media (hover: hover) and (pointer: fine) {
+            .card-menu-btn { opacity: 0; pointer-events: none; }
+            .studio-card:hover .card-menu-btn,
+            .card-menu-btn.open { opacity: 1; pointer-events: auto; }
+        }
+
+        /* Dropdown panel that opens from the kebab button */
+        .card-actions {
+            position: absolute;
+            top: 34px;
+            right: 6px;
+            min-width: 140px;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 8px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+            padding: 4px;
+            display: none;
+            flex-direction: column;
+            gap: 2px;
+            z-index: 6;
+            text-align: left;
+        }
+        .card-actions.open { display: flex; }
+        .card-action-btn {
+            width: 100%;
+            border: none;
+            border-radius: 5px;
+            background: transparent;
+            font-size: 13px;
+            padding: 8px 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text);
+            transition: 0.15s;
+        }
+        .card-action-btn:hover { background: rgba(0,0,0,0.06); }
+        .card-action-btn.del { color: #e74c3c; }
+        .card-action-btn.del:hover { background: rgba(231,76,60,0.1); }
+        .card-action-btn.ren { color: #3498db; }
+        .card-action-btn.dup { color: #27ae60; }
+        .card-action-btn.mov { color: #9b59b6; }
 
         /* Add new button */
         .studio-add-btn {
@@ -2371,9 +2406,10 @@ function renderProjects() {
         div.dataset.index = keys.indexOf(name);
         const folderCount = (appData[name].folders || []).length;
         div.innerHTML = `
+            <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
             <div class="card-actions">
-                <button class="card-action-btn ren" onclick="event.stopPropagation(); renameProject('${name}')" title="Rename">✎</button>
-                <button class="card-action-btn del" onclick="event.stopPropagation(); deleteProject('${name}')" title="Delete">×</button>
+                <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameProject('${name}')">✎ Rename</button>
+                <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteProject('${name}')">× Delete</button>
             </div>
             <div class="card-icon">☦</div>
             <div class="card-name">${name}</div>
@@ -2440,9 +2476,10 @@ function renderFolders() {
         div.dataset.index = index;
         const pieceCount = (folder.pieces || []).length;
         div.innerHTML = `
+            <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
             <div class="card-actions">
-                <button class="card-action-btn ren" onclick="event.stopPropagation(); renameFolder(${index})" title="Rename">✎</button>
-                <button class="card-action-btn del" onclick="event.stopPropagation(); deleteFolder(${index})" title="Delete">×</button>
+                <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameFolder(${index})">✎ Rename</button>
+                <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteFolder(${index})">× Delete</button>
             </div>
             <div class="card-icon">📁</div>
             <div class="card-name">${folder.name}</div>
@@ -2533,11 +2570,12 @@ function renderPieces() {
         div.dataset.index = index;
         const date = piece.lastModified ? new Date(piece.lastModified).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Never';
         div.innerHTML = `
+            <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
             <div class="card-actions">
-                <button class="card-action-btn ren" onclick="event.stopPropagation(); renamePiece(${index})" title="Rename">✎</button>
-                <button class="card-action-btn dup" onclick="event.stopPropagation(); duplicatePiece(${index})" title="Duplicate">⧉</button>
-                <button class="card-action-btn mov" onclick="event.stopPropagation(); movePiece(${index})" title="Move">↪</button>
-                <button class="card-action-btn del" onclick="event.stopPropagation(); deletePiece(${index})" title="Delete">×</button>
+                <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renamePiece(${index})">✎ Rename</button>
+                <button class="card-action-btn dup" onclick="event.stopPropagation(); closeCardMenus(); duplicatePiece(${index})">⧉ Duplicate</button>
+                <button class="card-action-btn mov" onclick="event.stopPropagation(); closeCardMenus(); movePiece(${index})">↪ Move</button>
+                <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deletePiece(${index})">× Delete</button>
             </div>
             ${buildThumbPreview(piece)}
             <div class="card-icon">📜</div>
@@ -4944,6 +4982,26 @@ function exitSlides() {
     document.getElementById('sync-indicator').style.display = '';
     $('#page-present').addClass('active');
 }
+
+// --- Card options menu (kebab) ---
+function closeCardMenus() {
+    document.querySelectorAll('.card-actions.open').forEach(el => el.classList.remove('open'));
+    document.querySelectorAll('.card-menu-btn.open').forEach(el => el.classList.remove('open'));
+}
+function toggleCardMenu(btn) {
+    const panel = btn.nextElementSibling; // .card-actions sits right after .card-menu-btn in the markup
+    const wasOpen = panel.classList.contains('open');
+    closeCardMenus();
+    if (!wasOpen) {
+        panel.classList.add('open');
+        btn.classList.add('open');
+    }
+}
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.card-menu-btn') && !e.target.closest('.card-actions')) {
+        closeCardMenus();
+    }
+});
 
 // --- Drag-to-reorder ---
 let _dragSrcIndex = null;
