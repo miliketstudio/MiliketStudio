@@ -48,6 +48,8 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui-touch-punch/0.2.3/jquery.ui.touch-punch.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@dragdroptouch/drag-drop-touch@latest/dist/drag-drop-touch.esm.min.js?autoload" type="module"></script>
     <link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@700&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; scrollbar-width: none; }
@@ -244,7 +246,8 @@
             opacity: 0;
             transition: 0.15s;
         }
-        .studio-card:hover .card-actions { opacity: 1; }
+        .studio-card:hover .card-actions,
+        .studio-card.touch-active .card-actions { opacity: 1; }
         .card-action-btn {
             width: 22px;
             height: 22px;
@@ -1395,6 +1398,20 @@ function showPage(name) {
     if (name === 'present') loadNotesList();
 }
 
+// Tap-to-reveal card actions on touch devices (no :hover on mobile)
+$(document).on('click', '.studio-card', function(e) {
+    if ($(e.target).closest('.card-action-btn').length) return; // let the actual button click through
+    var $card = $(this);
+    var wasActive = $card.hasClass('touch-active');
+    $('.studio-card').removeClass('touch-active');
+    if (!wasActive) $card.addClass('touch-active');
+});
+$(document).on('click', function(e) {
+    if (!$(e.target).closest('.studio-card').length) {
+        $('.studio-card').removeClass('touch-active');
+    }
+});
+
 $(document).on('click', '[data-page]', function(e) {
     e.preventDefault();
     var page = $(this).data('page');
@@ -1493,7 +1510,7 @@ function addGlow(id) { if (id) { $('#container #' + id).addClass('highlight'); h
 function containsArr(str, arr) { return arr.some(el => str.includes(el)); }
 
 function rebindCussta() {
-    $('.cussta').off('click.cs').on('click.cs', function(e) {
+    $('#container').off('click.cs').on('click.cs', '.cussta', function(e) {
         selectedSpanId = $(this).attr('id');
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
@@ -1501,7 +1518,7 @@ function rebindCussta() {
 }
 
 function bindLetterClicks() {
-    $('.letter').off('click.lc').on('click.lc', function(e) {
+    $('#container').off('click.lc').on('click.lc', '.letter', function(e) {
         selectedSpanId = $(this).attr('id');
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
