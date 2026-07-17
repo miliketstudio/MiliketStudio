@@ -1210,6 +1210,8 @@
                     <button id="toggleButton" class="btn" style="background:#4a6a96; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Hide grid</button>
                     <button id="copyButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Copy HTML</button>
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
+                    <button id="copyBoxBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">📦 Copy Box</button>
+                    <button id="pasteBoxBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">📋 Paste Box</button>
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
@@ -1420,7 +1422,7 @@ function doRedo() {
 const basics   = ["᎐","᎓","᎒","᎑","᎔","᎖","᎗","᎘","᎙","l","᎕"];
 const ihita    = ["ቡበ","ፔር","ዓይ","ዕለ","ጸጋ","ነድ","ቡር","ገጾ","ኃዘ","ሌ"];
 const seregela = ["ቤሠ","እምሠ","ናሠ","ኃሠ","በጎ","አሠ","በደሠ","ፀሠ","ንዜሠ","መሠ","ሪትሠ","እግሠ","ጐሠ"];
-const others   = ["አመ","መረ","በዚ","ሙ","ሳ","ታ","ሣ","ወር","ዕጠ","ምዘ","አጋ","ለቀ","ሲሄ","ሲመ","ላ","ታ","ውዛ","ጨፍ","ወዝ","ሰር","ንዛ","ዛቲ","ረዩ","ጨበ","ግድ","አያ","ግጭ","ኬ","ዚ","ቡ","ዙ","ሖ","ቁም","ር","ርስ"];
+const others   = ["አመ","መረ","በዚ","ሙ","ሳ","ታ","ሣ","ወር","ዕጠ","ምዘ","አጋ","ለቀ","ሲሄ","ሲመ","ላ","ታ","ውዛ","ጨፍ","ወዝ","ሰር","ንዛ","ዛቲ","ረዩ","ጨበ","ግድ","አያ","ግጭ","ኬ","ዚ","ቡ","ዙ","ሖ","ቁም","ር","ርስ","ገልብጥ","ድል","ጥር","ገልብ"];
 const tirikeza = ["ቤተ","ናተ","ኃተ","አተ","በደተ","ፀተ","ዓተ","ተር"];
 const added    = ["፴","፩","፪","T","፬","•"];
 const milikits = { basics, ihita, seregela, tirikeza, others, added };
@@ -1568,6 +1570,79 @@ function applyToSelected(html) {
     $s.html($s.html() + html);
 }
 
+// --- Image paste: image-only pieces. Container holds either Ge'ez letter-containers OR one image, never both. ---
+function bindImagePaste() {
+    $('#container').off('paste.img').on('paste.img', function(e) {
+        var items = (e.originalEvent.clipboardData || e.clipboardData || {}).items;
+        if (!items) return;
+        var imageItem = null;
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].type && items[i].type.indexOf('image/') === 0) { imageItem = items[i]; break; }
+        }
+        if (!imageItem) return; // no image in clipboard — let normal text/HTML paste behave as-is
+
+        e.preventDefault();
+        e.stopImmediatePropagation();
+
+        if ($('#container .letter-container').length) {
+            alert('This box already has Geez text in it. Image pieces must be in their own empty piece — clear this box first, or paste into a new piece.');
+            return;
+        }
+
+        var file = imageItem.getAsFile();
+        if (!file) return;
+
+        resizeImageForPaste(file, function(dataUrl) {
+            snapshotForUndo();
+            $('#container').html('<img src="' + dataUrl + '" data-miliket-image="1" style="display:block;max-width:100%;height:auto;" />');
+        });
+    });
+}
+
+function resizeImageForPaste(file, callback) {
+    var MAX_DIM = 1600;
+    var QUALITY = 0.82;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var img = new Image();
+        img.onload = function() {
+            var w = img.width, h = img.height;
+            if (w > MAX_DIM || h > MAX_DIM) {
+                if (w >= h) { h = Math.round(h * (MAX_DIM / w)); w = MAX_DIM; }
+                else { w = Math.round(w * (MAX_DIM / h)); h = MAX_DIM; }
+            }
+            var canvas = document.createElement('canvas');
+            canvas.width = w; canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            callback(canvas.toDataURL('image/jpeg', QUALITY));
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+// --- Copy Box / Paste Box: clone a full box's contents (any stack, cussta, custom shape) into another box ---
+var _copiedBoxHtml = null;
+
+function copyBox() {
+    if (!selectedSpanId) { alert('Select a box first.'); return; }
+    var $s = $('#container').find('#' + selectedSpanId);
+    if (!$s.length) { alert('Select a box first.'); return; }
+    _copiedBoxHtml = $s.html();
+    var $b = $('#copyBoxBtn');
+    $b.text('✓ Copied!');
+    setTimeout(function(){ $b.text('📦 Copy Box'); }, 1200);
+}
+
+function pasteBox() {
+    if (_copiedBoxHtml === null) { alert('Copy a box first.'); return; }
+    applyToSelected(_copiedBoxHtml);
+    rebindCussta();
+    var $b = $('#pasteBoxBtn');
+    $b.text('✓ Pasted!');
+    setTimeout(function(){ $b.text('📋 Paste Box'); }, 1200);
+}
+
 function colorStack(inner) {
     return '<span style="color:' + (redtext?"red":"black") + ';display:flex;flex-direction:column;">' + inner + '</span>&hairsp;';
 }
@@ -1579,6 +1654,7 @@ function init() {
     rebindCussta();
     bindLetterClicks();
     updaterowcount();
+    bindImagePaste();
 
     $('#addStackBtn').off('click.as').on('click.as', function(e) { addStack(); e.stopImmediatePropagation(); });
 
@@ -1702,6 +1778,9 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
             var $b = $(this); $b.text('Pasted!'); setTimeout(()=>$b.text('Paste HTML'),1200);
         }).catch(()=>alert('Clipboard access denied.'));
     });
+
+    $('#copyBoxBtn').off('click.cbx').on('click.cbx', function(e){ copyBox(); e.stopImmediatePropagation(); });
+    $('#pasteBoxBtn').off('click.pbx').on('click.pbx', function(e){ pasteBox(); e.stopImmediatePropagation(); });
 
     $('#pushToPresent').off('click.ptp').on('click.ptp', function(){
         savePieceNow();
@@ -3231,13 +3310,14 @@ async function exportToPptx() {
         const rW = 1920, rH = 810;  // 144 DPI × slide dimensions (13.33" × 5.625")
 
         for (let si = 0; si < _builtSlides.length; si++) {
+            const indices = _builtSlides[si];
+            const chunks = indices.map(i => _allLines[i]);
+            const slideHasTranslation = chunks.some(c => c.translation && c.translation.trim());
             // Use this slide's actual layout (respects Edit Layout drag/resize/snap), not a fixed split
-            const layoutForThisSlide = ssGetLayoutForSlide(si);
+            const layoutForThisSlide = slideHasTranslation ? ssGetLayoutForSlide(si) : ssFullLayout();
             const geezH  = PH * (layoutForThisSlide.geez.hPct / 100);
             const transY = PH * (layoutForThisSlide.translation.yPct / 100);
             const transH = PH * (layoutForThisSlide.translation.hPct / 100);
-            const indices = _builtSlides[si];
-            const chunks = indices.map(i => _allLines[i]);
             const geezHtml = chunks.map(c => c.segmentHtml).join('')
                 .replace(/<br\s*\/?>/gi, '')
                 .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
@@ -3310,12 +3390,14 @@ async function exportToPptx() {
             // Ge'ez as image — top 75%
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: geezH });
 
-            // Translation band — bottom 25%
-            slide.addShape(pptx.ShapeType.rect, {
-                x: 0, y: transY, w: PW, h: transH,
-                fill: { color: 'EEF3FF' },
-                line: { color: 'B8D4EE', width: 1 }
-            });
+            // Translation band — only drawn when this slide actually has a translation
+            if (slideHasTranslation) {
+                slide.addShape(pptx.ShapeType.rect, {
+                    x: 0, y: transY, w: PW, h: transH,
+                    fill: { color: 'EEF3FF' },
+                    line: { color: 'B8D4EE', width: 1 }
+                });
+            }
             if (translation) {
                 const fitted = fitTranslationFontSize(translation, PW - 0.6, transH - 0.2);
                 slide.addText(translation, {
@@ -3403,9 +3485,6 @@ async function exportToPptxExact() {
         const pptx = new PptxGenJS();
         pptx.layout = 'LAYOUT_WIDE';
         const PW = 13.33, PH = 7.5;
-        const geezH  = PH * 0.75;
-        const transY = geezH;
-        const transH = PH - geezH;
 
         const total = _ssSlides.length;
 
@@ -3491,7 +3570,12 @@ async function exportToPptxExact() {
                 fill: { color: 'EEF3FF' },
                 line: { color: 'B8D4EE', width: 1 }
             });
-            if (_ssSlides[si].translation) {
+            if (_ssSlides[si].translation && _ssSlides[si].translation.trim()) {
+                slide.addShape(pptx.ShapeType.rect, {
+                    x: 0, y: nativeTransY, w: PW, h: nativeTransH,
+                    fill: { color: 'EEF3FF' },
+                    line: { color: 'B8D4EE', width: 1 }
+                });
                 const fitted = fitTranslationFontSize(_ssSlides[si].translation, PW - 0.6, nativeTransH - 0.1);
                 slide.addText(_ssSlides[si].translation, {
                     x: 0.3, y: nativeTransY + 0.05,
@@ -3641,8 +3725,22 @@ function ssDefaultLayout() {
     };
 }
 
+function ssFullLayout() {
+    return {
+        geez:        { xPct: 0, yPct: 0, wPct: 100, hPct: 100 },
+        translation: { xPct: 0, yPct: 0, wPct: 100, hPct: 0   }
+    };
+}
+
+function ssSlideHasTranslation(slideIndex) {
+    const slide = _ssSlides[slideIndex];
+    return !!(slide && slide.translation && slide.translation.trim());
+}
+
 function ssGetLayoutForSlide(idx) {
-    if (!_ssLayoutOverrides[idx]) _ssLayoutOverrides[idx] = ssDefaultLayout();
+    if (!_ssLayoutOverrides[idx]) {
+        _ssLayoutOverrides[idx] = ssSlideHasTranslation(idx) ? ssDefaultLayout() : ssFullLayout();
+    }
     return _ssLayoutOverrides[idx];
 }
 
@@ -3676,6 +3774,7 @@ function ssRenderFramesForCurrentSlide() {
     ssEnsureHandles(transFrame);
     ssApplyFrameGeometry(geezFrame, layout.geez);
     ssApplyFrameGeometry(transFrame, layout.translation);
+    transFrame.style.display = layout.translation.hPct > 0 ? '' : 'none';
 }
 
 function toggleSsEditMode() {
@@ -3697,7 +3796,7 @@ function ssDeselectFrame() {
 }
 
 function resetSsLayout() {
-    _ssLayoutOverrides[_ssIndex] = ssDefaultLayout();
+    _ssLayoutOverrides[_ssIndex] = ssSlideHasTranslation(_ssIndex) ? ssDefaultLayout() : ssFullLayout();
     ssRenderFramesForCurrentSlide();
     renderSlideshowSlide();
 }
@@ -4877,13 +4976,17 @@ async function exportToGoogleSlides() {
                 requests.push({ createSlide: { objectId: slideObjectId } });
             }
 
+            // The captured screenshot contains the FULL overlay (Geez + translation band
+            // baked into one image), so it must be placed at full-slide height to match
+            // its actual proportions — otherwise Slides aspect-fits it into a shorter box
+            // and it comes in small/centered instead of filling the slide.
             requests.push({
                 createImage: {
                     objectId: 'img_' + i + '_' + Date.now(),
                     url: item.url,
                     elementProperties: {
                         pageObjectId: slideObjectId,
-                        size: { height: { magnitude: geezH, unit: 'EMU' }, width: { magnitude: PW_EMU, unit: 'EMU' } },
+                        size: { height: { magnitude: PH_EMU, unit: 'EMU' }, width: { magnitude: PW_EMU, unit: 'EMU' } },
                         transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: 0, unit: 'EMU' }
                     }
                 }
