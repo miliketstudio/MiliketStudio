@@ -3642,6 +3642,7 @@ function finishAndPresent() {
 
     _ssIndex = 0;
     _ssHudHidden = false;
+    _ssLayoutOverrides = {}; // fresh session — don't inherit layout from a previously presented piece
     document.getElementById('slideshow-overlay').style.display = 'flex';
     renderSlideshowSlide();
     showSsHud();
@@ -4135,6 +4136,13 @@ function renderSlideshowSlide() {
     document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
     applySlideZoom();
 }
+
+window.addEventListener('resize', function() {
+    var overlay = document.getElementById('slideshow-overlay');
+    if (overlay && overlay.style.display !== 'none' && _ssSlides.length) {
+        renderSlideshowSlide();
+    }
+});
 
 function slideshowNav(dir) {
     const next = _ssIndex + dir;
