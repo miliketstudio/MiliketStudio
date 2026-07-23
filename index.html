@@ -89,6 +89,9 @@
         .milikit-title { font-size:1.1rem!important; margin-top:0.5rem; }
         #stacks-container { font-size:1rem; }
         #container .highlight { border:0.1rem solid #00b8cc!important; z-index:20000000!important; }
+        #container .row-selected { border:0.1rem solid #00b8cc!important; z-index:20000000!important; }
+        #container.row-select-mode .letter { cursor:pointer; }
+        #container.row-select-mode .baseletter { cursor:default; }
         .cussta { cursor:pointer; font-size:2.5rem!important; display:inline-flex; }
         .added { margin-bottom:0.2rem; }
         .widestack .basics { line-height:1rem!important; }
@@ -1198,10 +1201,7 @@
                 <div class="d-flex flex-wrap gap-2 align-items-center w-100 justify-content-start mt-2" style="font-size:0.9rem;">
                     <button id="togglecolor" class="btn" style="background:#1a2a3a; color:white; border:1px solid #3a5a82; font-size:0.9rem;">Red milikit</button>
                     <button id="addStackBtn" class="btn" style="background:#3a5a82; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Add row</button>
-                    <form id="rowromveform" class="d-flex align-items-center gap-2">
-                        <select class="form-select w-auto" id="rowCount" style="font-size:0.9rem;"></select>
-                        <button type="submit" class="btn" style="background:#c0392b; color:white; border:1px solid #e74c3c; font-size:0.9rem;">Remove</button>
-                    </form>
+                    <button id="rowSelectModeBtn" class="btn" style="background:#c0392b; color:white; border:1px solid #e74c3c; font-size:0.9rem;">Select Rows</button>
                     <button id="newline" class="btn" style="background:#2980b9; color:white; border:1px solid #3a90c9; font-size:0.9rem;"><i class="fas fa-arrow-turn-down"></i> New Line</button>
                     <button id="removeline" class="btn" style="background:#8e6a00; color:white; border:1px solid #b8860b; font-size:0.9rem;"><i class="fas fa-arrow-left"></i> DelLn</button>
                     <button id="undoBtn" class="btn" style="background:#5a3a6a; color:white; border:1px solid #8a5aaa; font-size:0.9rem;">↩ Undo</button>
@@ -1384,6 +1384,8 @@
 let idcount = 0, mcount = 0, cusstaid = 0, loadednotelength = 0;
 let highlightedspan = "", selectedSpanId = "";
 let redtext = false, numOfRows = 1;
+let rowSelectMode = false;
+let selectedRowIndices = new Set();
 let text = "";
 
 // Undo/redo history (snapshot-based, max 10 steps)
@@ -1556,6 +1558,7 @@ function rebindCussta() {
 
 function bindLetterClicks() {
     $('#container').off('click.lc').on('click.lc', '.letter', function(e) {
+        if (rowSelectMode) return;
         selectedSpanId = $(this).attr('id');
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
@@ -1658,15 +1661,59 @@ function init() {
 
     $('#addStackBtn').off('click.as').on('click.as', function(e) { addStack(); e.stopImmediatePropagation(); });
 
-    $('#rowromveform').off('submit.rr').on('submit.rr', function(e) {
-        e.preventDefault();
-        var idx = parseInt($('#rowCount').val());
-        $('#container').children('.letter-container').each(function() {
-        $(this).children().eq(idx - 1).remove();
+    $('#rowSelectModeBtn').off('click.rsm').on('click.rsm', function(e) {
+        if (rowSelectMode && selectedRowIndices.size > 0) {
+            snapshotForUndo();
+            var indicesDesc = Array.from(selectedRowIndices).sort(function(a, b) { return b - a; });
+            $('#container').children('.letter-container').each(function() {
+                var $lc = $(this);
+                indicesDesc.forEach(function(idx) {
+                    $lc.children('.letter').eq(idx).remove();
+                });
+                var $newBottomRow = $lc.children('.letter').last();
+                if ($newBottomRow.length) $newBottomRow.css('margin-bottom', '');
+            });
+            selectedRowIndices.clear();
+            rowSelectMode = false;
+            $('#container').removeClass('row-select-mode');
+            $(this).text('Select Rows').css({ background:'#c0392b', borderColor:'#e74c3c' });
+            updaterowcount();
+            bindLetterClicks();
+            e.stopImmediatePropagation();
+            return;
+        }
+        rowSelectMode = !rowSelectMode;
+        $('#container').toggleClass('row-select-mode', rowSelectMode);
+        if (rowSelectMode) {
+            $(this).text('Cancel Select').css({ background:'#555', borderColor:'#777' });
+        } else {
+            $(this).text('Select Rows').css({ background:'#c0392b', borderColor:'#e74c3c' });
+            selectedRowIndices.clear();
+            $('#container .row-selected').removeClass('row-selected');
+        }
+        e.stopImmediatePropagation();
     });
-    updaterowcount();
-    e.stopImmediatePropagation();
-});
+
+    $('#container').off('click.rowsel').on('click.rowsel', '.letter', function(e) {
+        if (!rowSelectMode) return;
+        var rowIdx = $(this).parent().children('.letter').index(this);
+        if (selectedRowIndices.has(rowIdx)) {
+            selectedRowIndices.delete(rowIdx);
+        } else {
+            selectedRowIndices.add(rowIdx);
+        }
+        $('#container').children('.letter-container').each(function() {
+            var $row = $(this).children('.letter').eq(rowIdx);
+            $row.toggleClass('row-selected', selectedRowIndices.has(rowIdx));
+        });
+        if (selectedRowIndices.size > 0) {
+            $('#rowSelectModeBtn').text('Delete ' + selectedRowIndices.size + ' Row' + (selectedRowIndices.size > 1 ? 's' : '')).css({ background:'#8b0000', borderColor:'#e74c3c' });
+        } else {
+            $('#rowSelectModeBtn').text('Cancel Select').css({ background:'#555', borderColor:'#777' });
+        }
+        e.stopImmediatePropagation();
+        e.preventDefault();
+    });
 
 $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(colorStack(bs('᎔')+bs('᎔',1)+bs('᎔',1))); e.stopImmediatePropagation(); });
     $('#tripleup').off('click.sb').on('click.sb',     function(e){ applyToSelected(colorStack(bs('᎑')+bs('᎑',1)+bs('᎑',1))); e.stopImmediatePropagation(); });
@@ -2492,8 +2539,7 @@ function renderProjects() {
             </div>
             <div class="card-icon">☦</div>
             <div class="card-name">${name}</div>
-            <div class="card-meta">${folderCount} folder${folderCount !== 1 ? 's' : ''}</div>
-            <div class="card-meta">${appData[name].createdAt ? 'Created ' + new Date(appData[name].createdAt).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>`;
+            <div class="card-meta">${folderCount} folder${folderCount !== 1 ? 's' : ''}</div>`;
         div.onclick = () => openProject(name);
         attachDragHandlers(div, 'project');
         grid.appendChild(div);
@@ -2511,7 +2557,7 @@ function createProject() {
     const name = prompt('Enter project name:');
     if (!name || !name.trim()) return;
     if (appData[name.trim()]) { alert('A project with that name already exists.'); return; }
-    appData[name.trim()] = { folders: [], createdAt: new Date().toISOString() };
+    appData[name.trim()] = { folders: [] };
     saveData();
     renderProjects();
 }
@@ -2562,8 +2608,7 @@ function renderFolders() {
             </div>
             <div class="card-icon">📁</div>
             <div class="card-name">${folder.name}</div>
-            <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>
-            <div class="card-meta">${folder.createdAt ? 'Created ' + new Date(folder.createdAt).toLocaleString('en-GB', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : ''}</div>`;
+            <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>`;
         div.onclick = () => openFolder(index);
         attachDragHandlers(div, 'folder');
         grid.appendChild(div);
@@ -2583,7 +2628,7 @@ function createFolder() {
     const name = prompt('Enter folder name:');
     if (!name || !name.trim()) return;
     if (!appData[currentUser].folders) appData[currentUser].folders = [];
-    appData[currentUser].folders.push({ name: name.trim(), pieces: [], createdAt: new Date().toISOString() });
+    appData[currentUser].folders.push({ name: name.trim(), pieces: [] });
     saveData();
     renderFolders();
 }
@@ -2884,12 +2929,17 @@ function openTranslationModal(index) {
         input.value = piece.translation;
         input.disabled = false;
         input.placeholder = 'Paste translation here...';
+        retranslateBtn.textContent = '↻ Retranslate';
         retranslateBtn.style.display = 'inline-block';
         input.focus();
     } else {
-        // Nothing saved yet — auto-translate, same as before.
-        retranslateBtn.style.display = 'none';
-        runTranslation(rawText);
+        // Nothing saved yet — wait for the button, don't auto-run.
+        input.value = '';
+        input.disabled = false;
+        input.placeholder = 'Paste translation here, or click Translate...';
+        retranslateBtn.textContent = '▶ Translate';
+        retranslateBtn.style.display = 'inline-block';
+        input.focus();
     }
 }
 
