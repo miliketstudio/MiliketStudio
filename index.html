@@ -2803,9 +2803,12 @@ function loadPieceIntoEditor(index) {
             if (n > max) max = n;
         });
         cusstaid = max + 1;
-        var $lastSpan = $('#container .letter').last();
-        var lastId = $lastSpan.attr('id');
-        idcount = lastId ? (parseInt(lastId.replace(/\D/g,'')) || 0) + 1 : 0;
+        var maxSpaceId = 0;
+        $('#container .letter').each(function(){
+            var n = parseInt((this.id || '').replace(/\D/g,''), 10);
+            if (!isNaN(n) && n >= maxSpaceId) maxSpaceId = n + 1;
+        });
+        idcount = maxSpaceId;
         var $stacks = $('#stacks-container').detach();
         $('#milikits-container').html(generateMilikitsHTML(milikits));
         $('#milikits-container').prepend($('<br>')).prepend($stacks);
