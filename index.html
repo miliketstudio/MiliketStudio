@@ -3763,6 +3763,7 @@ function viewResults() {
 // ============================================================
 // SLIDESHOW PRESENTATION MODE
 let _ssSlides = [];
+let ssGapCtx = null; // reused canvas 2D context for per-letter ink-gap measurement
 let _ssIndex = 0;
 let _ssHudHidden = false;
 let _ssZoomLevels = [];
@@ -4121,6 +4122,28 @@ function renderSlideshowSlide() {
 
         inner.querySelectorAll('.baseletter').forEach(bl => {     if (!bl.textContent.trim()) {         bl.textContent = '0';         bl.classList.add('whitespace');     } }); inner.querySelectorAll('.letter-container').forEach(lc => {
             lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
+        });
+
+        // Per-letter gap tightening: each base letter's own font-ink metrics decide
+        // its margin-top, so glyphs with different ascent/ink ratios all end up with
+        // the same visually tight gap to the miliket row above them, instead of one
+        // static margin that's only correct for one glyph shape.
+        inner.querySelectorAll('.baseletter').forEach(bl => {
+            const cs = getComputedStyle(bl);
+            const fontSize = parseFloat(cs.fontSize);
+            if (!fontSize) return;
+            const lineHeight = cs.lineHeight === 'normal' ? fontSize * 1.15 : parseFloat(cs.lineHeight);
+            const ch = [...bl.textContent].find(c => !/[\s\u200A\u200B\u00A0]/.test(c)) || bl.textContent[0];
+            if (!ch) return;
+            const ctx = ssGapCtx || (ssGapCtx = document.createElement('canvas').getContext('2d'));
+            ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fontSize + 'px ' + cs.fontFamily;
+            const m = ctx.measureText(ch);
+            const fontAscent  = m.fontBoundingBoxAscent  ?? m.actualBoundingBoxAscent;
+            const inkAscent   = m.actualBoundingBoxAscent;
+            const fontDescent = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent;
+            const halfLeading = (lineHeight - (fontAscent + fontDescent)) / 2;
+            const gapAboveInk = halfLeading + (fontAscent - inkAscent);
+            if (gapAboveInk > 0) bl.style.marginTop = '-' + gapAboveInk.toFixed(1) + 'px';
         });
 
         Object.assign(inner.style, {
