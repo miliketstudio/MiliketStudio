@@ -3403,6 +3403,28 @@ async function exportToPptx() {
             wrap.appendChild(inner);
             document.body.appendChild(wrap);
 
+            // Per-letter gap tightening — same approach as the live slideshow, so
+            // exported PPTX matches what Present mode shows.
+            (function(){
+                const ctx = document.createElement('canvas').getContext('2d');
+                inner.querySelectorAll('.baseletter').forEach(bl => {
+                    const cs = getComputedStyle(bl);
+                    const fontSize = parseFloat(cs.fontSize);
+                    if (!fontSize) return;
+                    const lineHeight = cs.lineHeight === 'normal' ? fontSize * 1.15 : parseFloat(cs.lineHeight);
+                    const ch = [...bl.textContent].find(c => !/[\s\u200A\u200B\u00A0]/.test(c)) || bl.textContent[0];
+                    if (!ch) return;
+                    ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fontSize + 'px ' + cs.fontFamily;
+                    const m = ctx.measureText(ch);
+                    const fontAscent  = m.fontBoundingBoxAscent  ?? m.actualBoundingBoxAscent;
+                    const inkAscent   = m.actualBoundingBoxAscent;
+                    const fontDescent = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent;
+                    const halfLeading = (lineHeight - (fontAscent + fontDescent)) / 2;
+                    const gapAboveInk = halfLeading + (fontAscent - inkAscent);
+                    if (gapAboveInk > 0) bl.style.marginTop = '-' + gapAboveInk.toFixed(1) + 'px';
+                });
+            })();
+
             // Binary search scale — same logic as the live presenter
             const availW = rW - 40;
             const availH = rH - 20;
