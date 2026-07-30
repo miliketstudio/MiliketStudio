@@ -3091,6 +3091,20 @@ function extractFirstTwoWords(segmentHtml) {
     return words.slice(0, 2).join(' ');
 }
 
+function stripStrayFormatting(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html;
+    t.querySelectorAll('br').forEach(br => { if (!br.closest('.cussta')) br.remove(); });
+    const walker = document.createTreeWalker(t, NodeFilter.SHOW_TEXT);
+    const toRemove = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        if (!node.nodeValue.trim() && !(node.parentElement && node.parentElement.closest('.cussta'))) toRemove.push(node);
+    }
+    toRemove.forEach(n => n.remove());
+    return t.innerHTML;
+}
+
 function splitByPunctuation(html) {
     const temp = document.createElement('div');
     temp.innerHTML = html;
@@ -3115,7 +3129,7 @@ function splitByPunctuation(html) {
             .some(el => !el.classList.contains('whitespace') && el.textContent.trim() && el.textContent.trim() !== '0');
         if (hasRealContent) segments.push(trailingText);
     }
-    return segments.map(s => s.replace(/<br\s*\/?>/gi, '')).filter(s => s.trim());
+    return segments.map(s => stripStrayFormatting(s)).filter(s => s.trim());
 }
 
 function splitTranslation(translation) {
@@ -3371,8 +3385,7 @@ async function exportToPptx() {
             const geezH  = PH * (layoutForThisSlide.geez.hPct / 100);
             const transY = PH * (layoutForThisSlide.translation.yPct / 100);
             const transH = PH * (layoutForThisSlide.translation.hPct / 100);
-            const geezHtml = chunks.map(c => c.segmentHtml).join('')
-                .replace(/<br\s*\/?>/gi, '')
+            const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
                 .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
             const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
 
@@ -3511,10 +3524,7 @@ async function exportToPptxExact() {
 
     _ssSlides = _builtSlides.map(indices => {
         const chunks = indices.map(i => _allLines[i]);
-        const geezHtml = chunks.map(c => c.segmentHtml)
-            .join('')
-            .replace(/<br\s*\/?>/gi, '')
-            .replace(/>\s+</g, '><')
+        const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
             .replace(/style="([^"]*)"/g, (m, s) =>
                 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
         const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
@@ -3684,10 +3694,7 @@ function finishAndPresent() {
 
     _ssSlides = _builtSlides.map(indices => {
         const chunks = indices.map(i => _allLines[i]);
-        const geezHtml = chunks.map(c => c.segmentHtml)
-            .join('')
-            .replace(/<br\s*\/?>/gi, '')
-            .replace(/>\s+</g, '><')
+        const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
             .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
         const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
         return { geezHtml, translation };
@@ -4092,7 +4099,7 @@ function renderSlideshowSlide() {
             .replace(/min-width\s*:\s*[^;]+;?/gi, '');
         return 'style="' + cleaned + '"';
     });
-    const brStripped = cleanedHtml.replace(/<br\s*\/?>/gi, '');
+    const brStripped = stripStrayFormatting(cleanedHtml);
     geezEl.innerHTML = '<div id="ss-geez-inner" style="display:block;width:100%;text-align:left;font-size:0;">' + brStripped + '</div>';
     counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
 
@@ -4101,7 +4108,7 @@ function renderSlideshowSlide() {
         const inner = document.getElementById('ss-geez-inner');
         if (!inner) return;
 
-        inner.querySelectorAll('br').forEach(br => br.remove());
+        inner.querySelectorAll('br').forEach(br => { if (!br.closest('.cussta')) br.remove(); });
 
         const rightBuffer = 12; // extra breathing room on the right, independent of the 10px left padding
         const availW = geezEl.clientWidth - rightBuffer;
