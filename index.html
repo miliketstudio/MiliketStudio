@@ -1056,6 +1056,7 @@
         <div class="studio-center-actions">
             <button class="action-trio-btn action-back" onclick="showStudioPage('page-projects')">← Back</button>
             <button class="action-trio-btn action-add" onclick="createFolder()">＋ New Folder</button>
+            <button class="action-trio-btn action-add" onclick="openBulkImportModal()">📥 Bulk Import</button>
             <button class="action-trio-btn action-present" onclick="goToPresent()">▶ Present</button>
         </div>
     </div>
@@ -1360,6 +1361,33 @@
         <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Processing your prompt now! If the automatic translation doesn't appear in a few moments, a Gemini tab will open—just paste your prompt there (Ctrl+V) and bring the response back here.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div id="bulk-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:28px;width:540px;max-width:92%;border-top:4px solid #3a5a82;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <h3 style="margin:0;font-size:15px;color:#1a2a3a;">Bulk Import Pieces</h3>
+            <button onclick="closeBulkImportModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+        </div>
+        <p style="margin:0 0 12px;font-size:12px;color:#3a5a82;">Paste JSON, or use the console command to pull pieces from another workspace.</p>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:11px;font-weight:bold;color:#1a2a3a;display:block;margin-bottom:4px;">Import into folder:</label>
+            <select id="bulk-import-folder-select" style="width:100%;padding:8px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem;box-sizing:border-box;">
+                <option value="__new__">＋ Create new folder…</option>
+            </select>
+            <input id="bulk-import-new-folder-name" type="text" placeholder="New folder name" style="display:none;width:100%;padding:8px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem;box-sizing:border-box;margin-top:6px;">
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button onclick="copyBulkImportConsoleCommand()" style="flex:1;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📋 Copy Console Command</button>
+            <button onclick="pasteBulkImportFromClipboard()" style="flex:1;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📥 Paste from Clipboard</button>
+        </div>
+        <textarea id="bulk-import-input" rows="8" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;" placeholder='{"piece name": "<div class=...", ...}'></textarea>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+            <button onclick="closeBulkImportModal()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">Dismiss</button>
+            <button onclick="processBulkImport()" style="background:#27ae60;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Import</button>
+        </div>
     </div>
 </div>
 
@@ -2729,6 +2757,115 @@ function createPiece() {
     });
     saveData();
     renderPieces();
+}
+
+// --- Bulk Import ---
+function openBulkImportModal() {
+    document.getElementById('bulk-import-input').value = '';
+    const select = document.getElementById('bulk-import-folder-select');
+    select.innerHTML = '<option value="__new__">＋ Create new folder…</option>';
+    (appData[currentUser].folders || []).forEach((f, i) => {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = f.name;
+        select.appendChild(opt);
+    });
+    select.onchange = function() {
+        document.getElementById('bulk-import-new-folder-name').style.display = (this.value === '__new__') ? '' : 'none';
+    };
+    select.onchange();
+    document.getElementById('bulk-import-modal').style.display = 'flex';
+}
+function closeBulkImportModal() {
+    document.getElementById('bulk-import-modal').style.display = 'none';
+}
+
+function copyBulkImportConsoleCommand() {
+    const lines = [
+        'async function fetchCurrentProject() {',
+        '  const project = document.querySelector("#curproject")?.textContent.trim();',
+        '  const user = document.querySelector(".navbar-text")?.textContent.trim();',
+        '  const noteEls = [...document.querySelectorAll("#keysList h5")];',
+        '  const notes = noteEls.map(el => el.textContent.trim());',
+        '  if (!project || !user || !notes.length) {',
+        '    console.log("Could not detect project/user/notes automatically.");',
+        '    console.log("project:", project, "user:", user, "notes:", notes);',
+        '    return;',
+        '  }',
+        '  console.log("Project:", project);',
+        '  console.log("User:", user);',
+        '  console.log("Notes found:", notes);',
+        '  const allPieces = {};',
+        '  for (const n of notes) {',
+        '    const u = "process/get_keys.php?user=" + encodeURIComponent(user) + "&project=" + encodeURIComponent(project) + "&note=" + encodeURIComponent(n);',
+        '    allPieces[n.trim()] = await $.get(u);',
+        '  }',
+        '  console.log(JSON.stringify(allPieces, null, 2));',
+        '}',
+        'fetchCurrentProject();'
+    ];
+    const cmd = lines.join('\n');
+    navigator.clipboard.writeText(cmd).then(() => {
+        alert('Console command copied. Open the piece you want on the old site (so notes are visible in the dropdown), paste this in the console, and it will auto-detect everything and print the JSON.');
+    });
+}
+
+async function pasteBulkImportFromClipboard() {
+    try {
+        const text = await navigator.clipboard.readText();
+        document.getElementById('bulk-import-input').value = text;
+    } catch(e) {
+        alert('Clipboard access denied — paste manually with Ctrl+V into the box.');
+    }
+}
+
+function processBulkImport() {
+    const raw = document.getElementById('bulk-import-input').value.trim();
+    if (!raw) { alert('Paste some JSON first.'); return; }
+    let data;
+    try {
+        data = JSON.parse(raw);
+    } catch(e) {
+        alert('Invalid JSON — check the format.');
+        return;
+    }
+
+    const select = document.getElementById('bulk-import-folder-select');
+    let targetFolder;
+
+    if (select.value === '__new__') {
+        const newName = document.getElementById('bulk-import-new-folder-name').value.trim();
+        if (!newName) { alert('Type a name for the new folder.'); return; }
+        targetFolder = appData[currentUser].folders.find(f => f.name === newName || f.name === 'X' + newName);
+        if (!targetFolder) {
+            targetFolder = { name: 'X' + newName, pieces: [] };
+            appData[currentUser].folders.push(targetFolder);
+        }
+    } else {
+        targetFolder = appData[currentUser].folders[parseInt(select.value)];
+        if (!targetFolder) { alert('Select a folder.'); return; }
+    }
+    if (!targetFolder.pieces) targetFolder.pieces = [];
+
+    let count = 0;
+    Object.keys(data).forEach(name => {
+        const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+        targetFolder.pieces.push({
+            id: id,
+            name: 'X' + name,
+            content: '',
+            visualData: data[name],
+            lastModified: new Date().toISOString()
+        });
+        markPieceDirty(id);
+        count++;
+    });
+
+    saveData();
+    renderFolders();
+    if (currentFolder !== null) renderPieces();
+    closeBulkImportModal();
+    alert('Imported ' + count + ' piece(s) into "' + targetFolder.name + '", prefixed with X.');
 }
 
 function renamePiece(index) {
