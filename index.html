@@ -238,6 +238,33 @@
             color: var(--text-muted);
             margin-top: 6px;
         }
+        
+        .studio-card > .coming-soon-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(245, 249, 255, 0.55);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10;
+            pointer-events: auto;
+        }
+        body.dark-mode .coming-soon-overlay {
+            background: rgba(36, 48, 64, 0.55);
+        }
+        .coming-soon-badge {
+            background: var(--gold);
+            color: #fff;
+            font-size: 0.75rem;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            text-align: center;
+            padding: 6px 16px;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
 
         /* Card options button (kebab) — visible on tap always, on hover for mouse users */
         .card-menu-btn {
@@ -968,6 +995,9 @@
                 <div class="card-icon">ዜማ</div>
                 <div class="card-name" style="font-size:1.1rem;">Zema Archive</div>
                 <div class="card-meta">Chants &amp; recordings</div>
+                <div class="coming-soon-overlay" onclick="event.stopPropagation()">
+                    <span class="coming-soon-badge">Coming Soon</span>
+                </div>
             </div>
         </div>
     </div>
