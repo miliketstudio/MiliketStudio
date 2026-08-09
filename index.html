@@ -2468,17 +2468,17 @@ async function pullFromGist() {
             overlay.innerHTML = `
                 <div style="background:white;border-radius:12px;padding:28px;width:90%;max-width:480px;border-top:4px solid #b8860b;">
                     <h3 style="margin:0 0 8px;font-size:16px;">☁ Choose Version to Load</h3>
-                    <p style="font-size:12px;color:#999;margin-bottom:18px;">Which version would you like to work with?</p>
+                    <p style="font-size:12px;color:#999;margin-bottom:18px;">Tap a card to load it, or type CLOUD/LOCAL below.</p>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
-                        <div onclick="document.getElementById('sync-choice').value='CLOUD';" style="cursor:pointer;border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;">
+                        <div id="pick-cloud" style="cursor:pointer;border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;-webkit-tap-highlight-color:rgba(58,154,209,0.3);touch-action:manipulation;">
                             <div style="font-weight:bold;color:#3a9ad1;margin-bottom:6px;">☁ Cloud</div>
                             <div style="font-size:12px;color:#333;">${cloudProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${cloudTs ? new Date(cloudTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>CLOUD</b></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
                         </div>
-                        <div onclick="document.getElementById('sync-choice').value='LOCAL';" style="cursor:pointer;border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;">
+                        <div id="pick-local" style="cursor:pointer;border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;-webkit-tap-highlight-color:rgba(39,174,96,0.3);touch-action:manipulation;">
                             <div style="font-weight:bold;color:#27ae60;margin-bottom:6px;">💾 Local</div>
                             <div style="font-size:12px;color:#333;">${localProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${localTs ? new Date(localTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>LOCAL</b></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
                         </div>
                     </div>
                     <input id="sync-choice" type="text" placeholder="CLOUD or LOCAL" autocomplete="off"
@@ -2492,10 +2492,10 @@ async function pullFromGist() {
             const input = overlay.querySelector('#sync-choice');
             const btn = overlay.querySelector('#sync-choice-btn');
             const err = overlay.querySelector('#sync-choice-err');
+            const cloudCard = overlay.querySelector('#pick-cloud');
+            const localCard = overlay.querySelector('#pick-local');
             input.focus();
-            function confirm() {
-                const val = input.value.trim().toUpperCase();
-                if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
+            function finish(val) {
                 document.body.removeChild(overlay);
                 if (val === 'CLOUD') {
                     delete cloudData._lastSaved;
@@ -2506,8 +2506,15 @@ async function pullFromGist() {
                 if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.background = '#27ae60'; }
                 resolve();
             }
-            btn.addEventListener('click', confirm);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+            function confirmTyped() {
+                const val = input.value.trim().toUpperCase();
+                if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
+                finish(val);
+            }
+            cloudCard.addEventListener('pointerup', e => { e.preventDefault(); finish('CLOUD'); });
+            localCard.addEventListener('pointerup', e => { e.preventDefault(); finish('LOCAL'); });
+            btn.addEventListener('click', confirmTyped);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') confirmTyped(); });
         });
 
     } catch(e) {
@@ -5490,21 +5497,21 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
         overlay.innerHTML = `
             <div style="background:white;border-radius:12px;padding:28px;width:90%;max-width:480px;border-top:4px solid #b8860b;">
                 <h3 style="margin:0 0 8px;font-size:16px;">☁ Choose Version to Load</h3>
-                <p style="font-size:12px;color:#999;margin-bottom:18px;">Your local and cloud data differ. Which would you like to work with?</p>
+                <p style="font-size:12px;color:#999;margin-bottom:18px;">Your local and cloud data differ. Tap a card to load it, or type CLOUD/LOCAL below.</p>
                 <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
                     <div style="border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;">
-                        <div onclick="document.getElementById('sync-choice').value='CLOUD';" style="cursor:pointer;">
+                        <div id="pick-cloud" style="cursor:pointer;-webkit-tap-highlight-color:rgba(58,154,209,0.3);touch-action:manipulation;">
                             <div style="font-weight:bold;color:#3a9ad1;margin-bottom:6px;">☁ Cloud</div>
                             <div style="font-size:12px;color:#333;">${cloudProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${cloudTs ? new Date(cloudTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>CLOUD</b></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
                         </div>
                         <button id="dl-cloud" style="margin-top:10px;background:#3a9ad1;color:white;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;">⬇ Download JSON</button>
                     </div>
                     <div style="border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;">
-                        <div onclick="document.getElementById('sync-choice').value='LOCAL';" style="cursor:pointer;">
+                        <div id="pick-local" style="cursor:pointer;-webkit-tap-highlight-color:rgba(39,174,96,0.3);touch-action:manipulation;">
                             <div style="font-weight:bold;color:#27ae60;margin-bottom:6px;">💾 Local</div>
                             <div style="font-size:12px;color:#333;">${localProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${localTs ? new Date(localTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Type <b>LOCAL</b></div>
+                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
                         </div>
                         <button id="dl-local" style="margin-top:10px;background:#27ae60;color:white;border:none;border-radius:5px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;">⬇ Download JSON</button>
                     </div>
@@ -5521,14 +5528,14 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
         const input = overlay.querySelector('#sync-choice');
         const btn = overlay.querySelector('#sync-choice-btn');
         const err = overlay.querySelector('#sync-choice-err');
+        const cloudCard = overlay.querySelector('#pick-cloud');
+        const localCard = overlay.querySelector('#pick-local');
         input.focus();
 
-        overlay.querySelector('#dl-cloud').addEventListener('click', () => downloadJson(cloudData, 'miliket_cloud_' + new Date().toISOString().split('T')[0] + '.json'));
-        overlay.querySelector('#dl-local').addEventListener('click', () => downloadJson(localData, 'miliket_local_' + new Date().toISOString().split('T')[0] + '.json'));
+        overlay.querySelector('#dl-cloud').addEventListener('click', (e) => { e.stopPropagation(); downloadJson(cloudData, 'miliket_cloud_' + new Date().toISOString().split('T')[0] + '.json'); });
+        overlay.querySelector('#dl-local').addEventListener('click', (e) => { e.stopPropagation(); downloadJson(localData, 'miliket_local_' + new Date().toISOString().split('T')[0] + '.json'); });
 
-        function confirm() {
-            const val = input.value.trim().toUpperCase();
-            if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
+        function finish(val) {
             document.body.removeChild(overlay);
             if (val === 'CLOUD') {
                 appData = cloudData;
@@ -5540,8 +5547,15 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
             }
             resolve();
         }
-        btn.addEventListener('click', confirm);
-        input.addEventListener('keydown', e => { if (e.key === 'Enter') confirm(); });
+        function confirmTyped() {
+            const val = input.value.trim().toUpperCase();
+            if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
+            finish(val);
+        }
+        cloudCard.addEventListener('pointerup', e => { e.preventDefault(); finish('CLOUD'); });
+        localCard.addEventListener('pointerup', e => { e.preventDefault(); finish('LOCAL'); });
+        btn.addEventListener('click', confirmTyped);
+        input.addEventListener('keydown', e => { if (e.key === 'Enter') confirmTyped(); });
     });
 }
 
