@@ -1697,7 +1697,21 @@ function copyBox() {
 
 function pasteBox() {
     if (_copiedBoxHtml === null) { alert('Copy a box first.'); return; }
-    applyToSelected(_copiedBoxHtml);
+
+    var $temp = $('<div>').html(_copiedBoxHtml);
+    $temp.find('[id]').each(function() {
+        var $el = $(this);
+        var oldId = $el.attr('id');
+        if (/^cussta\d+$/.test(oldId)) {
+            $el.attr('id', 'cussta' + cusstaid);
+            cusstaid++;
+        } else if (/^space\d+$/.test(oldId)) {
+            $el.attr('id', 'space' + idcount);
+            idcount++;
+        }
+    });
+
+    applyToSelected($temp.html());
     rebindCussta();
     var $b = $('#pasteBoxBtn');
     $b.text('✓ Pasted!');
@@ -1809,7 +1823,10 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         var isBasicOrAdded = (cls === "added" || cls === "basics" || cls === "basicmilkit");
         var space = isBasicOrAdded ? '' : '&hairsp;';
         var editable = isBasicOrAdded ? '' : 'contenteditable="false"';
-        applyToSelected('<span '+editable+' style="color:'+c+';" class="'+cls+'">' + content + '</span>' + space);
+        var $targetSlot = $('#container').find('#' + selectedSpanId);
+        var targetIsCustomstackSecondSlot = ($targetSlot.attr('style') || '').indexOf('margin-top:-3.5rem') !== -1;
+        var extraStyle = (content === '•' && cls === 'added' && targetIsCustomstackSecondSlot) ? 'transform:translateY(18.5px);' : '';
+        applyToSelected('<span '+editable+' style="color:'+c+';'+extraStyle+'" class="'+cls+'">' + content + '</span>' + space);
         rebindCussta();
         e.stopImmediatePropagation();
     });
@@ -2524,10 +2541,12 @@ async function pullFromGist() {
 }
 
 async function saveAndSync() {
+    unsavedChanges = true;
     appData._lastSaved = Date.now();
     localStorage.setItem('miliket_last_saved', appData._lastSaved);
     saveData();
     await pushToFirestore();
+    unsavedChanges = false;
 }
 
 // --- Studio page navigation ---
@@ -2623,7 +2642,7 @@ function createProject() {
     if (!name || !name.trim()) return;
     if (appData[name.trim()]) { alert('A project with that name already exists.'); return; }
     appData[name.trim()] = { folders: [] };
-    saveData();
+    saveAndSync();
     renderProjects();
 }
 
@@ -2634,17 +2653,17 @@ function renameProject(oldName) {
     appData[newName.trim()] = appData[oldName];
     delete appData[oldName];
     if (currentUser === oldName) currentUser = newName.trim();
-    saveData();
+    saveAndSync();
     renderProjects();
 }
 
 function deleteProject(name) {
     openConfirm('Delete Project', `"${name}" and all its contents will be permanently deleted.`, name, () => {
-        (appData[name].folders || []).forEach(f => {                                    // ← ADD
+        (appData[name].folders || []).forEach(f => {
             (f.pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
-        });                                                                             
+        });
         delete appData[name];
-        saveData();
+        saveAndSync();
         renderProjects();
     });
 }
@@ -2694,7 +2713,7 @@ function createFolder() {
     if (!name || !name.trim()) return;
     if (!appData[currentUser].folders) appData[currentUser].folders = [];
     appData[currentUser].folders.push({ name: name.trim(), pieces: [] });
-    saveData();
+    saveAndSync();
     renderFolders();
 }
 
@@ -2703,16 +2722,16 @@ function renameFolder(index) {
     const newName = prompt('Rename folder to:', oldName);
     if (!newName || !newName.trim() || newName === oldName) return;
     appData[currentUser].folders[index].name = newName.trim();
-    saveData();
+    saveAndSync();
     renderFolders();
 }
 
 function deleteFolder(index) {
     const name = appData[currentUser].folders[index].name;
     openConfirm('Delete Folder', `"${name}" and all its pieces will be permanently deleted.`, name, () => {
-        (appData[currentUser].folders[index].pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); }); // ← ADD
+        (appData[currentUser].folders[index].pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
         appData[currentUser].folders.splice(index, 1);
-        saveData();
+        saveAndSync();
         renderFolders();
     });
 }
@@ -2792,7 +2811,7 @@ function createPiece() {
         visualData: '',
         lastModified: new Date().toISOString()
     });
-    saveData();
+    saveAndSync();
     renderPieces();
 }
 
@@ -2898,7 +2917,7 @@ function processBulkImport() {
         count++;
     });
 
-    saveData();
+    saveAndSync();
     renderFolders();
     if (currentFolder !== null) renderPieces();
     closeBulkImportModal();
@@ -2910,7 +2929,7 @@ function renamePiece(index) {
     const newName = prompt('Rename piece to:', oldName);
     if (!newName || !newName.trim() || newName === oldName) return;
     appData[currentUser].folders[currentFolder].pieces[index].name = newName.trim();
-    saveData();
+    saveAndSync();
     renderPieces();
 }
 
@@ -2921,8 +2940,8 @@ function duplicatePiece(index) {
     copy.name = original.name + ' (Copy)';
     copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
-    markPieceDirty(copy.id);   // ← ADD THIS
-    saveData();
+    markPieceDirty(copy.id);
+    saveAndSync();
     renderPieces();
 }
 
@@ -2936,17 +2955,17 @@ function movePiece(index) {
     if (isNaN(targetIndex) || targetIndex === currentFolder || !folders[targetIndex]) { alert('Invalid folder number.'); return; }
     const piece = appData[currentUser].folders[currentFolder].pieces.splice(index, 1)[0];
     appData[currentUser].folders[targetIndex].pieces.push(piece);
-    saveData();
+    saveAndSync();
     renderPieces();
 }
 
 function deletePiece(index) {
     const name = appData[currentUser].folders[currentFolder].pieces[index].name;
-    const pieceId = appData[currentUser].folders[currentFolder].pieces[index].id;  // ← add
+    const pieceId = appData[currentUser].folders[currentFolder].pieces[index].id;
     openConfirm('Delete Piece', `"${name}" will be permanently deleted.`, name, () => {
-        markPieceDeleted(pieceId);   // ← add
+        markPieceDeleted(pieceId);
         appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
-        saveData();
+        saveAndSync();
         renderPieces();
     });
 }
@@ -2963,6 +2982,9 @@ function loadPieceIntoEditor(index) {
     currentPiece = index;
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
     enterEditorMode();
+    _undoStack = [];
+    _redoStack = [];
+    updateUndoRedoBtns();
 
     if (piece.visualData && piece.visualData.trim()) {
         // Has saved visual — activate editor page directly, never call populateContainer
@@ -3061,6 +3083,7 @@ function importAllData() {
 
 // --- Translation modal ---
 let _translatingIndex = null;
+let _lastKnownGoodTranslation = '';
 
 const MILIKET_TRANSLATE_WORKER_URL = 'https://empty-violet-911c.miliketstudio.workers.dev';
 let _translatingRawText = ''; // holds the extracted Ge'ez text for the currently-open modal, so retranslate doesn't need to re-extract
@@ -3104,6 +3127,7 @@ function openTranslationModal(index) {
     if (piece.translation && piece.translation.trim()) {
         // Already have a translation — show it as-is, don't call the Worker.
         input.value = piece.translation;
+        _lastKnownGoodTranslation = piece.translation;
         input.disabled = false;
         input.placeholder = 'Paste translation here...';
         retranslateBtn.textContent = '↻ Retranslate';
@@ -3114,6 +3138,7 @@ function openTranslationModal(index) {
         input.value = '';
         input.disabled = false;
         input.placeholder = 'Paste translation here, or click Translate...';
+        _lastKnownGoodTranslation = '';
         retranslateBtn.textContent = '▶ Translate';
         retranslateBtn.style.display = 'inline-block';
         input.focus();
@@ -3175,8 +3200,10 @@ function openManualGeminiFallback() {
 
 function closeTranslationModal() {
     if (_translatingIndex === null) return;
-    const val = document.getElementById('tm-input').value;
-    appData[currentUser].folders[currentFolder].pieces[_translatingIndex].translation = val;
+    const input = document.getElementById('tm-input');
+    const val = input.value;
+    const safeVal = (input.disabled && !val.trim()) ? _lastKnownGoodTranslation : val;
+    appData[currentUser].folders[currentFolder].pieces[_translatingIndex].translation = safeVal;
     saveData();
     saveAndSync();
     document.getElementById('translation-modal').style.display = 'none';
