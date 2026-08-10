@@ -3248,7 +3248,8 @@ function triggerAutoSave() {
 // ============================================================
 const SLIDE_PUNCT = /[።፤፡፠፨፣]/;
 
-function extractFirstTwoWords(segmentHtml) {
+function extractFirstTwoWords(segmentHtml, isImage) {
+    if (isImage) return '🖼 Image';
     const temp = document.createElement('div');
     temp.innerHTML = segmentHtml;
     const baseLetters = temp.querySelectorAll('.baseletter');
@@ -3336,6 +3337,13 @@ function getTranslationForSegment(transSegs, segIdx, totalSegs) {
     return transSegs[Math.min(mappedIdx, transSegs.length - 1)] || '';
 }
 
+function isImagePieceHtml(html) {
+    if (!html || !html.trim()) return false;
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    return !!temp.querySelector('img[data-miliket-image="1"]') && !temp.querySelector('.letter-container');
+}
+
 function goToSlides() {
     const notes = {};
     if (currentUser && appData[currentUser]) {
@@ -3351,11 +3359,21 @@ function goToSlides() {
         const id = $(this).data('pieceid');
         const piece = notes[id];
         if (!piece || !piece.visualData) return;
-        pieceSegments.push({
-            pieceName: piece.name,
-            segments: splitByPunctuation(piece.visualData),
-            transSegs: splitTranslation(piece.translation || '')
-        });
+        if (isImagePieceHtml(piece.visualData)) {
+            pieceSegments.push({
+                pieceName: piece.name,
+                segments: [piece.visualData],
+                transSegs: [],
+                isImage: true
+            });
+        } else {
+            pieceSegments.push({
+                pieceName: piece.name,
+                segments: splitByPunctuation(piece.visualData),
+                transSegs: splitTranslation(piece.translation || ''),
+                isImage: false
+            });
+        }
     });
 
     if (!pieceSegments.length) {
@@ -3370,7 +3388,8 @@ function goToSlides() {
                 pieceName: pc.pieceName,
                 segIndex: segIdx,
                 segmentHtml: segHtml,
-                translation: getTranslationForSegment(pc.transSegs, segIdx, pc.segments.length)
+                translation: pc.isImage ? '' : getTranslationForSegment(pc.transSegs, segIdx, pc.segments.length),
+                isImage: !!pc.isImage
             });
         });
     });
@@ -3440,12 +3459,15 @@ function renderSlideBuilder() {
             card.classList.toggle('selected');
             updateSelectionCount();
         };
-        const firstTwo = extractFirstTwoWords(line.segmentHtml);
+        const firstTwo = extractFirstTwoWords(line.segmentHtml, line.isImage);
+        const previewHtml = line.isImage
+            ? '<div class="line-preview" style="font-size:0.85rem;">🖼 Image</div>'
+            : '<div class="line-preview">' + (firstTwo || '—') + '</div>';
         card.innerHTML =
             '<div class="check-icon">✔</div>' +
             '<div class="piece-badge">' + line.pieceName + '</div>' +
             '<div class="line-num">Line ' + (idx + 1) + '</div>' +
-            '<div class="line-preview">' + (firstTwo || '—') + '</div>';
+            previewHtml;
         grid.appendChild(card);
     });
 
@@ -3470,7 +3492,7 @@ function renderSlideReorder(container) {
         row.dataset.idx = slideIdx;
         const isAddedSlide = slideIdx >= _secondPassSlideStartIndex && _isSecondPass;
         row.style.cssText = 'display:flex;align-items:center;gap:12px;background:white;border:2px solid ' + (isAddedSlide ? '#e74c3c' : '#b8d4ee') + ';border-radius:8px;padding:10px 14px;cursor:grab;transition:border-color 0.15s;user-select:none;';
-        const preview = indices.map(i => extractFirstTwoWords(_allLines[i].segmentHtml)).join(' … ');
+        const preview = indices.map(i => extractFirstTwoWords(_allLines[i].segmentHtml, _allLines[i].isImage)).join(' … ');
         const pieceName = _allLines[indices[0]].pieceName;
         row.innerHTML =
             '<span style="color:#b8860b;font-size:1.3rem;flex-shrink:0;">⠿</span>' +
@@ -3553,6 +3575,17 @@ async function exportToPptx() {
         for (let si = 0; si < _builtSlides.length; si++) {
             const indices = _builtSlides[si];
             const chunks = indices.map(i => _allLines[i]);
+
+            if (chunks.length === 1 && chunks[0].isImage) {
+                const imgSrcMatch = chunks[0].segmentHtml.match(/<img[^>]*\ssrc="([^"]+)"/);
+                if (imgSrcMatch) {
+                    const slide = pptx.addSlide();
+                    slide.background = { color: 'FFFDF8' };
+                    slide.addImage({ data: imgSrcMatch[1], x: 0, y: 0, w: PW, h: PH });
+                    continue;
+                }
+            }
+
             const slideHasTranslation = chunks.some(c => c.translation && c.translation.trim());
             // Use this slide's actual layout (respects Edit Layout drag/resize/snap), not a fixed split
             const layoutForThisSlide = slideHasTranslation ? ssGetLayoutForSlide(si) : ssFullLayout();
@@ -4286,6 +4319,24 @@ function renderSlideshowSlide() {
     const counter = document.getElementById('ss-counter');
     showSsHud();
     ssRenderFramesForCurrentSlide();
+    counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
+
+    if (isImagePieceHtml(slide.geezHtml)) {
+        geezEl.innerHTML = slide.geezHtml.replace(
+            '<img ',
+            '<img style="display:block;width:100%;height:100%;object-fit:cover;" '
+        );
+        geezEl.style.display = 'flex';
+        geezEl.style.alignItems = 'center';
+        geezEl.style.justifyContent = 'center';
+        geezEl.style.padding = '0';
+        transEl.innerHTML = '<p style="margin:0;font-size:1rem;color:#b8d4ee;font-family:sans-serif;text-align:center;">—</p>';
+        document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
+        document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+        applySlideZoom();
+        return;
+    }
+    geezEl.style.padding = '10px';
 
     // Scale the Ge'ez content to fit the available area
     // Strip any inline width/max-width from letter-containers so they reflow freely
