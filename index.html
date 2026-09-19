@@ -5687,7 +5687,7 @@ async function pushToFirestore() {
 
         // Build index without visualData
         const index = buildIndexData();
-        batch.set(fsdb.collection('users').doc(user.uid), { index }, { merge: true });
+        batch.set(fsdb.collection('users').doc(user.uid), { index }, { mergeFields: ['index'] });
 
         // Each dirty piece gets its own document
         _dirtyPieceIds.forEach(pieceId => {
