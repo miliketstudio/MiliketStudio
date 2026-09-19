@@ -2818,6 +2818,7 @@ function createPiece() {
 // --- Bulk Import ---
 function openBulkImportModal() {
     document.getElementById('bulk-import-input').value = '';
+    document.getElementById('bulk-import-new-folder-name').value = '';
     const select = document.getElementById('bulk-import-folder-select');
     select.innerHTML = '<option value="__new__">＋ Create new folder…</option>';
     (appData[currentUser].folders || []).forEach((f, i) => {
@@ -3368,7 +3369,7 @@ function isImagePieceHtml(html) {
     if (!html || !html.trim()) return false;
     const temp = document.createElement('div');
     temp.innerHTML = html;
-    return !!temp.querySelector('img[data-miliket-image="1"]') && !temp.querySelector('.letter-container');
+        return !temp.querySelector('.letter-container') && !!temp.querySelector('img');
 }
 
 function goToSlides() {
