@@ -1919,7 +1919,30 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
 
     $('#pasteButton').off('click.pp').on('click.pp', function(){
         navigator.clipboard.readText().then(t => {
+            $('#container').empty().removeClass().addClass('borders-on red-off');
+            selectedSpanId = '';
+            highlightedspan = '';
+            idcount = 0;
+            cusstaid = 0;
+            _undoStack = [];
+            _redoStack = [];
             $('#container').html(t);
+            var max = 0;
+            $('#container span[id^="cussta"]').each(function(){
+                var n = parseInt($(this).attr('id').replace('cussta',''), 10);
+                if (n > max) max = n;
+            });
+            cusstaid = max + 1;
+            var maxSpaceId = 0;
+            $('#container .letter').each(function(){
+                var n = parseInt((this.id || '').replace(/\D/g,''), 10);
+                if (!isNaN(n) && n >= maxSpaceId) maxSpaceId = n + 1;
+            });
+            idcount = maxSpaceId;
+            rebindCussta();
+            bindLetterClicks();
+            updaterowcount();
+            updateUndoRedoBtns();
             var $b = $(this); $b.text('Pasted!'); setTimeout(()=>$b.text('Paste HTML'),1200);
         }).catch(()=>alert('Clipboard access denied.'));
     });
