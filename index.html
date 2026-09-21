@@ -1539,7 +1539,7 @@ function populateContainer() {
         var $letter = text[i] === " "
             ? $('<span class="baseletter whitespace">0</span>')
             : $('<span class="baseletter">' + text[i] + '&hairsp;</span>');
-        var $space = $('<span id="space' + (idcount++) + '" class="letter">&nbsp;</span>');
+        var $space = $('<span id="space' + (idcount++) + '" class="letter">&hairsp;</span>');
         $lc.append($space).append($letter);
         $c.append($lc);
     }
@@ -1957,7 +1957,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         var $s = $('#container').find('#' + selectedSpanId);
         if (!$s.length) return;
         snapshotForUndo();
-        $s.html('&nbsp;');
+        $s.html('&hairsp;');
         e.stopImmediatePropagation();
     });
 
