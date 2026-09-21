@@ -96,17 +96,9 @@
         .added { margin-bottom:0.2rem; }
         .widestack .basics { line-height:1rem!important; }
         .file-form { position:sticky; top:0; background-color:white; z-index:10; width:100%; border-bottom:1px solid #ccc; padding-bottom:0.5rem; }
-        #keysList>ul { list-style-type:none; padding:0; margin:0; max-height:10rem; width:20rem; max-width:20rem; overflow-y:auto; }
-        #keysList>ul>li { padding:8px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
-        .delete-button { color:white; background-color:rgb(150,30,30); border:1px solid white; border-radius:0.3rem; cursor:pointer; padding:2px 6px; }
-        li>h5 { cursor:pointer; padding:0 0.5rem; margin:0; font-size:0.95rem; }
-        .x-btn { color:red; cursor:pointer; font-weight:bold; }
         #result { margin:0 0.5rem; min-height:200px; background:#fffdf8; }
         .list-group-item { cursor:pointer; }
-        #savednoteslist>ul,#que { height:25rem; overflow-y:auto; border:1px solid #ccc; padding:10px; }
-        #savednoteslist ul { list-style:none; padding:0; margin:0; }
-        .note-item { padding:8px 12px; cursor:pointer; border-bottom:1px solid #eee; }
-        .note-item:hover { background:#f0f0f0; }
+        #que { height:25rem; overflow-y:auto; border:1px solid #ccc; padding:10px; }
         .red { color:rgb(216,15,15); }
         hr.style-eight { overflow:visible; padding:0; border:none; border-top:medium double #c00404; color:#be0000; text-align:center; opacity:100%; }
         hr.style-eight:after { content:"፠፠፠"; display:inline-block; position:relative; top:-0.7em; font-size:3em; padding:0 0.25em; background:#fffdf8; }
@@ -928,8 +920,7 @@
 /* ============================================================
            EOTC CALENDAR PAGE CSS
         ============================================================ */
-        *{box-sizing:border-box;margin:0;padding:0}
-        .wrap{padding:1rem 0;font-family:var(--font-sans)}
+        .wrap{padding:1rem 0}
         .hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
         .ttl{font-size:18px;font-weight:500;color:var(--text)}
         .yr-ctrls{display:flex;align-items:center;gap:8px}
@@ -1065,7 +1056,6 @@
         <div id="projects-grid" class="studio-grid"></div>
         <div class="transfer-row">
             <button class="transfer-btn" style="background:#27ae60;" onclick="exportAllData()">💾 Export Data</button>
-            <button id="gist-backup-btn" class="transfer-btn" style="background:#6a4a9a;" onclick="backupToGist()">📦 Backup to Gist</button>
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
             <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
@@ -1104,7 +1094,7 @@
     <div class="studio-topbar">
         <button onclick="showStudioPage('page-welcome')" style="background:var(--gold);color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(184,134,11,0.25);transition:background 0.2s;">← Home</button>
         <h1>☦ ምልክት Studio</h1>
-        <button onclick="enterStudio()" style="background:var(--gold);color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(184,134,11,0.25);transition:background 0.2s;">✏️ Studio</button>
+        <button onclick="if (firebase.auth().currentUser) { enterStudio(); } else { studioEntryRequested = true; showStudioPage('page-login'); }" style="background:var(--gold);color:#fff;border:none;border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;cursor:pointer;flex-shrink:0;box-shadow:0 1px 4px rgba(184,134,11,0.25);transition:background 0.2s;">✏️ Studio</button>
         <button id="theme-toggle-calendar" onclick="toggleTheme()">☾ Dark</button>
     </div>
     <div class="studio-content">
@@ -1197,7 +1187,7 @@
         <span>
             <h3 style="display:inline!important;">Create New</h3>
             <span class="text-muted ms-2 me-2">OR</span>
-            <a href="#" data-page="editor" class="bigtxt">Continue editing &gt;&gt;</a>
+            <a href="#" onclick="continueEditingCurrentPiece(); return false;" class="bigtxt">Continue editing &gt;&gt;</a>
         </span>
         <div class="mt-4 alert alert-warning">
             Once you move past this point, you won't be able to edit the original text. Please double-check your input before proceeding.
@@ -1253,17 +1243,7 @@
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
-                    <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="
-                        const html = '<span style=\'font-size:2.5rem\'>\u200A</span>';
-                        try {
-                            navigator.clipboard.write([new ClipboardItem({
-                                'text/html': new Blob([html], {type:'text/html'}),
-                                'text/plain': new Blob(['\u200A'], {type:'text/plain'})
-                            })]).then(() => { this.style.background='#137333'; setTimeout(() => this.style.background='', 1500); });
-                        } catch(e) {
-                            navigator.clipboard.writeText('\u200A').then(() => { this.style.background='#137333'; setTimeout(() => this.style.background='', 1500); });
-                        }
-                    ">hairspace</button>
+                    <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="copyHairSpace(this)">hairspace</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
@@ -1380,7 +1360,6 @@
         </div>
         <p id="multicopy-desc" style="margin:0 0 14px;font-size:12px;color:#3a5a82;">Select the slides you want, then click Copy and Continue — they'll all be copied together as one paste.</p>
         <div id="multicopy-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;padding:2px;"></div>
-        </div>
     </div>
 </div>
 
@@ -1463,6 +1442,7 @@ function snapshotForUndo() {
     if (_undoStack.length > MAX_HISTORY) _undoStack.shift();
     _redoStack = []; // clear redo on new action
     updateUndoRedoBtns();
+    triggerAutoSave();
 }
 
 function updateUndoRedoBtns() {
@@ -1502,20 +1482,6 @@ function showPage(name) {
     if (name === 'present') loadNotesList();
 }
 
-// Tap-to-reveal card actions on touch devices (no :hover on mobile)
-$(document).on('click', '.studio-card', function(e) {
-    if ($(e.target).closest('.card-action-btn').length) return; // let the actual button click through
-    var $card = $(this);
-    var wasActive = $card.hasClass('touch-active');
-    $('.studio-card').removeClass('touch-active');
-    if (!wasActive) $card.addClass('touch-active');
-});
-$(document).on('click', function(e) {
-    if (!$(e.target).closest('.studio-card').length) {
-        $('.studio-card').removeClass('touch-active');
-    }
-});
-
 $(document).on('click', '[data-page]', function(e) {
     e.preventDefault();
     var page = $(this).data('page');
@@ -1533,19 +1499,8 @@ $(document).on('click', '[data-page]', function(e) {
     showPage(page);
 });
 
-function getAllNotes() {
-    try { return JSON.parse(localStorage.getItem('idefisseha_notes') || '{}'); } catch(e) { return {}; }
-}
-function saveNote(key, value) {
-    var n = getAllNotes(); n[key] = value;
-    localStorage.setItem('idefisseha_notes', JSON.stringify(n));
-}
-function deleteNoteByKey(key) {
-    var n = getAllNotes(); delete n[key];
-    localStorage.setItem('idefisseha_notes', JSON.stringify(n));
-}
-
 function setupEditor() {
+    resetEditorModes();
     var milikitsHTML = generateMilikitsHTML(milikits);
     var $stacks = $('#stacks-container').detach();
     $('#milikits-container').html(milikitsHTML);
@@ -1603,10 +1558,9 @@ function addStack() {
 }
 
 function updaterowcount() {
-    var n = Math.max(0, $("#letter-container0").children().length - 1);
-    numOfRows = n;
-    $('#rowCount').empty();
-    for (var i = 1; i <= n; i++) $('#rowCount').append($('<option>', {value:i, text:i}));
+    // numOfRows is informational only - the old #rowCount select no longer exists in the
+    // markup, and reading the first .letter-container works for imported pieces whose ids differ.
+    numOfRows = $('#container').children('.letter-container').first().children('.letter').length;
 }
 
 function removeGlow() { $('#container .highlight').removeClass('highlight'); }
@@ -1628,6 +1582,18 @@ function bindLetterClicks() {
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
     });
+}
+
+function resetEditorModes() {
+    rowSelectMode = false;
+    selectedRowIndices.clear();
+    selectedSpanId = '';
+    highlightedspan = '';
+    redtext = false;
+    $('#container').removeClass('row-select-mode');
+    $('#container .row-selected').removeClass('row-selected');
+    $('#rowSelectModeBtn').text('Select Rows').css({ background:'#c0392b', borderColor:'#e74c3c' });
+    $('#togglecolor').text('Red milikit').css({ background:'#1a2a3a', color:'white', borderColor:'#3a5a82' });
 }
 
 function applyToSelected(html) {
@@ -1660,23 +1626,40 @@ function bindImagePaste() {
         var file = imageItem.getAsFile();
         if (!file) return;
 
-        resizeImageForPaste(file, function(dataUrl) {
+        resizeImageForPaste(file, function(dataUrl, info) {
+            if (info && info.tooLarge) {
+                alert('This image is too large to store reliably.\n\n'
+                    + 'After compression it still needs about ' + Math.round(info.storedBytes / 1024) + ' KB, '
+                    + 'and the per-piece cloud storage limit is about ' + Math.round(info.ceiling / 1024) + ' KB.\n\n'
+                    + 'It has NOT been inserted. A piece this large fails to sync, and the failure only shows up later as a generic "Sync failed" message with no hint about which piece caused it.\n\n'
+                    + 'Crop it or save it at a smaller size, then paste it again.');
+                return;
+            }
             snapshotForUndo();
-            $('#container').html('<img src="' + dataUrl + '" data-miliket-image="1" style="display:block;max-width:100%;height:auto;" />');
+            $('#container').html(buildPastedImageHtml(dataUrl));
+            if (info && info.converted) {
+                console.log('Pasted PNG was re-encoded as JPEG so the piece stays within the cloud storage limit.');
+            }
         });
     });
 }
 
+function buildPastedImageHtml(dataUrl) {
+    return '<img src="' + dataUrl + '" data-miliket-image="1" style="display:block;max-width:100%;height:auto;" />';
+}
+
 function resizeImageForPaste(file, callback) {
-    const MAX_DIM     = 2560;
-    const BYTE_BUDGET = 700 * 1024;
-    const keepPng     = (file.type === 'image/png');
+    const MAX_DIM       = 2560;
+    const BYTE_BUDGET   = 700 * 1024;
+    const STORE_CEILING = 900 * 1024;
+    const CHEAP_SKIP    = 550 * 1024;
+    const keepPng       = (file.type === 'image/png');
 
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
         img.onload = function() {
-            function encode(maxDim, quality) {
+            function encode(maxDim, quality, asJpeg) {
                 let w = img.width, h = img.height;
                 if (w > maxDim || h > maxDim) {
                     if (w >= h) { h = Math.round(h * (maxDim / w)); w = maxDim; }
@@ -1687,18 +1670,57 @@ function resizeImageForPaste(file, callback) {
                 const ctx = canvas.getContext('2d');
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
+                if (asJpeg) { ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, w, h); }
                 ctx.drawImage(img, 0, 0, w, h);
-                return keepPng ? canvas.toDataURL('image/png')
-                               : canvas.toDataURL('image/jpeg', quality);
+                return asJpeg ? canvas.toDataURL('image/jpeg', quality)
+                              : canvas.toDataURL('image/png');
             }
 
-            let dim = MAX_DIM, quality = 0.92, out = encode(dim, quality);
-            for (let i = 0; i < 8 && (out.length * 0.75) > BYTE_BUDGET; i++) {
+            function decodedBytes(dataUrl) {
+                const b64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
+                let pad = 0;
+                if (b64.endsWith('==')) pad = 2;
+                else if (b64.endsWith('=')) pad = 1;
+                return Math.max(0, Math.floor(b64.length * 0.75) - pad);
+            }
+
+            function storedBytes(dataUrl) {
+                if (decodedBytes(dataUrl) < CHEAP_SKIP) return 0;
+                try {
+                    return compressForCloud(buildPastedImageHtml(dataUrl)).length;
+                } catch (err) {
+                    return Math.round(decodedBytes(dataUrl) * 1.34);
+                }
+            }
+
+            let dim = MAX_DIM, quality = 0.92, out = encode(dim, quality, !keepPng);
+            for (let i = 0; i < 8 && decodedBytes(out) > BYTE_BUDGET; i++) {
                 if (!keepPng && quality > 0.70) quality -= 0.07;
                 else dim = Math.round(dim * 0.82);
-                out = encode(dim, quality);
+                out = encode(dim, quality, !keepPng);
             }
-            callback(out);
+
+            let converted = false;
+            let stored = storedBytes(out);
+            if (stored > STORE_CEILING) {
+                converted = keepPng;
+                quality = Math.min(quality, 0.82);
+                out = encode(dim, quality, true);
+                stored = storedBytes(out);
+                for (let i = 0; i < 6 && stored > STORE_CEILING; i++) {
+                    if (quality > 0.55) quality -= 0.09;
+                    else dim = Math.round(dim * 0.75);
+                    out = encode(dim, quality, true);
+                    stored = storedBytes(out);
+                }
+            }
+
+            callback(out, {
+                storedBytes: stored,
+                ceiling: STORE_CEILING,
+                tooLarge: stored > STORE_CEILING,
+                converted: converted && stored <= STORE_CEILING
+            });
         };
         img.src = e.target.result;
     };
@@ -1741,6 +1763,32 @@ function pasteBox() {
     setTimeout(function(){ $b.text('📋 Paste Box'); }, 1200);
 }
 
+function copyHairSpace(btn) {
+    var HAIR = '\u200A';
+    var html = '<span style="font-size:2.5rem">' + HAIR + '</span>';
+    function ok() {
+        btn.style.background = '#137333';
+        setTimeout(function(){ btn.style.background = ''; }, 1500);
+    }
+    function failed() {
+        btn.style.background = '#8b0000';
+        setTimeout(function(){ btn.style.background = ''; }, 1500);
+    }
+    function plainFallback() {
+        if (!navigator.clipboard) { failed(); return; }
+        navigator.clipboard.writeText(HAIR).then(ok).catch(failed);
+    }
+    try {
+        if (!navigator.clipboard || !window.ClipboardItem) { plainFallback(); return; }
+        navigator.clipboard.write([new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([HAIR], { type: 'text/plain' })
+        })]).then(ok).catch(plainFallback);
+    } catch (e) {
+        plainFallback();
+    }
+}
+
 function colorStack(inner) {
     return '<span style="color:' + (redtext?"red":"black") + ';display:flex;flex-direction:column;">' + inner + '</span>&hairsp;';
 }
@@ -1753,6 +1801,7 @@ function init() {
     bindLetterClicks();
     updaterowcount();
     bindImagePaste();
+    $('#container').off('input.autosave').on('input.autosave', function(){ triggerAutoSave(); });
 
     $('#addStackBtn').off('click.as').on('click.as', function(e) { addStack(); e.stopImmediatePropagation(); });
 
@@ -1871,7 +1920,8 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         });
     }
     if (selected.length) {
-        const targetColor = redtext ? 'red' : 'black';
+        const targetColor = redtext ? 'black' : 'red';
+        snapshotForUndo();
         selected.forEach(el => $(el).css('color', targetColor));
         sel.removeAllRanges();
     } else {
@@ -1997,21 +2047,19 @@ function loadNotesList() {
     let tabBarHtml = '<div id="notes-tab-bar" style="display:flex;border-bottom:1px solid #ccc;background:#f8f9fa;position:sticky;top:0;z-index:10;">';
     visibleFolders.forEach((folder, i) => {
         const active = i === 0;
-        tabBarHtml += `<div class="notes-tab" data-tab="${i}" style="flex:1;padding:9px 6px;text-align:center;font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${active ? 'color:#1a2a3a;border-bottom:2px solid #1a2a3a;background:white;font-weight:bold;' : 'color:#666;border-bottom:2px solid transparent;'}">${folder.name}</div>`;
+        tabBarHtml += `<div class="notes-tab" data-tab="${i}" style="flex:1;padding:9px 6px;text-align:center;font-size:12px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;${active ? 'color:#1a2a3a;border-bottom:2px solid #1a2a3a;background:white;font-weight:bold;' : 'color:#666;border-bottom:2px solid transparent;'}">${_escHtml(folder.name)}</div>`;
     });
     if (overflowFolders.length) {
         tabBarHtml += `<div id="notes-more-btn" style="flex-shrink:0;padding:9px 12px;font-size:12px;cursor:pointer;color:#3a5a82;background:#f0f4f8;border-bottom:2px solid transparent;border-left:1px solid #ccc;font-weight:500;">+${overflowFolders.length} ▾</div>`;
     }
     tabBarHtml += '</div>';
 
-    let dropdownHtml = '';
-
     let panelsHtml = '';
     folders.forEach((folder, i) => {
         const pieces = (folder.pieces || []).filter(p => p.visualData && p.visualData.trim());
         const rows = pieces.map(piece =>
-            `<div class="notes-add-piece" data-name="${piece.name}" data-id="${piece.id}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background='rgba(184,134,11,0.07)'" onmouseout="this.style.background=''">
-                <span style="font-size:13px;color:#1a2a3a;">${piece.name}</span>
+            `<div class="notes-add-piece" data-name="${_escHtml(piece.name)}" data-id="${_escHtml(piece.id)}" style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;cursor:pointer;" onmouseover="this.style.background='rgba(184,134,11,0.07)'" onmouseout="this.style.background=''">
+                <span style="font-size:13px;color:#1a2a3a;">${_escHtml(piece.name)}</span>
                 <button class="pft-add-btn" style="pointer-events:none;">+ Add</button>
             </div>`
         ).join('');
@@ -2048,7 +2096,7 @@ function loadNotesList() {
         let ddHtml = '<div id="notes-overflow-dropdown" style="position:fixed;width:180px;background:white;border:1px solid #ccc;border-radius:6px;z-index:99999;overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.15);">';
         overflowFolders.forEach((folder, i) => {
             const realIdx = MAX_TABS + i;
-            ddHtml += `<div class="notes-overflow-item" data-tab="${realIdx}" style="padding:9px 14px;font-size:13px;cursor:pointer;color:#1a2a3a;border-bottom:1px solid #eee;">${folder.name}</div>`;
+            ddHtml += `<div class="notes-overflow-item" data-tab="${realIdx}" style="padding:9px 14px;font-size:13px;cursor:pointer;color:#1a2a3a;border-bottom:1px solid #eee;">${_escHtml(folder.name)}</div>`;
         });
         ddHtml += '</div>';
         $('body').append(ddHtml);
@@ -2103,13 +2151,8 @@ $('#print-btn').on('click', function(){
     var contents = [];
     $('#que .list-group-item').each(function(index){
         var id = $(this).data('pieceid');
-        var n = $(this).data('notename');
         if (notes[id]) {
-            // Wrap the piece in a container and add the Translate button at the top right
-            var pieceHtml = '<div class="printed-piece" id="piece-' + index + '" style="position: relative; margin-top: 2rem;">' +
-                            '<div class="piece-content">' + notes[id] + '</div>' +
-                            '</div>';
-            contents.push(pieceHtml);
+            contents.push('<div class="printed-piece" id="piece-' + index + '" style="position:relative;margin-top:2rem;">' + notes[id] + '</div>');
         }
     });
     var sep = '<hr class="style-eight my-5"/>';
@@ -2139,7 +2182,7 @@ $('#printLinesBtn').on('click', function(){
     $('#que .list-group-item').each(function() {
         const id = $(this).data('pieceid');
         if (!notes[id]) return;
-        const segments = splitByPunctuation(notes[id]);
+        const segments = isImagePieceHtml(notes[id]) ? [notes[id]] : splitByPunctuation(notes[id]);
         if (!segments.length) return;
         const linesHtml = segments.map(seg =>
             '<div class="printed-line" style="margin-bottom:1.5rem;">' + seg + '</div>'
@@ -2179,7 +2222,10 @@ $('#submitBtn').on('click', function(){
     // Save text to current piece if one is open
     if (currentUser && currentFolder !== null && currentPiece !== null) {
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = entered;
+        _editorPieceId = appData[currentUser].folders[currentFolder].pieces[currentPiece].id;
         saveData();
+    } else {
+        _editorPieceId = null;
     }
     showPage('editor');
 });
@@ -2191,14 +2237,17 @@ $('#submitBtn').on('click', function(){
 // --- BroadcastChannel (real-time tab sync) ---
 const studioChannel = new BroadcastChannel('miliket_studio');
 studioChannel.onmessage = (e) => {
-    if (e.data.type === 'data_updated') {
-        idbGet('miliket_data').then(saved => {
-            if (saved) {
-                appData = saved;
-                loadNotesList();
-            }
-        });
-    }
+    if (!e.data || e.data.type !== 'data_updated') return;
+    if (unsavedChanges) return;
+    if (document.getElementById('page-editor').classList.contains('active')) return;
+    if (document.getElementById('page-pieces').classList.contains('active')) return;
+    idbGet('miliket_data').then(saved => {
+        if (!saved) return;
+        appData = saved;
+        if (document.getElementById('page-projects').classList.contains('active')) renderProjects();
+        else if (document.getElementById('page-folders').classList.contains('active')) renderFolders();
+        loadNotesList();
+    }).catch(err => console.error('Cross-tab refresh failed:', err));
 };
 
 // --- State ---
@@ -2208,14 +2257,10 @@ let currentFolder = null;
 let currentPiece = null;
 let confirmCallback = null;
 let confirmAnswer = '';
+let _editorPieceId = null;
 
 const DB_NAME = 'MiliketStudio';
 const DB_STORE = 'appData';
-const GIST_ID = 'ab4704ff54867605993a5720e2a61c14';
-const GIST_FILENAME = 'miliket_backup.json';   // kept for legacy migration detection only
-const GIST_INDEX_FILE = 'miliket_index.json';
-const PIECE_FILE_PREFIX = 'miliket_piece_';
-function getGistToken() { return localStorage.getItem('miliket_gist_token') || ''; }
 
 // --- Dirty tracking ---
 let _dirtyPieceIds = new Set();
@@ -2295,36 +2340,6 @@ function buildIndexData() {
     return index;
 }
 
-// --- Load visualData from per-piece Gist files ---
-async function loadCloudPieces(gistFiles, cloudData) {
-    const promises = [];
-    Object.keys(cloudData).filter(k => k !== '_lastSaved').forEach(projName => {
-        (cloudData[projName].folders || []).forEach((folder, fi) => {
-            (folder.pieces || []).forEach((piece, pi) => {
-                const fileName = PIECE_FILE_PREFIX + piece.id + '.json';
-                const pieceFile = gistFiles[fileName];
-                if (pieceFile) {
-                    const p = (pieceFile.truncated
-                        ? fetch(pieceFile.raw_url).then(r => r.text())
-                        : Promise.resolve(pieceFile.content)
-                    ).then(content => {
-                        try {
-                            cloudData[projName].folders[fi].pieces[pi].visualData = decompressFromCloud(JSON.parse(content).visualData || '');
-                        } catch(e) {
-                            cloudData[projName].folders[fi].pieces[pi].visualData = '';
-                        }
-                    }).catch(() => { cloudData[projName].folders[fi].pieces[pi].visualData = ''; });
-                    promises.push(p);
-                } else {
-                    piece.visualData = '';
-                }
-            });
-        });
-    });
-    await Promise.all(promises);
-    return cloudData;
-}
-
 // --- IndexedDB ---
 let idb = null;
 function openDB() {
@@ -2352,7 +2367,7 @@ async function idbSet(key, value) {
     });
 }
 function saveData() {
-    if (!idb) return;
+    if (!idb) { console.warn('saveData called before IndexedDB was ready; change not persisted'); return; }
     idbSet('miliket_data', appData)
         .then(() => studioChannel.postMessage({ type: 'data_updated' }))
         .catch(e => console.error('IDB save failed', e));
@@ -2365,225 +2380,8 @@ function showSyncStatus(state) {
         if (!el) return;
         if (state === 'saved')        { el.style.background = '#27ae60'; el.textContent = '✓ Synced'; }
         else if (state === 'pending') { el.style.background = '#e6a817'; el.textContent = '⟳ Saving...'; }
-        else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; el.style.cursor = 'default'; el.style.pointerEvents = 'none'; el.onclick = null; }
-        else if (state === 'auth_failed') {
-            el.style.background = '#e74c3c';
-            el.textContent = '✕ 403 Token Error — click to fix';
-            el.style.cursor = 'pointer';
-            el.style.pointerEvents = 'auto';
-            el.onclick = () => {
-                const token = prompt('Enter your GitHub token for cloud sync:');
-                if (token && token.trim()) {
-            localStorage.setItem('miliket_gist_token', token.trim());
-            saveAndSync();
-                }
-            };
-        }
+        else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; }
     });
-}
-
-// --- Gist sync ---
-async function backupToGist() {
-    const btn = document.getElementById('gist-backup-btn');
-    if (btn) { btn.textContent = '⏳ Backing up...'; btn.disabled = true; }
-    try {
-        const files = {};
-        files[GIST_INDEX_FILE] = { content: JSON.stringify(buildIndexData()) };
-        Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
-            (appData[projName].folders || []).forEach(folder => {
-                (folder.pieces || []).forEach(piece => {
-                    if (piece.id) {
-                        files[PIECE_FILE_PREFIX + piece.id + '.json'] = {
-                            content: JSON.stringify({ visualData: compressForCloud(piece.visualData || '') })
-                        };
-                    }
-                });
-            });
-        });
-        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `token ${getGistToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files })
-        });
-        if (!res.ok) throw new Error('Backup failed: ' + res.status);
-        if (btn) { btn.textContent = '✓ Backed up!'; setTimeout(() => { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }, 1800); }
-    } catch(e) {
-        console.error('Gist backup failed:', e);
-        if (e.message && (e.message.includes('403') || e.message.includes('401'))) {
-            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
-            if (token && token.trim()) {
-                localStorage.setItem('miliket_gist_token', token.trim());
-                if (btn) { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }
-                await backupToGist();
-                return;
-            }
-        }
-        if (btn) { btn.textContent = '✕ Failed'; setTimeout(() => { btn.textContent = '📦 Backup to Gist'; btn.disabled = false; }, 1800); }
-    }
-}
-
-async function pushToGist() {
-    if (!navigator.onLine) { showSyncStatus('failed'); return; }
-    try {
-        showSyncStatus('pending');
-        const files = {};
-
-        // Index is always updated (tiny — no visualData)
-        files[GIST_INDEX_FILE] = { content: JSON.stringify(buildIndexData()) };
-
-        // Only push dirty pieces
-        _dirtyPieceIds.forEach(pieceId => {
-            let found = null;
-            Object.keys(appData).filter(k => k !== '_lastSaved').some(projName =>
-                (appData[projName].folders || []).some(folder =>
-                    (folder.pieces || []).some(piece => {
-                        if (piece.id === pieceId) { found = piece; return true; }
-                    })
-                )
-            );
-            if (found) {
-                files[PIECE_FILE_PREFIX + pieceId + '.json'] = {
-                    content: JSON.stringify({ visualData: compressForCloud(found.visualData || '') })
-                };
-            }
-        });
-
-        // Delete removed piece files from Gist
-        _deletedPieceIds.forEach(pieceId => {
-            files[PIECE_FILE_PREFIX + pieceId + '.json'] = null;
-        });
-
-        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `token ${getGistToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ files })
-        });
-        if (!res.ok) throw new Error('Push failed: ' + res.status);
-
-        _dirtyPieceIds.clear();
-        _deletedPieceIds.clear();
-        showSyncStatus('saved');
-    } catch(e) {
-        console.error('Gist push failed:', e);
-        if (e.message && (e.message.includes('403') || e.message.includes('401'))) {
-            showSyncStatus('auth_failed');
-            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
-            if (token && token.trim()) {
-                localStorage.setItem('miliket_gist_token', token.trim());
-                await pushToGist();
-            }
-        }
-        else showSyncStatus('failed');
-    }
-}
-
-async function pullFromGist() {
-    const statusEl = document.getElementById('sync-indicator');
-    if (statusEl) { statusEl.textContent = '⟳ Syncing...'; statusEl.style.background = '#3a5a82'; }
-    try {
-        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-            headers: { 'Authorization': `token ${getGistToken()}` }
-        });
-        if (res.status === 401 || res.status === 403) {
-            const token = prompt('GitHub token is invalid or expired. Enter a new token (or Cancel to skip):');
-            if (token && token.trim()) {
-                localStorage.setItem('miliket_gist_token', token.trim());
-                await pullFromGist();
-            }
-            return;
-        }
-        const gist = await res.json();
-        const gistFiles = gist.files || {};
-
-        let cloudData = null;
-
-        if (gistFiles[GIST_INDEX_FILE]) {
-            // New per-piece format
-            const indexFile = gistFiles[GIST_INDEX_FILE];
-            const indexContent = indexFile.truncated
-                ? await fetch(indexFile.raw_url).then(r => r.text())
-                : indexFile.content;
-            cloudData = JSON.parse(indexContent);
-            await loadCloudPieces(gistFiles, cloudData);
-
-        } else if (gistFiles[GIST_FILENAME]) {
-            // Legacy single-file — read it as-is, next sync will convert it
-            const oldFile = gistFiles[GIST_FILENAME];
-            const content = oldFile.truncated
-                ? await fetch(oldFile.raw_url).then(r => r.text())
-                : oldFile.content;
-            cloudData = JSON.parse(content);
-
-        } else {
-            if (statusEl) { statusEl.textContent = '✓ No cloud data yet'; statusEl.style.background = '#27ae60'; }
-            return;
-        }
-
-        // Cloud/Local picker — identical to before
-        const localTs = parseInt(localStorage.getItem('miliket_last_saved') || '0');
-        const cloudTs = cloudData._lastSaved || 0;
-
-        await new Promise(resolve => {
-            const overlay = document.createElement('div');
-            overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;';
-            const localProjects = Object.keys(appData).filter(k => k !== '_lastSaved').length;
-            const cloudProjects = Object.keys(cloudData).filter(k => k !== '_lastSaved').length;
-            overlay.innerHTML = `
-                <div style="background:white;border-radius:12px;padding:28px;width:90%;max-width:480px;border-top:4px solid #b8860b;">
-                    <h3 style="margin:0 0 8px;font-size:16px;">☁ Choose Version to Load</h3>
-                    <p style="font-size:12px;color:#999;margin-bottom:18px;">Tap a card to load it, or type CLOUD/LOCAL below.</p>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;">
-                        <div id="pick-cloud" style="cursor:pointer;border:2px solid #3a9ad1;border-radius:8px;padding:14px;text-align:center;-webkit-tap-highlight-color:rgba(58,154,209,0.3);touch-action:manipulation;">
-                            <div style="font-weight:bold;color:#3a9ad1;margin-bottom:6px;">☁ Cloud</div>
-                            <div style="font-size:12px;color:#333;">${cloudProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${cloudTs ? new Date(cloudTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
-                        </div>
-                        <div id="pick-local" style="cursor:pointer;border:2px solid #27ae60;border-radius:8px;padding:14px;text-align:center;-webkit-tap-highlight-color:rgba(39,174,96,0.3);touch-action:manipulation;">
-                            <div style="font-weight:bold;color:#27ae60;margin-bottom:6px;">💾 Local</div>
-                            <div style="font-size:12px;color:#333;">${localProjects} project(s)<br><span style="font-size:10px;color:#aaa;">${localTs ? new Date(localTs).toLocaleString() : 'Unknown'}</span></div>
-                            <div style="font-size:10px;color:#999;margin-top:8px;">Tap to load</div>
-                        </div>
-                    </div>
-                    <input id="sync-choice" type="text" placeholder="CLOUD or LOCAL" autocomplete="off"
-                        style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box;">
-                    <div id="sync-choice-err" style="color:#e74c3c;font-size:12px;margin-top:4px;display:none;">Please type CLOUD or LOCAL exactly.</div>
-                    <div style="display:flex;justify-content:flex-end;margin-top:14px;">
-                        <button id="sync-choice-btn" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:9px 22px;font-weight:bold;cursor:pointer;">Confirm</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(overlay);
-            const input = overlay.querySelector('#sync-choice');
-            const btn = overlay.querySelector('#sync-choice-btn');
-            const err = overlay.querySelector('#sync-choice-err');
-            const cloudCard = overlay.querySelector('#pick-cloud');
-            const localCard = overlay.querySelector('#pick-local');
-            input.focus();
-            function finish(val) {
-                document.body.removeChild(overlay);
-                if (val === 'CLOUD') {
-                    delete cloudData._lastSaved;
-                    appData = cloudData;
-                    saveData();
-                    localStorage.setItem('miliket_last_saved', cloudTs);
-                }
-                if (statusEl) { statusEl.textContent = '✓ Ready'; statusEl.style.background = '#27ae60'; }
-                resolve();
-            }
-            function confirmTyped() {
-                const val = input.value.trim().toUpperCase();
-                if (val !== 'CLOUD' && val !== 'LOCAL') { err.style.display = 'block'; return; }
-                finish(val);
-            }
-            cloudCard.addEventListener('pointerup', e => { e.preventDefault(); finish('CLOUD'); });
-            localCard.addEventListener('pointerup', e => { e.preventDefault(); finish('LOCAL'); });
-            btn.addEventListener('click', confirmTyped);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') confirmTyped(); });
-        });
-
-    } catch(e) {
-        console.warn('Gist pull failed:', e);
-        if (statusEl) { statusEl.textContent = '✗ Offline'; statusEl.style.background = '#e74c3c'; }
-    }
 }
 
 async function saveAndSync() {
@@ -2626,7 +2424,6 @@ function enterEditorMode() {
 function goToPresent() {
     enterEditorMode();
     showPage('present');
-    loadNotesList();
 }
 
 function exitToStudio() {
@@ -2661,14 +2458,15 @@ function renderProjects() {
         div.draggable = true;
         div.dataset.index = keys.indexOf(name);
         const folderCount = (appData[name].folders || []).length;
+        div.dataset.name = name;
         div.innerHTML = `
             <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
             <div class="card-actions">
-                <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameProject('${name}')">✎ Rename</button>
-                <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteProject('${name}')">× Delete</button>
+                <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameProject(this.closest('.studio-card').dataset.name)">✎ Rename</button>
+                <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteProject(this.closest('.studio-card').dataset.name)">× Delete</button>
             </div>
             <div class="card-icon">☦</div>
-            <div class="card-name">${name}</div>
+            <div class="card-name">${_escHtml(name)}</div>
             <div class="card-meta">${folderCount} folder${folderCount !== 1 ? 's' : ''}</div>`;
         div.onclick = () => openProject(name);
         attachDragHandlers(div, 'project');
@@ -2678,6 +2476,8 @@ function renderProjects() {
 
 function openProject(name) {
     currentUser = name;
+    currentFolder = null;
+    currentPiece = null;
     document.getElementById('folders-title').textContent = name;
     showStudioPage('page-folders');
     renderFolders();
@@ -2695,10 +2495,14 @@ function createProject() {
 function renameProject(oldName) {
     const newName = prompt('Rename project to:', oldName);
     if (!newName || !newName.trim() || newName === oldName) return;
-    if (appData[newName.trim()]) { alert('Name already exists.'); return; }
-    appData[newName.trim()] = appData[oldName];
-    delete appData[oldName];
-    if (currentUser === oldName) currentUser = newName.trim();
+    const trimmed = newName.trim();
+    if (appData[trimmed]) { alert('Name already exists.'); return; }
+    // Rebuild in place so the renamed project keeps its position in the grid
+    // instead of jumping to the end, since keys render in insertion order.
+    const rebuilt = {};
+    Object.keys(appData).forEach(k => { rebuilt[k === oldName ? trimmed : k] = appData[k]; });
+    appData = rebuilt;
+    if (currentUser === oldName) currentUser = trimmed;
     saveAndSync();
     renderProjects();
 }
@@ -2709,6 +2513,7 @@ function deleteProject(name) {
             (f.pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
         });
         delete appData[name];
+        if (currentUser === name) { currentUser = null; currentFolder = null; currentPiece = null; _editorPieceId = null; }
         saveAndSync();
         renderProjects();
     });
@@ -2737,7 +2542,7 @@ function renderFolders() {
                 <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteFolder(${index})">× Delete</button>
             </div>
             <div class="card-icon">📁</div>
-            <div class="card-name">${folder.name}</div>
+            <div class="card-name">${_escHtml(folder.name)}</div>
             <div class="card-meta">${pieceCount} piece${pieceCount !== 1 ? 's' : ''}</div>`;
         div.onclick = () => openFolder(index);
         attachDragHandlers(div, 'folder');
@@ -2747,6 +2552,7 @@ function renderFolders() {
 
 function openFolder(index) {
     currentFolder = index;
+    currentPiece = null;
     const folder = appData[currentUser].folders[index];
     document.getElementById('pieces-title').textContent = folder.name;
     document.getElementById('pieces-breadcrumb').innerHTML = `<span>${currentUser}</span> / ${folder.name}`;
@@ -2777,6 +2583,8 @@ function deleteFolder(index) {
     openConfirm('Delete Folder', `"${name}" and all its pieces will be permanently deleted.`, name, () => {
         (appData[currentUser].folders[index].pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
         appData[currentUser].folders.splice(index, 1);
+        if (currentFolder === index) { currentFolder = null; currentPiece = null; _editorPieceId = null; }
+        else if (currentFolder !== null && currentFolder > index) currentFolder--;
         saveAndSync();
         renderFolders();
     });
@@ -2788,14 +2596,84 @@ function _escHtml(s) {
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+const THUMB_IMG_SRC_RE = /<img\b[^>]*\bsrc\s*=\s*"([^"]+)"/i;
+const THUMB_CONTAINER_MARK = 'class="letter-container"';
+const THUMB_MAX_PARSE = 250000;
+const THUMB_CONTAINERS = 9;
+const _thumbCache = new Map();
+
+function _thumbCacheKey(piece) {
+    return (piece.id || piece.name || '') + '|' + (piece.lastModified || '') + '|' + piece.visualData.length;
+}
+
+function _thumbImageSrcForPieceId(id) {
+    if (!id || !currentUser || !appData[currentUser]) return '';
+    const folders = appData[currentUser].folders || [];
+    for (let fi = 0; fi < folders.length; fi++) {
+        const pieces = folders[fi].pieces || [];
+        for (let pi = 0; pi < pieces.length; pi++) {
+            if (pieces[pi].id === id && pieces[pi].visualData) {
+                const m = pieces[pi].visualData.match(THUMB_IMG_SRC_RE);
+                return m ? m[1] : '';
+            }
+        }
+    }
+    return '';
+}
+
+document.addEventListener('mouseover', function(e) {
+    const card = (e.target && e.target.closest) ? e.target.closest('.studio-card') : null;
+    if (!card) return;
+    const img = card.querySelector('img[data-thumb-piece]');
+    if (!img) return;
+    const src = _thumbImageSrcForPieceId(img.getAttribute('data-thumb-piece'));
+    img.removeAttribute('data-thumb-piece');
+    if (src) img.src = src;
+});
+
 function buildThumbPreview(piece) {
-    if (!piece.visualData || !piece.visualData.trim()) return '';
-    const temp = document.createElement('div');
-    temp.innerHTML = piece.visualData;
-    const containers = Array.from(temp.querySelectorAll('.letter-container')).slice(0, 9);
-    if (!containers.length) return '';
-    const previewHtml = containers.map(lc => lc.outerHTML).join('');
-    return `<div class="thumb-popup">
+    const raw = piece.visualData;
+    if (!raw || !raw.trim()) return '';
+
+    const key = _thumbCacheKey(piece);
+    const cached = _thumbCache.get(key);
+    if (cached !== undefined) return cached;
+
+    let html = '';
+    const firstContainer = raw.indexOf(THUMB_CONTAINER_MARK);
+
+    if (firstContainer === -1) {
+        if (THUMB_IMG_SRC_RE.test(raw)) {
+            html = `<div class="thumb-popup">
+        <div class="thumb-popup-header">${_escHtml(piece.name)}</div>
+        <div class="thumb-popup-body">
+            <div style="width:190px;height:90px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#fffdf8;">
+                <img data-thumb-piece="${_escHtml(piece.id || '')}" alt="" style="max-width:100%;max-height:90px;object-fit:contain;display:block;">
+            </div>
+        </div>
+    </div>`;
+        }
+    } else {
+        let at = firstContainer;
+        let found = 1;
+        while (found < THUMB_CONTAINERS + 1) {
+            at = raw.indexOf(THUMB_CONTAINER_MARK, at + THUMB_CONTAINER_MARK.length);
+            if (at === -1) break;
+            found++;
+        }
+        let cut;
+        if (at === -1) {
+            cut = Math.min(raw.length, THUMB_MAX_PARSE);
+        } else {
+            const tagStart = raw.lastIndexOf('<', at);
+            cut = tagStart > firstContainer ? tagStart : at;
+        }
+        const temp = document.createElement('div');
+        temp.innerHTML = raw.slice(0, cut);
+        const containers = Array.from(temp.querySelectorAll('.letter-container')).slice(0, THUMB_CONTAINERS);
+        if (containers.length) {
+            const previewHtml = containers.map(lc => lc.outerHTML).join('');
+            html = `<div class="thumb-popup">
         <div class="thumb-popup-header">${_escHtml(piece.name)}</div>
         <div class="thumb-popup-body">
             <div style="width:190px;height:90px;overflow:hidden;">
@@ -2805,6 +2683,12 @@ function buildThumbPreview(piece) {
             </div>
         </div>
     </div>`;
+        }
+    }
+
+    if (_thumbCache.size > 400) _thumbCache.clear();
+    _thumbCache.set(key, html);
+    return html;
 }
 
 // --- Pieces ---
@@ -2833,12 +2717,12 @@ function renderPieces() {
             </div>
             ${buildThumbPreview(piece)}
             <div class="card-icon">📜</div>
-            <div class="card-name">${piece.name}</div>
+            <div class="card-name">${_escHtml(piece.name)}</div>
             <div class="card-meta">${date}</div>
             <div class="edit-text-link" onclick="event.stopPropagation(); editPieceText(${index})">Edit text</div>
             <div class="translate-link-wrap">
             <div class="translate-link" onclick="event.stopPropagation(); openTranslationModal(${index})">✦ Translation</div>
-                ${piece.translation ? `<div class="translation-tooltip"><div class="translation-tooltip-label">Translation</div>${piece.translation}</div>` : ''}
+                ${piece.translation ? `<div class="translation-tooltip"><div class="translation-tooltip-label">Translation</div>${_escHtml(piece.translation)}</div>` : ''}
             </div>`;
         div.onclick = () => loadPieceIntoEditor(index);
         attachDragHandlers(div, 'piece');
@@ -2851,7 +2735,7 @@ function createPiece() {
     if (!name || !name.trim()) return;
     if (!appData[currentUser].folders[currentFolder].pieces) appData[currentUser].folders[currentFolder].pieces = [];
     appData[currentUser].folders[currentFolder].pieces.push({
-        id: 'p_' + Date.now(),
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
         name: name.trim(),
         content: '',
         visualData: '',
@@ -2862,6 +2746,10 @@ function createPiece() {
 }
 
 // --- Bulk Import ---
+// Imported pieces, and any folder the importer creates, get this prefix so they are easy to
+// spot after a migration. Set it to '' to import with the original names untouched.
+const BULK_IMPORT_PREFIX = 'X';
+
 function openBulkImportModal() {
     document.getElementById('bulk-import-input').value = '';
     document.getElementById('bulk-import-new-folder-name').value = '';
@@ -2939,9 +2827,9 @@ function processBulkImport() {
     if (select.value === '__new__') {
         const newName = document.getElementById('bulk-import-new-folder-name').value.trim();
         if (!newName) { alert('Type a name for the new folder.'); return; }
-        targetFolder = appData[currentUser].folders.find(f => f.name === newName || f.name === 'X' + newName);
+        targetFolder = appData[currentUser].folders.find(f => f.name === newName || f.name === BULK_IMPORT_PREFIX + newName);
         if (!targetFolder) {
-            targetFolder = { name: 'X' + newName, pieces: [] };
+            targetFolder = { name: BULK_IMPORT_PREFIX + newName, pieces: [] };
             appData[currentUser].folders.push(targetFolder);
         }
     } else {
@@ -2955,7 +2843,7 @@ function processBulkImport() {
         const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
         targetFolder.pieces.push({
             id: id,
-            name: 'X' + name,
+            name: BULK_IMPORT_PREFIX + name,
             content: '',
             visualData: data[name],
             lastModified: new Date().toISOString()
@@ -2968,7 +2856,8 @@ function processBulkImport() {
     renderFolders();
     if (currentFolder !== null) renderPieces();
     closeBulkImportModal();
-    alert('Imported ' + count + ' piece(s) into "' + targetFolder.name + '", prefixed with X.');
+    alert('Imported ' + count + ' piece(s) into "' + targetFolder.name + '"'
+        + (BULK_IMPORT_PREFIX ? ', prefixed with ' + BULK_IMPORT_PREFIX + '.' : '.'));
 }
 
 function renamePiece(index) {
@@ -2983,7 +2872,7 @@ function renamePiece(index) {
 function duplicatePiece(index) {
     const original = appData[currentUser].folders[currentFolder].pieces[index];
     const copy = JSON.parse(JSON.stringify(original));
-    copy.id = 'p_' + Date.now();
+    copy.id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
     copy.name = original.name + ' (Copy)';
     copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
@@ -3012,6 +2901,8 @@ function deletePiece(index) {
     openConfirm('Delete Piece', `"${name}" will be permanently deleted.`, name, () => {
         markPieceDeleted(pieceId);
         appData[currentUser].folders[currentFolder].pieces.splice(index, 1);
+        if (currentPiece === index) { currentPiece = null; _editorPieceId = null; }
+        else if (currentPiece !== null && currentPiece > index) currentPiece--;
         saveAndSync();
         renderPieces();
     });
@@ -3019,10 +2910,27 @@ function deletePiece(index) {
 
 function editPieceText(index) {
     currentPiece = index;
+    _editorPieceId = null;
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
     enterEditorMode();
     $('#textInput').val(piece.content || '');
     showPage('prompt');
+}
+
+function continueEditingCurrentPiece() {
+    if (currentUser === null || currentFolder === null || currentPiece === null) {
+        alert('No piece is open.');
+        return;
+    }
+    const piece = appData[currentUser].folders[currentFolder].pieces[currentPiece];
+    if (!piece) { alert('No piece is open.'); return; }
+    if (piece.visualData && piece.visualData.trim()) {
+        loadPieceIntoEditor(currentPiece);
+        return;
+    }
+    text = ($('#textInput').val() || '').trim() || (piece.content || '');
+    _editorPieceId = piece.id;
+    showPage('editor');
 }
 
 function loadPieceIntoEditor(index) {
@@ -3035,6 +2943,7 @@ function loadPieceIntoEditor(index) {
 
     if (piece.visualData && piece.visualData.trim()) {
         // Has saved visual — activate editor page directly, never call populateContainer
+        _editorPieceId = piece.id;
         text = piece.content || '';
         $('.page').removeClass('active');
         $('#page-editor').addClass('active');
@@ -3055,11 +2964,13 @@ function loadPieceIntoEditor(index) {
         var $stacks = $('#stacks-container').detach();
         $('#milikits-container').html(generateMilikitsHTML(milikits));
         $('#milikits-container').prepend($('<br>')).prepend($stacks);
+        resetEditorModes();
         init();
         removeGlow();
         updaterowcount();
     } else {
         // No visual yet — go to prompt
+        _editorPieceId = null;
         text = piece.content || '';
         $('#textInput').val(piece.content || '');
         showPage('prompt');
@@ -3086,8 +2997,10 @@ function pullFromLocal() {
 
 function savePieceNow() {
     if (currentUser === null || currentFolder === null || currentPiece === null) return;
-    const piece = appData[currentUser].folders[currentFolder].pieces[currentPiece];
+    const folder = appData[currentUser] && appData[currentUser].folders[currentFolder];
+    const piece = folder && folder.pieces[currentPiece];
     if (!piece) return;
+    if (!_editorPieceId || piece.id !== _editorPieceId) return;
     piece.visualData = $('#container').html();
     piece.lastModified = new Date().toISOString();
     markPieceDirty(piece.id);
@@ -3116,9 +3029,12 @@ function importAllData() {
         const reader = new FileReader();
         reader.onload = event => {
         try {
-            appData = JSON.parse(event.target.result);
-            markAllPiecesDirty();   // ← add
-            saveData();
+            const imported = JSON.parse(event.target.result);
+            if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Unexpected backup shape');
+            appData = imported;
+            migrateMissingIds();
+            markAllPiecesDirty();
+            saveAndSync();
             renderProjects();
             alert('Data imported successfully!');
         } catch(err) { alert('Invalid backup file.'); }
@@ -3601,6 +3517,8 @@ function fitTranslationFontSize(text, widthInches, heightInches, minPt = 34, max
     }
 
     probe.style.position = 'absolute';
+    probe.style.top = '0';
+    probe.style.left = '-9999px';
     probe.style.visibility = 'hidden';
     probe.style.whiteSpace = 'normal';
     probe.style.wordBreak = 'break-word';
@@ -3636,6 +3554,11 @@ function fitTranslationFontSize(text, widthInches, heightInches, minPt = 34, max
     return optimalSize;
 }
 
+function removeFontProbe() {
+    const probe = document.getElementById('pptx-font-probe');
+    if (probe && probe.parentNode) probe.parentNode.removeChild(probe);
+}
+
 async function exportToPptx() {
     if (!_builtSlides.length) { alert('No slides to export.'); return; }
     const btn = document.getElementById('export-pptx-btn');
@@ -3644,7 +3567,7 @@ async function exportToPptx() {
         const pptx = new PptxGenJS();
         pptx.layout = 'LAYOUT_WIDE';
         const PW = 13.33, PH = 7.5;
-        const rW = 1920, rH = 810;  // 144 DPI × slide dimensions (13.33" × 5.625")
+        const rW = 1920;
 
         for (let si = 0; si < _builtSlides.length; si++) {
             const indices = _builtSlides[si];
@@ -3665,9 +3588,12 @@ async function exportToPptx() {
             }
 
             const slideHasTranslation = chunks.some(c => c.translation && c.translation.trim());
-            // Use this slide's actual layout (respects Edit Layout drag/resize/snap), not a fixed split
-            const layoutForThisSlide = slideHasTranslation ? ssGetLayoutForSlide(si) : ssFullLayout();
+            const layoutIsUsable = (_ssSlides.length === _builtSlides.length) && !!_ssLayoutOverrides[si];
+            const layoutForThisSlide = slideHasTranslation
+                ? (layoutIsUsable ? _ssLayoutOverrides[si] : ssDefaultLayout())
+                : ssFullLayout();
             const geezH  = PH * (layoutForThisSlide.geez.hPct / 100);
+            const rH = Math.round(rW * (geezH / PW));
             const transY = PH * (layoutForThisSlide.translation.yPct / 100);
             const transH = PH * (layoutForThisSlide.translation.hPct / 100);
             const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
@@ -3803,6 +3729,7 @@ async function exportToPptx() {
         console.error('PPTX export failed:', e);
         alert('Export failed — check the browser console for details.');
     }
+    removeFontProbe();
     if (btn) { btn.textContent = '📥 Export to Slides'; btn.disabled = false; }
 }
 
@@ -3944,11 +3871,6 @@ async function exportToPptxExact() {
             const slide = pptx.addSlide();
             slide.background = { color: 'FFFDF8' };
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: PH });
-            slide.addShape(pptx.ShapeType.rect, {
-                x: 0, y: nativeTransY, w: PW, h: nativeTransH,
-                fill: { color: 'EEF3FF' },
-                line: { color: 'B8D4EE', width: 1 }
-            });
             if (_ssSlides[si].translation && _ssSlides[si].translation.trim()) {
                 slide.addShape(pptx.ShapeType.rect, {
                     x: 0, y: nativeTransY, w: PW, h: nativeTransH,
@@ -3986,6 +3908,7 @@ async function exportToPptxExact() {
         overlay.style.display    = 'none';
         overlay.style.visibility = '';
         document.body.removeChild(loader);
+        removeFontProbe();
         if (btn) { btn.textContent = '📋 Export (Exact Copy)'; btn.disabled = false; }
     }
 }
@@ -4018,6 +3941,7 @@ function finishAndPresent() {
 
     _ssIndex = 0;
     _ssHudHidden = false;
+    _ssZoomLevels = [];
     _ssLayoutOverrides = {}; // fresh session — don't inherit layout from a previously presented piece
     document.getElementById('slideshow-overlay').style.display = 'flex';
     renderSlideshowSlide();
@@ -4025,6 +3949,7 @@ function finishAndPresent() {
     document.addEventListener('keydown', ssKeyHandler);
     document.getElementById('slideshow-overlay').addEventListener('touchstart', ssHandleTouchStart, { passive: true });
     document.getElementById('slideshow-overlay').addEventListener('touchend', ssHandleTouchEnd, { passive: true });
+    document.getElementById('slideshow-overlay').addEventListener('wheel', ssWheelHandler, { passive: false });
 }
 
 function updateSelectionCount() {
@@ -4327,7 +4252,6 @@ function ssWireFrameInteractions(frameEl) {
 
                 state.xPct = xPct; state.yPct = yPct; state.wPct = wPct; state.hPct = hPct;
                 ssApplyFrameGeometry(frameEl, state);
-                renderSlideshowSlide();
 
                 if (vGuide !== null) ssShowGuide('v', vGuide); else ssHideGuideAxis('v');
                 if (hGuide !== null) ssShowGuide('h', hGuide); else ssHideGuideAxis('h');
@@ -4336,6 +4260,7 @@ function ssWireFrameInteractions(frameEl) {
                 document.removeEventListener('mousemove', onMove);
                 document.removeEventListener('mouseup', onUp);
                 ssHideGuides();
+                renderSlideshowSlide();
             }
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
@@ -4554,7 +4479,6 @@ function renderSlideshowSlide() {
         }
         void inner.offsetHeight;
 
-        const scaledH = Math.round(inner.scrollHeight * finalScale);
         inner.style.transform       = 'scale(' + finalScale + ')';
         inner.style.transformOrigin = 'top left';
         inner.style.height          = Math.round(inner.scrollHeight * finalScale) + 'px';
@@ -4608,6 +4532,7 @@ function slideshowNav(dir) {
 
 function ssKeyHandler(e) {
     if (document.getElementById('slideshow-overlay').style.display === 'none') return;
+    if (e.key === 'h' || e.key === 'H') { _ssHudHidden = !_ssHudHidden; document.getElementById('ss-hud').style.opacity = _ssHudHidden ? '0' : '1'; return; }
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); slideshowNav(1); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); slideshowNav(-1); }
     if (e.key === 'Escape') exitSlideshow();
@@ -4656,6 +4581,7 @@ function exitSlideshow() {
     document.removeEventListener('keydown', ssKeyHandler);
     document.getElementById('slideshow-overlay').removeEventListener('touchstart', ssHandleTouchStart);
     document.getElementById('slideshow-overlay').removeEventListener('touchend', ssHandleTouchEnd);
+    document.getElementById('slideshow-overlay').removeEventListener('wheel', ssWheelHandler);
     const g = document.getElementById('ss-geez');
     if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
 }
@@ -4669,18 +4595,17 @@ async function copyCurrentSlide(btn) {
 
     // Hide HUD/arrows and translation text — keep the blue box visible
     const overlay = document.getElementById('slideshow-overlay');
-    const inner = document.getElementById('ss-geez-inner');
     hud.style.visibility  = 'hidden';
     prev.style.visibility = 'hidden';
     next.style.visibility = 'hidden';
     const transTextEl = transEl.querySelector('p');
     if (transTextEl) transTextEl.style.visibility = 'hidden';
-    const ssZoomOut = document.getElementById('ss-zoom-out');
-    const ssZoomIn  = document.getElementById('ss-zoom-in');
-    const ssZoomLabel = document.getElementById('ss-zoom-label');
-    if (ssZoomOut)  ssZoomOut.style.visibility  = 'hidden';
-    if (ssZoomIn)   ssZoomIn.style.visibility   = 'hidden';
-    if (ssZoomLabel) ssZoomLabel.style.visibility = 'hidden';
+    const zoomOutBtn = document.getElementById('ss-zoom-out');
+    const zoomInBtn  = document.getElementById('ss-zoom-in');
+    const zoomLabelEl = document.getElementById('ss-zoom-label');
+    if (zoomOutBtn)  zoomOutBtn.style.visibility  = 'hidden';
+    if (zoomInBtn)   zoomInBtn.style.visibility   = 'hidden';
+    if (zoomLabelEl) zoomLabelEl.style.visibility = 'hidden';
 
     // Overline fix — applied to geez area only; save originals to revert after
     const _overlineReverts = [];
@@ -4760,9 +4685,9 @@ async function copyCurrentSlide(btn) {
         prev.style.visibility = '';
         next.style.visibility = '';
         if (transTextEl) transTextEl.style.visibility = '';
-        if (ssZoomOut)  ssZoomOut.style.visibility  = '';
-        if (ssZoomIn)   ssZoomIn.style.visibility   = '';
-        if (ssZoomLabel) ssZoomLabel.style.visibility = '';
+        if (zoomOutBtn)  zoomOutBtn.style.visibility  = '';
+        if (zoomInBtn)   zoomInBtn.style.visibility   = '';
+        if (zoomLabelEl) zoomLabelEl.style.visibility = '';
     }
 }
 
@@ -4896,7 +4821,7 @@ async function openMulticopyModal() {
             const visualW = Math.round(overlay.offsetWidth * zoom);
             const visualH = Math.round(overlay.offsetHeight * zoom);
             const canvas = await html2canvas(overlay, {
-                scale: 2, useCORS: true, allowTaint: true,
+                scale: 1, useCORS: true, allowTaint: true,
                 backgroundColor: '#fffdf8',
                 width: visualW, height: visualH,
                 windowWidth: visualW, windowHeight: visualH
@@ -4993,7 +4918,6 @@ async function confirmMulticopySelectionAndRender() {
         .map(item => `<div style="margin-bottom:20px;"><img src="${item.imgSrc}" style="display:block;width:800px;"/></div>`);
 
     const confirmBtn = document.getElementById('multicopy-confirm-btn');
-    const originalLabel = confirmBtn ? confirmBtn.textContent : '';
 
     if (batchParts.length) {
         try {
@@ -5624,19 +5548,24 @@ function attachDragHandlers(div, type) {
             orderedKeys.forEach(k => { reordered[k] = appData[k]; });
             if (appData._lastSaved) reordered._lastSaved = appData._lastSaved;
             appData = reordered;
-            saveData();
+            saveAndSync();
             renderProjects();
         } else if (type === 'folder') {
             const arr = appData[currentUser].folders;
             const [moved] = arr.splice(_dragSrcIndex, 1);
             arr.splice(targetIndex, 0, moved);
-            saveData();
+            currentFolder = null;
+            currentPiece = null;
+            _editorPieceId = null;
+            saveAndSync();
             renderFolders();
         } else if (type === 'piece') {
             const arr = appData[currentUser].folders[currentFolder].pieces;
             const [moved] = arr.splice(_dragSrcIndex, 1);
             arr.splice(targetIndex, 0, moved);
-            saveData();
+            currentPiece = null;
+            _editorPieceId = null;
+            saveAndSync();
             renderPieces();
         }
     });
@@ -5773,48 +5702,54 @@ async function loadFromFirestore(uid) {
     }
 }
 
+let _pushInFlight = null;
 async function pushToFirestore() {
     const user = firebase.auth().currentUser;
     if (!user) return;
-    try {
-        showSyncStatus('pending');
-        const batch = fsdb.batch();
-
-        // Build index without visualData
-        const index = buildIndexData();
-        batch.set(fsdb.collection('users').doc(user.uid), { index }, { mergeFields: ['index'] });
-
-        // Each dirty piece gets its own document
-        _dirtyPieceIds.forEach(pieceId => {
-            let found = null;
-            Object.keys(appData).filter(k => k !== '_lastSaved').some(projName =>
-                (appData[projName].folders || []).some(folder =>
-                    (folder.pieces || []).some(piece => {
-                        if (piece.id === pieceId) { found = piece; return true; }
-                    })
+    if (_pushInFlight) { try { await _pushInFlight; } catch(e) {} }
+    _pushInFlight = (async () => {
+        const pushingIds = Array.from(_dirtyPieceIds);
+        const deletingIds = Array.from(_deletedPieceIds);
+        _dirtyPieceIds.clear();
+        _deletedPieceIds.clear();
+        try {
+            showSyncStatus('pending');
+            const byId = {};
+            Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName =>
+                (appData[projName].folders || []).forEach(folder =>
+                    (folder.pieces || []).forEach(piece => { if (piece.id) byId[piece.id] = piece; })
                 )
             );
-            if (found) {
+            let batch = fsdb.batch();
+            let count = 0;
+            const flush = async () => { if (count > 0) { await batch.commit(); batch = fsdb.batch(); count = 0; } };
+            batch.set(fsdb.collection('users').doc(user.uid), { index: buildIndexData() }, { mergeFields: ['index'] });
+            count++;
+            for (const pieceId of pushingIds) {
+                const found = byId[pieceId];
+                if (!found) continue;
                 batch.set(
                     fsdb.collection('users').doc(user.uid).collection('pieces').doc(pieceId),
                     { visualData: compressForCloud(found.visualData || '') }
                 );
+                count++;
+                if (count >= 400) await flush();
             }
-        });
-
-        // Delete removed pieces
-        _deletedPieceIds.forEach(pieceId => {
-            batch.delete(fsdb.collection('users').doc(user.uid).collection('pieces').doc(pieceId));
-        });
-
-        await batch.commit();
-        _dirtyPieceIds.clear();
-        _deletedPieceIds.clear();
-        showSyncStatus('saved');
-    } catch(e) {
-        console.error('Firestore push failed:', e);
-        showSyncStatus('failed');
-    }
+            for (const pieceId of deletingIds) {
+                batch.delete(fsdb.collection('users').doc(user.uid).collection('pieces').doc(pieceId));
+                count++;
+                if (count >= 400) await flush();
+            }
+            await flush();
+            showSyncStatus('saved');
+        } catch(e) {
+            console.error('Firestore push failed:', e);
+            pushingIds.forEach(id => _dirtyPieceIds.add(id));
+            deletingIds.forEach(id => _deletedPieceIds.add(id));
+            showSyncStatus('failed');
+        }
+    })();
+    try { await _pushInFlight; } finally { _pushInFlight = null; }
 }
 
 // --- Login Page ---
@@ -5828,7 +5763,10 @@ function toggleLoginMode() {
     const passwordField = document.getElementById('login-password');
 
     if (_loginMode === 'signup') {
-        label.textContent = 'Create an account to sync across devices';
+        const guest = firebase.auth().currentUser;
+        label.textContent = (guest && guest.isAnonymous)
+            ? 'Create an account - your guest work will be kept'
+            : 'Create an account to sync across devices';
         toggle.textContent = 'Already have an account? Log In';
         submitBtn.textContent = 'Sign Up';
         passwordField.autocomplete = 'new-password';
@@ -5838,12 +5776,15 @@ function toggleLoginMode() {
         submitBtn.textContent = 'Log In';
         passwordField.autocomplete = 'current-password';
     }
-    document.getElementById('login-error').style.display = 'none';
+    const errEl = document.getElementById('login-error');
+    errEl.style.color = '#e74c3c';
+    errEl.style.display = 'none';
 }
 
 function showLoginError(msg) {
     const el = document.getElementById('login-error');
     el.textContent = msg;
+    el.style.color = '#e74c3c';
     el.style.display = 'block';
 }
 
@@ -5858,7 +5799,12 @@ function logOut() {
         currentUser = null;
         currentFolder = null;
         currentPiece = null;
+        _editorPieceId = null;
         appData = {};
+        _dirtyPieceIds.clear();
+        _deletedPieceIds.clear();
+        try { await idbSet('miliket_data', {}); } catch(err) { console.error('Could not clear local cache', err); }
+        localStorage.removeItem('miliket_last_saved');
         showStudioPage('page-welcome');
     });
 }
@@ -5917,7 +5863,27 @@ document.getElementById('login-form').addEventListener('submit', async (e) => {
 
     try {
         if (_loginMode === 'signup') {
-            await firebase.auth().createUserWithEmailAndPassword(email, password);
+            const existing = firebase.auth().currentUser;
+            if (existing && existing.isAnonymous) {
+                const cred = firebase.auth.EmailAuthProvider.credential(email, password);
+                try {
+                    await existing.linkWithCredential(cred);
+                } catch (linkErr) {
+                    if (linkErr.code === 'auth/email-already-in-use'
+                        || linkErr.code === 'auth/credential-already-in-use'
+                        || linkErr.code === 'auth/account-exists-with-different-credential') {
+                        showLoginError('That email already belongs to another account, so it cannot be attached to this guest session. Log in with it instead. Your guest work is untouched and stays on this device.');
+                        return;
+                    }
+                    if (linkErr.code === 'auth/provider-already-linked') {
+                        showLoginError('This account already has an email and password. Use Log In instead.');
+                        return;
+                    }
+                    throw linkErr;
+                }
+            } else {
+                await firebase.auth().createUserWithEmailAndPassword(email, password);
+            }
         } else {
             await firebase.auth().signInWithEmailAndPassword(email, password);
         }
@@ -5943,9 +5909,13 @@ async function continueAsGuest() {
     proceedToStudio();
 }
 
+let _studioEntering = false;
 function proceedToStudio() {
+    if (_studioEntering) return;
+    _studioEntering = true;
+    studioEntryRequested = false;
     _studioInitialized = false; // force re-init under the new/confirmed UID
-    enterStudio();
+    Promise.resolve(enterStudio()).finally(() => { _studioEntering = false; });
 }
 
 async function enterStudio() {
@@ -5991,6 +5961,10 @@ window.addEventListener('DOMContentLoaded', async () => {
 });
     }
 
+    // The GitHub Gist backup path is gone, so the personal access token it used
+    // should not keep sitting in localStorage on existing installs.
+    localStorage.removeItem('miliket_gist_token');
+
     // Open DB silently
     idb = await openDB();
     const saved = await idbGet('miliket_data');
@@ -6014,7 +5988,8 @@ function checkSyncReminder() {
             <button onclick="saveAndSync().then(()=>document.getElementById('sync-reminder').remove())" style="background:${isDark ? '#3a5a82' : '#1a2a3a'};color:white;border:none;border-radius:5px;padding:5px 14px;font-weight:bold;cursor:pointer;">Sync Now</button>
             <button onclick="document.getElementById('sync-reminder').remove()" style="background:transparent;color:${isDark ? '#b5d4f4' : '#1a2a3a'};border:1px solid ${isDark ? 'rgba(181,212,244,0.3)' : 'rgba(26,42,58,0.35)'};border-radius:5px;padding:5px 14px;cursor:pointer;">Dismiss</button>
         </div>`;
-    const topbar = document.querySelector('.studio-topbar');
+    const topbar = document.querySelector('#page-projects .studio-topbar');
+    if (!topbar) return;
     topbar.insertAdjacentElement('afterend', banner);
 }
 
@@ -6027,6 +6002,7 @@ window.addEventListener('beforeunload', (e) => {
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
+        savePieceNow();
         saveData();
         if (navigator.onLine) pushToFirestore();
     }
@@ -6130,6 +6106,8 @@ let _calTab = 'upcoming';
 let _calSearch = '';
 
 function renderCalendar() {
+    const _prevInput = document.getElementById('cal-search-input');
+    const _prevCaret = _prevInput ? _prevInput.selectionStart : null;
     const today = new Date();
     const events = getEvents(curYear);
     document.getElementById('yr-val').textContent = curYear;
@@ -6246,7 +6224,7 @@ function renderCalendar() {
     // Restore focus on search input if it was active
     if (q || document.activeElement?.id === 'cal-search-input') {
         const inp = document.getElementById('cal-search-input');
-        if (inp) { inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+        if (inp) { const pos = (_prevCaret === null ? inp.value.length : _prevCaret); inp.focus(); inp.setSelectionRange(pos, pos); }
     }
 }
 
@@ -6427,7 +6405,7 @@ function chronoReset() {
     var btn = document.getElementById('chrono-start-btn');
     if (btn) { btn.textContent = 'Start'; btn.style.background = '#27ae60'; }
     var disp = document.getElementById('chrono-display');
-    if (disp) disp.style.color = 'white';
+    if (disp) disp.style.color = 'var(--text)';
     updateChronoDisplay();
 }
 
