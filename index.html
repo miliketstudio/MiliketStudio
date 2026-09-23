@@ -1241,6 +1241,265 @@
             max-width: none;
             object-fit: contain;
         }
+/* ============================================================
+   GLOBAL GE'EZ KEYWORD FINDER
+============================================================ */
+
+#keyword-finder-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100020;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 8vh 20px 30px;
+    background: rgba(15, 21, 32, 0.72);
+    backdrop-filter: blur(5px);
+}
+
+#keyword-finder-overlay.open {
+    display: flex;
+}
+
+.keyword-finder-box {
+    width: min(860px, 96vw);
+    max-height: 84vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 2px solid var(--gold);
+    border-radius: 16px;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.42);
+}
+
+.keyword-finder-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 18px 20px;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(184, 134, 11, 0.08);
+}
+
+.keyword-finder-heading {
+    flex: 1;
+    min-width: 0;
+}
+
+.keyword-finder-heading h2 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.keyword-finder-heading p {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+}
+
+.keyword-finder-close {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 25px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.keyword-finder-close:hover {
+    background: rgba(184, 134, 11, 0.14);
+    color: var(--gold);
+}
+
+.keyword-finder-search-wrap {
+    position: relative;
+    padding: 16px 20px 12px;
+}
+
+#keyword-finder-input {
+    width: 100%;
+    padding: 13px 46px 13px 16px;
+    border: 2px solid var(--card-border);
+    border-radius: 10px;
+    outline: none;
+    background: var(--page-bg);
+    color: var(--text);
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 1.15rem;
+}
+
+#keyword-finder-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.14);
+}
+
+.keyword-finder-shortcut {
+    position: absolute;
+    top: 28px;
+    right: 34px;
+    padding: 3px 7px;
+    border: 1px solid var(--card-border);
+    border-radius: 5px;
+    color: var(--text-muted);
+    font-family: sans-serif;
+    font-size: 0.68rem;
+    pointer-events: none;
+}
+
+.keyword-finder-summary {
+    padding: 0 20px 10px;
+    color: var(--text-muted);
+    font-family: sans-serif;
+    font-size: 0.78rem;
+}
+
+#keyword-finder-results {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 0 20px 20px;
+}
+
+.keyword-finder-empty {
+    padding: 36px 18px;
+    color: var(--text-muted);
+    text-align: center;
+    font-size: 0.9rem;
+}
+
+.keyword-finder-result {
+    position: relative;
+    margin-bottom: 10px;
+    padding: 14px 112px 14px 16px;
+    border: 1px solid var(--card-border);
+    border-left: 4px solid var(--gold);
+    border-radius: 10px;
+    background: var(--card-bg);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.keyword-finder-result:hover {
+    border-color: var(--gold);
+    box-shadow: 0 5px 18px rgba(184, 134, 11, 0.12);
+}
+
+.keyword-finder-location {
+    margin-bottom: 8px;
+    color: var(--text);
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 0.92rem;
+    font-weight: bold;
+    line-height: 1.5;
+}
+
+.keyword-finder-location .location-project {
+    color: var(--gold);
+}
+
+.keyword-finder-location .location-folder {
+    color: #3a5a82;
+}
+
+.keyword-finder-location .location-piece {
+    color: var(--text);
+}
+
+.keyword-finder-snippet {
+    color: var(--text-muted);
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 1rem;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
+.keyword-finder-snippet mark {
+    padding: 1px 3px;
+    border-radius: 3px;
+    background: #f0c040;
+    color: #1a2a3a;
+    font-weight: bold;
+}
+
+.keyword-finder-source {
+    margin-top: 7px;
+    color: var(--text-muted);
+    font-family: sans-serif;
+    font-size: 0.68rem;
+    opacity: 0.8;
+}
+
+.keyword-finder-jump {
+    position: absolute;
+    top: 50%;
+    right: 14px;
+    transform: translateY(-50%);
+    border: none;
+    border-radius: 999px;
+    padding: 8px 13px;
+    background: var(--gold);
+    color: #ffffff;
+    font-family: sans-serif;
+    font-size: 0.75rem;
+    font-weight: bold;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.keyword-finder-jump:hover {
+    background: #9d7209;
+    transform: translateY(-50%) translateY(-1px);
+}
+
+.keyword-finder-piece-highlight {
+    animation: keywordFinderPiecePulse 2.4s ease-out;
+}
+
+@keyframes keywordFinderPiecePulse {
+    0% {
+        outline: 4px solid var(--gold);
+        outline-offset: 4px;
+        box-shadow: 0 0 0 8px rgba(184, 134, 11, 0.25);
+    }
+
+    100% {
+        outline: 0 solid transparent;
+        outline-offset: 0;
+        box-shadow: none;
+    }
+}
+
+@media (max-width: 600px) {
+    #keyword-finder-overlay {
+        padding: 3vh 10px 15px;
+    }
+
+    .keyword-finder-box {
+        max-height: 92vh;
+    }
+
+    .keyword-finder-result {
+        padding: 13px 14px 58px;
+    }
+
+    .keyword-finder-jump {
+        top: auto;
+        right: 14px;
+        bottom: 12px;
+        transform: none;
+    }
+
+    .keyword-finder-jump:hover {
+        transform: translateY(-1px);
+    }
+}
+        
     </style>
 </head>
 <body id="main-body">
@@ -1765,6 +2024,57 @@
                 </button>
 
                 <span id="batch-translate-draft-status" class="batch-translate-draft-status"></span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Global Ge'ez Keyword Finder -->
+<div
+    id="keyword-finder-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="keyword-finder-title">
+
+    <div class="keyword-finder-box">
+        <div class="keyword-finder-header">
+            <div class="keyword-finder-heading">
+                <h2 id="keyword-finder-title">⌕ Global Ge'ez Finder</h2>
+                <p>Search every project, folder, and piece</p>
+            </div>
+
+            <button
+                id="keyword-finder-close"
+                class="keyword-finder-close"
+                type="button"
+                aria-label="Close keyword finder">
+                ×
+            </button>
+        </div>
+
+        <div class="keyword-finder-search-wrap">
+            <input
+                id="keyword-finder-input"
+                type="search"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Search a Ge'ez word or phrase..."
+                aria-label="Search all projects, folders, and pieces">
+
+            <span class="keyword-finder-shortcut">Esc</span>
+        </div>
+
+        <div
+            id="keyword-finder-summary"
+            class="keyword-finder-summary">
+            Type a word or phrase to search.
+        </div>
+
+        <div
+            id="keyword-finder-results"
+            aria-live="polite">
+            <div class="keyword-finder-empty">
+                Your search results will appear here.
             </div>
         </div>
     </div>
@@ -7310,6 +7620,516 @@ function updateChronoDisplay() {
     disp.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
 }
 
+<script>
+(function () {
+    'use strict';
+
+    let keywordFinderReturnState = null;
+
+    function keywordFinderGetOverlay() {
+        return document.getElementById('keyword-finder-overlay');
+    }
+
+    function keywordFinderGetInput() {
+        return document.getElementById('keyword-finder-input');
+    }
+
+    function keywordFinderEscapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function keywordFinderEscapeRegExp(value) {
+        return String(value || '')
+            .replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function keywordFinderNormalize(value) {
+        return String(value || '')
+            .normalize('NFC')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function keywordFinderPieceText(piece) {
+        let sourceText = '';
+
+        if (piece && piece.visualData) {
+            const temp = document.createElement('div');
+            temp.innerHTML = piece.visualData;
+
+            const baseLetters = temp.querySelectorAll('.baseletter');
+
+            if (baseLetters.length) {
+                baseLetters.forEach(element => {
+                    const text =
+                        element.innerText ||
+                        element.textContent ||
+                        '';
+
+                    if (
+                        element.classList.contains('whitespace') ||
+                        text.trim() === '0'
+                    ) {
+                        sourceText += ' ';
+                    } else {
+                        sourceText += text.replace(
+                            /[\u200A\u200B\u200C\u200D]/g,
+                            ''
+                        );
+                    }
+                });
+            } else {
+                sourceText = temp.innerText || temp.textContent || '';
+            }
+        }
+
+        if (!sourceText && piece && piece.content) {
+            sourceText = piece.content;
+        }
+
+        return keywordFinderNormalize(sourceText);
+    }
+
+    function keywordFinderCreateSnippet(text, query) {
+        const cleanText = keywordFinderNormalize(text);
+        const cleanQuery = keywordFinderNormalize(query);
+
+        if (!cleanText) {
+            return {
+                text: 'No readable text preview available.',
+                matchStart: -1,
+                matchEnd: -1
+            };
+        }
+
+        const lowerText = cleanText.toLocaleLowerCase();
+        const lowerQuery = cleanQuery.toLocaleLowerCase();
+        const matchIndex = lowerText.indexOf(lowerQuery);
+
+        if (matchIndex === -1) {
+            return {
+                text: cleanText.slice(0, 220) +
+                    (cleanText.length > 220 ? '…' : ''),
+                matchStart: -1,
+                matchEnd: -1
+            };
+        }
+
+        const padding = 90;
+        const start = Math.max(0, matchIndex - padding);
+        const end = Math.min(
+            cleanText.length,
+            matchIndex + cleanQuery.length + padding
+        );
+
+        let snippet = cleanText.slice(start, end);
+
+        if (start > 0) snippet = '…' + snippet;
+        if (end < cleanText.length) snippet += '…';
+
+        const visibleMatchStart =
+            (start > 0 ? 1 : 0) + matchIndex - start;
+
+        return {
+            text: snippet,
+            matchStart: visibleMatchStart,
+            matchEnd: visibleMatchStart + cleanQuery.length
+        };
+    }
+
+    function keywordFinderHighlightSnippet(snippet, query) {
+        const safeSnippet = String(snippet.text || '');
+        const safeQuery = String(query || '');
+
+        if (
+            snippet.matchStart < 0 ||
+            !safeQuery ||
+            snippet.matchEnd <= snippet.matchStart
+        ) {
+            return keywordFinderEscapeHtml(safeSnippet);
+        }
+
+        const before = safeSnippet.slice(0, snippet.matchStart);
+        const match = safeSnippet.slice(
+            snippet.matchStart,
+            snippet.matchEnd
+        );
+        const after = safeSnippet.slice(snippet.matchEnd);
+
+        return (
+            keywordFinderEscapeHtml(before) +
+            '<mark>' + keywordFinderEscapeHtml(match) + '</mark>' +
+            keywordFinderEscapeHtml(after)
+        );
+    }
+
+    function keywordFinderSearch(query) {
+        const resultsElement =
+            document.getElementById('keyword-finder-results');
+
+        const summaryElement =
+            document.getElementById('keyword-finder-summary');
+
+        if (!resultsElement || !summaryElement) return;
+
+        const cleanQuery = keywordFinderNormalize(query);
+
+        if (!cleanQuery) {
+            summaryElement.textContent =
+                'Type a word or phrase to search.';
+            resultsElement.innerHTML =
+                '<div class="keyword-finder-empty">' +
+                'Your search results will appear here.' +
+                '</div>';
+            return;
+        }
+
+        const matches = [];
+        const projects = Object.keys(appData || {})
+            .filter(projectName => projectName !== '_lastSaved');
+
+        projects.forEach(projectName => {
+            const project = appData[projectName] || {};
+            const folders = Array.isArray(project.folders)
+                ? project.folders
+                : [];
+
+            folders.forEach((folder, folderIndex) => {
+                const pieces = Array.isArray(folder.pieces)
+                    ? folder.pieces
+                    : [];
+
+                pieces.forEach((piece, pieceIndex) => {
+                    const sourceText =
+                        keywordFinderPieceText(piece);
+
+                    const contentText =
+                        keywordFinderNormalize(piece.content);
+
+                    const translationText =
+                        keywordFinderNormalize(piece.translation);
+
+                    const searchableText = [
+                        sourceText,
+                        contentText,
+                        translationText
+                    ]
+                        .filter(Boolean)
+                        .join(' ');
+
+                    const lowerSearchable =
+                        searchableText.toLocaleLowerCase();
+
+                    if (
+                        !lowerSearchable.includes(
+                            cleanQuery.toLocaleLowerCase()
+                        )
+                    ) {
+                        return;
+                    }
+
+                    const sourceMatches =
+                        sourceText.toLocaleLowerCase().includes(
+                            cleanQuery.toLocaleLowerCase()
+                        );
+
+                    const matchedText = sourceMatches
+                        ? sourceText
+                        : searchableText;
+
+                    matches.push({
+                        projectName,
+                        folderName: folder.name || 'Untitled Folder',
+                        pieceName: piece.name || 'Untitled Piece',
+                        folderIndex,
+                        pieceIndex,
+                        snippet: keywordFinderCreateSnippet(
+                            matchedText,
+                            cleanQuery
+                        ),
+                        sourceType: sourceMatches
+                            ? 'Ge’ez source'
+                            : translationText
+                                .toLocaleLowerCase()
+                                .includes(
+                                    cleanQuery.toLocaleLowerCase()
+                                )
+                                ? 'Translation'
+                                : 'Piece content'
+                    });
+                });
+            });
+        });
+
+        summaryElement.textContent =
+            matches.length +
+            ' result' +
+            (matches.length === 1 ? '' : 's') +
+            ' found';
+
+        if (!matches.length) {
+            resultsElement.innerHTML =
+                '<div class="keyword-finder-empty">' +
+                'No matching Ge’ez text was found.' +
+                '</div>';
+            return;
+        }
+
+        resultsElement.innerHTML = '';
+
+        matches.forEach(match => {
+            const resultElement =
+                document.createElement('article');
+
+            resultElement.className =
+                'keyword-finder-result';
+
+            const locationElement =
+                document.createElement('div');
+
+            locationElement.className =
+                'keyword-finder-location';
+
+            locationElement.innerHTML =
+                '<span class="location-project">📁 Project: ' +
+                keywordFinderEscapeHtml(match.projectName) +
+                '</span> ' +
+                '<span aria-hidden="true">›</span> ' +
+                '<span class="location-folder">📂 Folder: ' +
+                keywordFinderEscapeHtml(match.folderName) +
+                '</span> ' +
+                '<span aria-hidden="true">›</span> ' +
+                '<span class="location-piece">📄 Piece: ' +
+                keywordFinderEscapeHtml(match.pieceName) +
+                '</span>';
+
+            const snippetElement =
+                document.createElement('div');
+
+            snippetElement.className =
+                'keyword-finder-snippet';
+
+            snippetElement.innerHTML =
+                keywordFinderHighlightSnippet(
+                    match.snippet,
+                    cleanQuery
+                );
+
+            const sourceElement =
+                document.createElement('div');
+
+            sourceElement.className =
+                'keyword-finder-source';
+
+            sourceElement.textContent =
+                'Matched in: ' + match.sourceType;
+
+            const jumpButton =
+                document.createElement('button');
+
+            jumpButton.type = 'button';
+            jumpButton.className =
+                'keyword-finder-jump';
+            jumpButton.textContent = 'Jump ➜';
+
+            jumpButton.addEventListener('click', function () {
+                keywordFinderJumpToResult(match);
+            });
+
+            resultElement.appendChild(locationElement);
+            resultElement.appendChild(snippetElement);
+            resultElement.appendChild(sourceElement);
+            resultElement.appendChild(jumpButton);
+
+            resultsElement.appendChild(resultElement);
+        });
+    }
+
+    function keywordFinderGetActiveStudioPage() {
+        const activePage =
+            document.querySelector('.studio-page.active');
+
+        return activePage ? activePage.id : null;
+    }
+
+    function keywordFinderOpen() {
+        const overlay = keywordFinderGetOverlay();
+        const input = keywordFinderGetInput();
+
+        if (!overlay || !input) return;
+
+        overlay.classList.add('open');
+
+        input.value = '';
+        keywordFinderSearch('');
+
+        window.setTimeout(function () {
+            input.focus();
+        }, 30);
+    }
+
+    function keywordFinderClose() {
+        const overlay = keywordFinderGetOverlay();
+
+        if (overlay) {
+            overlay.classList.remove('open');
+        }
+    }
+
+    function keywordFinderJumpToResult(match) {
+        keywordFinderReturnState = {
+            currentUser,
+            currentFolder,
+            currentPiece,
+            activePage: keywordFinderGetActiveStudioPage()
+        };
+
+        history.pushState(
+            {
+                keywordFinderJump: true,
+                returnState: keywordFinderReturnState
+            },
+            '',
+            window.location.href
+        );
+
+        keywordFinderClose();
+
+        currentPiece = null;
+
+        openProject(match.projectName);
+        openFolder(match.folderIndex);
+
+        window.setTimeout(function () {
+            const grid =
+                document.getElementById('pieces-grid');
+
+            if (!grid) return;
+
+            const target =
+                grid.querySelector(
+                    '.studio-card[data-index="' +
+                    String(match.pieceIndex) +
+                    '"]'
+                );
+
+            if (!target) return;
+
+            target.classList.add(
+                'keyword-finder-piece-highlight'
+            );
+
+            target.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center'
+            });
+
+            window.setTimeout(function () {
+                target.classList.remove(
+                    'keyword-finder-piece-highlight'
+                );
+            }, 2800);
+        }, 80);
+    }
+
+    function keywordFinderRestoreReturnState(state) {
+        if (!state) return;
+
+        currentUser = state.currentUser;
+        currentFolder = state.currentFolder;
+        currentPiece = state.currentPiece;
+
+        if (
+            state.activePage === 'page-pieces' &&
+            currentUser &&
+            currentFolder !== null
+        ) {
+            showStudioPage('page-pieces');
+            renderPieces();
+            return;
+        }
+
+        if (
+            state.activePage === 'page-folders' &&
+            currentUser
+        ) {
+            showStudioPage('page-folders');
+            renderFolders();
+            return;
+        }
+
+        if (state.activePage === 'page-projects') {
+            showStudioPage('page-projects');
+            renderProjects();
+            return;
+        }
+
+        showStudioPage('page-projects');
+        renderProjects();
+    }
+
+    document.addEventListener('keydown', function (event) {
+        const isFinderShortcut =
+            (event.ctrlKey || event.metaKey) &&
+            event.key.toLowerCase() === 'f';
+
+        if (isFinderShortcut) {
+            event.preventDefault();
+            event.stopPropagation();
+            keywordFinderOpen();
+            return;
+        }
+
+        if (
+            event.key === 'Escape' &&
+            keywordFinderGetOverlay()?.classList.contains('open')
+        ) {
+            event.preventDefault();
+            keywordFinderClose();
+        }
+    });
+
+    document.addEventListener('input', function (event) {
+        if (event.target?.id !== 'keyword-finder-input') {
+            return;
+        }
+
+        keywordFinderSearch(event.target.value);
+    });
+
+    document.addEventListener('click', function (event) {
+        const overlay = keywordFinderGetOverlay();
+
+        if (
+            overlay &&
+            event.target === overlay
+        ) {
+            keywordFinderClose();
+        }
+    });
+
+    document.getElementById('keyword-finder-close')
+        ?.addEventListener('click', keywordFinderClose);
+
+    window.addEventListener('popstate', function (event) {
+        const state = event.state;
+
+        if (
+            state &&
+            state.keywordFinderJump &&
+            state.returnState
+        ) {
+            keywordFinderRestoreReturnState(
+                state.returnState
+            );
+        }
+    });
+})();
 </script>
 </body>
 </html>
