@@ -664,6 +664,198 @@
             background: var(--gold);
             transition: width 0.25s ease;
         }
+        
+        .batch-translate-box {
+            position: relative;
+            width: min(620px, 94vw);
+            max-height: 90vh;
+            overflow-y: auto;
+            background: var(--card-bg);
+            color: var(--text);
+            border: 2px solid var(--gold);
+            border-radius: 16px;
+           padding: 30px;
+           box-shadow: 0 20px 70px rgba(0, 0, 0, 0.42);
+            text-align: center;
+        }
+
+        .batch-translate-close {
+           position: absolute;
+           top: 10px;
+           right: 14px;
+           width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 50%;
+           background: transparent;
+           color: var(--text-muted);
+           font-size: 25px;
+           line-height: 1;
+           cursor: pointer;
+        }
+
+        .batch-translate-close:hover {
+            background: rgba(184, 134, 11, 0.12);
+            color: var(--gold);
+        }
+
+        .batch-translate-failure {
+            display: none;
+            margin-top: 22px;
+            padding-top: 20px;
+            border-top: 1px solid var(--card-border);
+            text-align: left;
+        }
+
+        .batch-translate-failure.open {
+            display: block;
+        }
+
+        .batch-translate-failure-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+           height: 42px;
+           margin: 0 auto 12px;
+           border-radius: 50%;
+           background: #e74c3c;
+           color: #ffffff;
+           font-size: 25px;
+           font-weight: bold;
+        }
+
+        .batch-translate-failure h3 {
+            margin: 0 0 10px;
+            color: #e74c3c;
+            font-size: 1.1rem;
+            text-align: center;
+        }
+
+.batch-translate-error {
+    margin: 0 auto 16px;
+    max-width: 520px;
+    padding: 10px 12px;
+    border-left: 3px solid #e74c3c;
+    border-radius: 5px;
+    background: rgba(231, 76, 60, 0.08);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.batch-translate-manual-help {
+    margin: 0 0 12px;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.batch-translate-manual-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.batch-translate-manual-actions button,
+.batch-translate-apply-btn {
+    border: none;
+    border-radius: 7px;
+    padding: 9px 14px;
+    font-size: 0.82rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+.batch-translate-copy-btn {
+    background: var(--gold);
+    color: #ffffff;
+}
+
+.batch-translate-paste-btn {
+    background: #3a5a82;
+    color: #ffffff;
+}
+
+.batch-translate-copy-btn:hover,
+.batch-translate-paste-btn:hover,
+.batch-translate-apply-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.88;
+}
+
+.batch-translate-response-input {
+    display: block;
+    width: 100%;
+    min-height: 170px;
+    resize: vertical;
+    padding: 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--page-bg);
+    color: var(--text);
+    font-family: monospace;
+    font-size: 0.78rem;
+    line-height: 1.5;
+    outline: none;
+}
+
+.batch-translate-response-input:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.14);
+}
+
+.batch-translate-manual-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.batch-translate-apply-btn {
+    background: #27ae60;
+    color: #ffffff;
+}
+
+.batch-translate-draft-status {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-align: right;
+}
+
+.batch-translate-overlay.manual-mode #batch-translate-spinner,
+.batch-translate-overlay.manual-mode #batch-translate-progress {
+    display: none;
+}
+
+.batch-translate-overlay.manual-mode #batch-translate-status {
+    display: none;
+}
+
+@media (max-width: 600px) {
+    .batch-translate-box {
+        padding: 24px 16px;
+    }
+
+    .batch-translate-manual-actions,
+    .batch-translate-manual-footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .batch-translate-manual-actions button,
+    .batch-translate-apply-btn {
+        width: 100%;
+    }
+
+    .batch-translate-draft-status {
+        text-align: center;
+    }
+}
 
         @media (max-width: 700px) {
             .action-translate {
@@ -1500,13 +1692,80 @@
 
 <div id="batch-translate-overlay" class="batch-translate-overlay" role="dialog" aria-modal="true" aria-labelledby="batch-translate-title">
     <div class="batch-translate-box">
-        <div class="batch-translate-spinner" aria-hidden="true"></div>
-        <h2 id="batch-translate-title" class="batch-translate-title">Batch Translation</h2>
+        <button
+            id="batch-translate-close"
+            class="batch-translate-close"
+            type="button"
+            onclick="closeBatchTranslationOverlay()"
+            aria-label="Close batch translation dialog">
+            ×
+        </button>
+
+        <div id="batch-translate-spinner" class="batch-translate-spinner" aria-hidden="true"></div>
+
+        <h2 id="batch-translate-title" class="batch-translate-title">
+            Batch Translation
+        </h2>
+
         <p id="batch-translate-status" class="batch-translate-status">
             Preparing pieces...
         </p>
-        <div class="batch-translate-progress" aria-hidden="true">
+
+        <div id="batch-translate-progress" class="batch-translate-progress" aria-hidden="true">
             <div id="batch-translate-progress-bar" class="batch-translate-progress-bar"></div>
+        </div>
+
+        <div id="batch-translate-failure" class="batch-translate-failure">
+            <div class="batch-translate-failure-icon">!</div>
+
+            <h3>Automatic translation failed</h3>
+
+            <p id="batch-translate-error" class="batch-translate-error"></p>
+
+            <p class="batch-translate-manual-help">
+                Try manually: copy the prompt below into another AI service,
+                then paste its JSON response here.
+            </p>
+
+            <div class="batch-translate-manual-actions">
+                <button
+                    type="button"
+                    class="batch-translate-copy-btn"
+                    onclick="copyBatchTranslationPrompt()">
+                    📋 Copy Prompt
+                </button>
+
+                <button
+                    type="button"
+                    class="batch-translate-paste-btn"
+                    onclick="pasteBatchTranslationResponse()">
+                    📥 Paste Response
+                </button>
+            </div>
+
+            <textarea
+                id="batch-translate-response-input"
+                class="batch-translate-response-input"
+                placeholder='Paste the JSON response here, for example:
+{
+  "translations": [
+    {
+      "id": "piece-id",
+      "translated_text": "..."
+    }
+  ]
+}'></textarea>
+
+            <div class="batch-translate-manual-footer">
+                <button
+                    type="button"
+                    class="batch-translate-apply-btn"
+                    onclick="applyManualBatchTranslations()">
+                    ✓ Apply Translations
+                </button>
+
+                <span id="batch-translate-draft-status" class="batch-translate-draft-status"></span>
+            </div>
         </div>
     </div>
 </div>
@@ -3010,16 +3269,12 @@ async function batchTranslateCurrentProject() {
     const projectPieces = [];
 
     folders.forEach((folder, folderIndex) => {
-        const pieces = Array.isArray(folder.pieces)
-            ? folder.pieces
-            : [];
+        const pieces = Array.isArray(folder.pieces) ? folder.pieces : [];
 
         pieces.forEach((piece, pieceIndex) => {
             const text = batchTranslationExtractText(piece);
 
-            if (!text) {
-                return;
-            }
+            if (!text) return;
 
             const pieceId =
                 piece.id ||
@@ -3028,10 +3283,7 @@ async function batchTranslateCurrentProject() {
             projectPieces.push({
                 id: pieceId,
                 text,
-                piece,
-                folder,
-                folderIndex,
-                pieceIndex
+                piece
             });
         });
     });
@@ -3041,20 +3293,18 @@ async function batchTranslateCurrentProject() {
         return;
     }
 
-    const existingTranslations = projectPieces.filter(item =>
+    const alreadyTranslated = projectPieces.filter(item =>
         item.piece.translation &&
         String(item.piece.translation).trim()
     );
 
-    if (existingTranslations.length) {
+    if (alreadyTranslated.length) {
         const shouldContinue = confirm(
-            `${existingTranslations.length} piece${existingTranslations.length === 1 ? '' : 's'} already have translations.\n\n` +
+            `${alreadyTranslated.length} piece${alreadyTranslated.length === 1 ? '' : 's'} already have translations.\n\n` +
             'Click OK to replace all existing translations in this project, or Cancel to stop.'
         );
 
-        if (!shouldContinue) {
-            return;
-        }
+        if (!shouldContinue) return;
     }
 
     const payloadItems = projectPieces.map(item => ({
@@ -3069,53 +3319,34 @@ async function batchTranslateCurrentProject() {
     try {
         const response = await fetch(MILIKET_TRANSLATE_WORKER_URL, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                items: payloadItems
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: payloadItems })
         });
 
         const data = await response.json().catch(() => ({}));
 
         if (!response.ok) {
-            throw new Error(
-                data.error ||
-                `Translation service returned HTTP ${response.status}.`
-            );
+            throw new Error(data.error || `Translation service returned HTTP ${response.status}.`);
         }
 
         if (!Array.isArray(data.translations)) {
-            throw new Error(
-                'The translation service did not return a translations array.'
-            );
+            throw new Error('The translation service did not return a translations array.');
         }
 
-        const pieceById = new Map(
-            projectPieces.map(item => [item.id, item])
-        );
-
+        const pieceById = new Map(projectPieces.map(item => [item.id, item]));
         let savedCount = 0;
 
         data.translations.forEach(result => {
             const id = String(result?.id || '').trim();
-            const translatedText = String(
-                result?.translated_text || ''
-            ).trim();
+            const translatedText = String(result?.translated_text || '').trim();
 
             const item = pieceById.get(id);
-
-            if (!item || !translatedText) {
-                return;
-            }
+            if (!item || !translatedText) return;
 
             item.piece.translation = translatedText;
             item.piece.lastModified = new Date().toISOString();
 
-            if (item.piece.id) {
-                markPieceDirty(item.piece.id);
-            }
+            if (item.piece.id) markPieceDirty(item.piece.id);
 
             savedCount++;
         });
@@ -3128,6 +3359,7 @@ async function batchTranslateCurrentProject() {
         );
 
         saveAndSync();
+        renderFolders();
 
         setBatchTranslationStatus(
             missingCount
@@ -3137,10 +3369,7 @@ async function batchTranslateCurrentProject() {
         );
 
         await new Promise(resolve => setTimeout(resolve, 1100));
-
         closeBatchTranslationOverlay();
-
-        renderFolders();
 
         if (missingCount) {
             alert(
@@ -3154,14 +3383,13 @@ async function batchTranslateCurrentProject() {
                 `${savedCount} piece${savedCount === 1 ? '' : 's'} translated across ${folders.length} folder${folders.length === 1 ? '' : 's'}.`
             );
         }
+
     } catch (error) {
         console.error('Project batch translation failed:', error);
 
-        closeBatchTranslationOverlay();
-
-        alert(
-            'Project batch translation failed:\n\n' +
-            (error.message || String(error))
+        showBatchTranslationFailure(
+            error,
+            payloadItems
         );
     }
 }
@@ -3186,27 +3414,339 @@ function setBatchTranslationStatus(message, progress = null) {
 
 function openBatchTranslationOverlay(message) {
     const overlay = document.getElementById('batch-translate-overlay');
+    const failurePanel = document.getElementById('batch-translate-failure');
+    const title = document.getElementById('batch-translate-title');
+    const closeButton = document.getElementById('batch-translate-close');
     const progressEl = document.getElementById('batch-translate-progress-bar');
+    const responseInput = document.getElementById('batch-translate-response-input');
+
+    if (overlay) {
+        overlay.classList.add('open');
+        overlay.classList.remove('manual-mode');
+    }
+
+    if (failurePanel) {
+        failurePanel.classList.remove('open');
+    }
+
+    if (title) {
+        title.textContent = 'Batch Translation';
+    }
+
+    if (closeButton) {
+        closeButton.style.display = '';
+    }
 
     if (progressEl) {
         progressEl.style.width = '0%';
     }
 
-    setBatchTranslationStatus(message, 0);
-
-    if (overlay) {
-        overlay.classList.add('open');
+    if (responseInput) {
+        responseInput.value = _batchTranslationDraft || '';
     }
+
+    setBatchTranslationStatus(message, 0);
 }
 
 function closeBatchTranslationOverlay() {
     const overlay = document.getElementById('batch-translate-overlay');
+    const responseInput = document.getElementById('batch-translate-response-input');
+
+    if (responseInput && responseInput.value.trim()) {
+        _batchTranslationDraft = responseInput.value;
+        sessionStorage.setItem(
+            'miliket_batch_translation_draft',
+            _batchTranslationDraft
+        );
+    }
 
     if (overlay) {
         overlay.classList.remove('open');
     }
 }
 
+function buildBatchTranslationManualPrompt(items) {
+    const safeItems = (items || []).map(item => ({
+        id: String(item.id),
+        text: String(item.text || '')
+    }));
+
+    return `You are a professional Ge'ez liturgical translator for the Ethiopian Orthodox Tewahedo Church.
+
+Translate every item in the input array.
+
+Important rules:
+- Preserve every id exactly.
+- Return exactly one translation for every input item.
+- Do not omit any item.
+- Do not add any item.
+- Return ONLY valid JSON.
+- Do not use Markdown code fences.
+- Do not include commentary outside the JSON.
+- Use clear, reverent, readable English.
+- Do not use archaic language such as "thee", "thou", "dost", or "hath".
+- Do not use semicolons.
+
+PUNCTUATION SYNCHRONIZATION RULE:
+The Ge'ez punctuation characters ። ፤ ፡ ፠ ፨ ፣ are synchronization points.
+
+For every item:
+- Preserve exactly the same number of these characters.
+- Preserve them in exactly the same order.
+- Do not remove them.
+- Do not add them.
+- Do not replace them with other punctuation.
+
+Return exactly this format:
+{
+  "translations": [
+    {
+      "id": "original-id",
+      "translated_text": "translation"
+    }
+  ]
+}
+
+Input:
+${JSON.stringify({ items: safeItems }, null, 2)}`;
+}
+
+function showBatchTranslationFailure(error, items) {
+    const overlay = document.getElementById('batch-translate-overlay');
+    const failurePanel = document.getElementById('batch-translate-failure');
+    const title = document.getElementById('batch-translate-title');
+    const errorEl = document.getElementById('batch-translate-error');
+    const responseInput = document.getElementById('batch-translate-response-input');
+
+    _batchTranslationManualItems = Array.isArray(items) ? items : [];
+    _batchTranslationManualPrompt =
+        buildBatchTranslationManualPrompt(_batchTranslationManualItems);
+
+    if (overlay) {
+        overlay.classList.add('open');
+        overlay.classList.add('manual-mode');
+    }
+
+    if (failurePanel) {
+        failurePanel.classList.add('open');
+    }
+
+    if (title) {
+        title.textContent = 'Batch Translation Needs Attention';
+    }
+
+    if (errorEl) {
+        errorEl.textContent =
+            error?.message ||
+            'The automatic translation service could not complete the request.';
+    }
+
+    if (responseInput) {
+        responseInput.value =
+            _batchTranslationDraft ||
+            sessionStorage.getItem('miliket_batch_translation_draft') ||
+            '';
+    }
+
+    setBatchTranslationStatus('', 0);
+}
+
+async function copyBatchTranslationPrompt() {
+    if (!_batchTranslationManualPrompt) {
+        alert('There is no manual translation prompt available yet.');
+        return;
+    }
+
+    try {
+        await navigator.clipboard.writeText(
+            _batchTranslationManualPrompt
+        );
+
+        const button = document.querySelector(
+            '.batch-translate-copy-btn'
+        );
+
+        if (button) {
+            const originalText = button.textContent;
+            button.textContent = '✓ Prompt Copied';
+
+            setTimeout(() => {
+                button.textContent = originalText;
+            }, 1600);
+        }
+    } catch (error) {
+        console.error('Could not copy batch prompt:', error);
+
+        const textArea = document.createElement('textarea');
+        textArea.value = _batchTranslationManualPrompt;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+
+        alert('The manual translation prompt was copied.');
+    }
+}
+
+async function pasteBatchTranslationResponse() {
+    const input = document.getElementById(
+        'batch-translate-response-input'
+    );
+
+    if (!input) return;
+
+    try {
+        const text = await navigator.clipboard.readText();
+
+        if (!text.trim()) {
+            alert('Your clipboard is empty.');
+            return;
+        }
+
+        input.value = text;
+        _batchTranslationDraft = text;
+
+        const draftStatus = document.getElementById(
+            'batch-translate-draft-status'
+        );
+
+        if (draftStatus) {
+            draftStatus.textContent = 'Response pasted and saved locally.';
+        }
+    } catch (error) {
+        console.error('Could not read clipboard:', error);
+
+        alert(
+            'Clipboard access was denied. Paste the response manually into the box.'
+        );
+
+        input.focus();
+    }
+}
+
+function parseManualBatchTranslationResponse(rawResponse) {
+    const cleaned = String(rawResponse || '')
+        .trim()
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+    let parsed;
+
+    try {
+        parsed = JSON.parse(cleaned);
+    } catch (_) {
+        const start = cleaned.indexOf('{');
+        const end = cleaned.lastIndexOf('}');
+
+        if (start === -1 || end === -1 || end <= start) {
+            throw new Error(
+                'The pasted response is not valid JSON.'
+            );
+        }
+
+        parsed = JSON.parse(
+            cleaned.slice(start, end + 1)
+        );
+    }
+
+    const translations = Array.isArray(parsed)
+        ? parsed
+        : parsed.translations;
+
+    if (!Array.isArray(translations)) {
+        throw new Error(
+            'The pasted JSON must contain a translations array.'
+        );
+    }
+
+    return translations
+        .map(item => ({
+            id: String(item?.id || '').trim(),
+            translated_text: String(
+                item?.translated_text || ''
+            ).trim()
+        }))
+        .filter(item => item.id && item.translated_text);
+}
+
+function applyBatchTranslationResults(translations) {
+    const itemsById = new Map(
+        _batchTranslationManualItems.map(item => [
+            String(item.id),
+            item
+        ])
+    );
+
+    let savedCount = 0;
+
+    translations.forEach(result => {
+        const item = itemsById.get(String(result.id));
+
+        if (!item || !result.translated_text) {
+            return;
+        }
+
+        item.piece.translation = result.translated_text;
+        item.piece.lastModified = new Date().toISOString();
+
+        if (item.piece.id) {
+            markPieceDirty(item.piece.id);
+        }
+
+        savedCount++;
+    });
+
+    if (!savedCount) {
+        throw new Error(
+            'No pasted translation ids matched the current project.'
+        );
+    }
+
+    saveAndSync();
+    renderFolders();
+
+    return savedCount;
+}
+
+function applyManualBatchTranslations() {
+    const input = document.getElementById(
+        'batch-translate-response-input'
+    );
+
+    if (!input || !input.value.trim()) {
+        alert('Paste the translated JSON response first.');
+        return;
+    }
+
+    try {
+        const translations =
+            parseManualBatchTranslationResponse(input.value);
+
+        const savedCount =
+            applyBatchTranslationResults(translations);
+
+        _batchTranslationDraft = '';
+        sessionStorage.removeItem(
+            'miliket_batch_translation_draft'
+        );
+
+        closeBatchTranslationOverlay();
+
+        alert(
+            `${savedCount} translation${savedCount === 1 ? '' : 's'} ` +
+            'were applied successfully.'
+        );
+    } catch (error) {
+        alert(
+            'Could not apply the pasted response:\n\n' +
+            error.message
+        );
+    }
+}
 
 function renamePiece(index) {
     const oldName = appData[currentUser].folders[currentFolder].pieces[index].name;
@@ -3394,6 +3934,9 @@ function importAllData() {
 
 // --- Translation modal ---
 let _translatingIndex = null;
+let _batchTranslationManualItems = [];
+let _batchTranslationManualPrompt = '';
+let _batchTranslationDraft = '';
 let _lastKnownGoodTranslation = '';
 
 const MILIKET_TRANSLATE_WORKER_URL = 'https://empty-violet-911c.miliketstudio.workers.dev';
