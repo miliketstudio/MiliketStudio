@@ -1549,7 +1549,7 @@ function populateContainer() {
 function addStack() {
     $('#container').children('.letter-container').each(function() {
         $(this).prepend(
-            $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&nbsp;</span>')
+            $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&hairsp;</span>')
         );
     });
     bindLetterClicks();
