@@ -1174,7 +1174,7 @@
             <button class="action-trio-btn action-back" onclick="showStudioPage('page-projects')">← Back</button>
             <button class="action-trio-btn action-add" onclick="createFolder()">＋ New Folder</button>
             <button class="action-trio-btn action-add" onclick="openBulkImportModal()">📥 Bulk Import</button>
-            <button class="action-trio-btn action-translate" onclick="batchTranslateCurrentFolder()">🌐 Batch Translate</button>
+            <button class="action-trio-btn action-translate" onclick="batchTranslateCurrentProject()">🌐 Batch Translate</button>
             <button class="action-trio-btn action-present" onclick="goToPresent()">▶ Present</button>
         </div>
     </div>
@@ -2984,9 +2984,7 @@ function batchTranslationExtractText(piece) {
             }
         });
 
-        rawText = rawText
-            .replace(/\s+/g, ' ')
-            .trim();
+        rawText = rawText.replace(/\s+/g, ' ').trim();
     }
 
     if (!rawText && piece && piece.content) {
@@ -2994,6 +2992,178 @@ function batchTranslationExtractText(piece) {
     }
 
     return rawText;
+}
+
+async function batchTranslateCurrentProject() {
+    if (
+        !currentUser ||
+        !appData[currentUser] ||
+        !Array.isArray(appData[currentUser].folders)
+    ) {
+        alert('Open a project before starting batch translation.');
+        return;
+    }
+
+    const project = appData[currentUser];
+    const folders = project.folders || [];
+
+    const projectPieces = [];
+
+    folders.forEach((folder, folderIndex) => {
+        const pieces = Array.isArray(folder.pieces)
+            ? folder.pieces
+            : [];
+
+        pieces.forEach((piece, pieceIndex) => {
+            const text = batchTranslationExtractText(piece);
+
+            if (!text) {
+                return;
+            }
+
+            const pieceId =
+                piece.id ||
+                `project_${currentUser}_folder_${folderIndex}_piece_${pieceIndex}`;
+
+            projectPieces.push({
+                id: pieceId,
+                text,
+                piece,
+                folder,
+                folderIndex,
+                pieceIndex
+            });
+        });
+    });
+
+    if (!projectPieces.length) {
+        alert('No translatable pieces were found in this project.');
+        return;
+    }
+
+    const existingTranslations = projectPieces.filter(item =>
+        item.piece.translation &&
+        String(item.piece.translation).trim()
+    );
+
+    if (existingTranslations.length) {
+        const shouldContinue = confirm(
+            `${existingTranslations.length} piece${existingTranslations.length === 1 ? '' : 's'} already have translations.\n\n` +
+            'Click OK to replace all existing translations in this project, or Cancel to stop.'
+        );
+
+        if (!shouldContinue) {
+            return;
+        }
+    }
+
+    const payloadItems = projectPieces.map(item => ({
+        id: item.id,
+        text: item.text
+    }));
+
+    openBatchTranslationOverlay(
+        `Grouping ${payloadItems.length} pieces from ${folders.length} folder${folders.length === 1 ? '' : 's'}...`
+    );
+
+    try {
+        const response = await fetch(MILIKET_TRANSLATE_WORKER_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                items: payloadItems
+            })
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+            throw new Error(
+                data.error ||
+                `Translation service returned HTTP ${response.status}.`
+            );
+        }
+
+        if (!Array.isArray(data.translations)) {
+            throw new Error(
+                'The translation service did not return a translations array.'
+            );
+        }
+
+        const pieceById = new Map(
+            projectPieces.map(item => [item.id, item])
+        );
+
+        let savedCount = 0;
+
+        data.translations.forEach(result => {
+            const id = String(result?.id || '').trim();
+            const translatedText = String(
+                result?.translated_text || ''
+            ).trim();
+
+            const item = pieceById.get(id);
+
+            if (!item || !translatedText) {
+                return;
+            }
+
+            item.piece.translation = translatedText;
+            item.piece.lastModified = new Date().toISOString();
+
+            if (item.piece.id) {
+                markPieceDirty(item.piece.id);
+            }
+
+            savedCount++;
+        });
+
+        const missingCount = projectPieces.length - savedCount;
+
+        setBatchTranslationStatus(
+            `Saving ${savedCount} translation${savedCount === 1 ? '' : 's'} across the project...`,
+            90
+        );
+
+        saveAndSync();
+
+        setBatchTranslationStatus(
+            missingCount
+                ? `Completed ${savedCount}. ${missingCount} piece${missingCount === 1 ? '' : 's'} were not returned.`
+                : `Completed all ${savedCount} project translation${savedCount === 1 ? '' : 's'}.`,
+            100
+        );
+
+        await new Promise(resolve => setTimeout(resolve, 1100));
+
+        closeBatchTranslationOverlay();
+
+        renderFolders();
+
+        if (missingCount) {
+            alert(
+                `Project batch translation completed with missing results.\n\n` +
+                `Translated: ${savedCount}\n` +
+                `Missing: ${missingCount}`
+            );
+        } else {
+            alert(
+                `Project batch translation completed successfully.\n\n` +
+                `${savedCount} piece${savedCount === 1 ? '' : 's'} translated across ${folders.length} folder${folders.length === 1 ? '' : 's'}.`
+            );
+        }
+    } catch (error) {
+        console.error('Project batch translation failed:', error);
+
+        closeBatchTranslationOverlay();
+
+        alert(
+            'Project batch translation failed:\n\n' +
+            (error.message || String(error))
+        );
+    }
 }
 
 function setBatchTranslationStatus(message, progress = null) {
@@ -3037,166 +3207,6 @@ function closeBatchTranslationOverlay() {
     }
 }
 
-async function batchTranslateCurrentFolder() {
-    if (
-        !currentUser ||
-        currentFolder === null ||
-        !appData[currentUser] ||
-        !appData[currentUser].folders ||
-        !appData[currentUser].folders[currentFolder]
-    ) {
-        alert('Open a folder before starting batch translation.');
-        return;
-    }
-
-    const folder = appData[currentUser].folders[currentFolder];
-    const pieces = Array.isArray(folder.pieces)
-        ? folder.pieces
-        : [];
-
-    const items = pieces
-        .map((piece, index) => ({
-            piece,
-            index,
-            text: batchTranslationExtractText(piece)
-        }))
-        .filter(item => item.text);
-
-    if (!items.length) {
-        alert('No translatable text was found in this folder.');
-        return;
-    }
-
-    const alreadyTranslated = items.filter(item =>
-        item.piece.translation &&
-        String(item.piece.translation).trim()
-    );
-
-    let message = `${items.length} piece${items.length === 1 ? '' : 's'} found.`;
-
-    if (alreadyTranslated.length) {
-        const shouldContinue = confirm(
-            `${alreadyTranslated.length} piece${alreadyTranslated.length === 1 ? ' already has' : 's already have'} a translation.\n\n` +
-            'Click OK to replace them with new translations, or Cancel to stop.'
-        );
-
-        if (!shouldContinue) {
-            return;
-        }
-
-        message += ' Existing translations will be replaced.';
-    }
-
-    const payloadItems = items.map(item => ({
-        id: item.piece.id || `piece_${item.index}`,
-        text: item.text
-    }));
-
-    openBatchTranslationOverlay(
-        `Grouping ${payloadItems.length} pieces and requesting translation...`
-    );
-
-    try {
-        const response = await fetch(MILIKET_TRANSLATE_WORKER_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                items: payloadItems
-            })
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-            throw new Error(
-                data.error ||
-                `Translation service returned HTTP ${response.status}.`
-            );
-        }
-
-        if (!Array.isArray(data.translations)) {
-            throw new Error(
-                'The translation service did not return a translations array.'
-            );
-        }
-
-        const pieceById = new Map(
-            items.map(item => [
-                item.piece.id || `piece_${item.index}`,
-                item.piece
-            ])
-        );
-
-        let savedCount = 0;
-
-        data.translations.forEach(result => {
-            const id = String(result?.id || '').trim();
-            const translatedText = String(
-                result?.translated_text || ''
-            ).trim();
-
-            const piece = pieceById.get(id);
-
-            if (!piece || !translatedText) {
-                return;
-            }
-
-            piece.translation = translatedText;
-            piece.lastModified = new Date().toISOString();
-
-            if (piece.id) {
-                markPieceDirty(piece.id);
-            }
-
-            savedCount++;
-        });
-
-        const missingCount = payloadItems.length - savedCount;
-
-        setBatchTranslationStatus(
-            `Saving ${savedCount} completed translation${savedCount === 1 ? '' : 's'}...`,
-            90
-        );
-
-        saveAndSync();
-        renderPieces();
-
-        setBatchTranslationStatus(
-            missingCount
-                ? `Completed ${savedCount}. ${missingCount} piece${missingCount === 1 ? '' : 's'} did not receive a translation.`
-                : `Completed ${savedCount} translation${savedCount === 1 ? '' : 's'} successfully.`,
-            100
-        );
-
-        await new Promise(resolve => setTimeout(resolve, 1100));
-
-        closeBatchTranslationOverlay();
-
-        if (missingCount) {
-            alert(
-                `Batch translation completed with some missing results.\n\n` +
-                `Translated: ${savedCount}\n` +
-                `Missing: ${missingCount}`
-            );
-        } else {
-            alert(
-                `Batch translation completed successfully.\n\n` +
-                `${savedCount} piece${savedCount === 1 ? '' : 's'} translated.`
-            );
-        }
-    } catch (error) {
-        console.error('Batch translation failed:', error);
-
-        closeBatchTranslationOverlay();
-
-        alert(
-            'Batch translation failed:\n\n' +
-            (error.message || String(error))
-        );
-    }
-}
 
 function renamePiece(index) {
     const oldName = appData[currentUser].folders[currentFolder].pieces[index].name;
