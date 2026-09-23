@@ -1499,6 +1499,417 @@
         transform: translateY(-1px);
     }
 }
+
+/* ============================================================
+   SLIDESHOW PRESET CREATOR
+============================================================ */
+
+#preset-creator-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100030;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 21, 32, 0.72);
+    backdrop-filter: blur(4px);
+    padding: 20px;
+}
+
+#preset-creator-overlay.open {
+    display: flex;
+}
+
+.preset-creator-box {
+    width: min(980px, 96vw);
+    max-height: 92vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 2px solid var(--gold);
+    border-radius: 18px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+}
+
+.preset-creator-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px;
+    border-bottom: 1px solid var(--card-border);
+    background: rgba(184, 134, 11, 0.08);
+}
+
+.preset-creator-header h2 {
+    margin: 0;
+    color: var(--gold);
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.preset-creator-close {
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.preset-creator-close:hover {
+    background: rgba(184, 134, 11, 0.14);
+    color: var(--gold);
+}
+
+.preset-creator-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 22px 22px;
+}
+
+.preset-mode-picker {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(260px, 1fr));
+    gap: 16px;
+    margin-top: 12px;
+}
+
+.preset-mode-card {
+    border: 2px solid var(--card-border);
+    border-radius: 12px;
+    background: var(--page-bg);
+    padding: 18px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+.preset-mode-card:hover {
+    border-color: var(--gold);
+    transform: translateY(-1px);
+}
+
+.preset-mode-card strong {
+    display: block;
+    font-size: 1.15rem;
+    color: var(--text);
+    margin-bottom: 6px;
+}
+
+.preset-mode-card span {
+    display: block;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.preset-creator-step {
+    display: none;
+}
+
+.preset-creator-step.active {
+    display: block;
+}
+
+.preset-creator-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+}
+
+.preset-creator-toolbar label {
+    color: var(--text);
+    font-weight: bold;
+    font-size: 0.85rem;
+}
+
+.preset-creator-toolbar select {
+    min-width: 240px;
+    padding: 10px 12px;
+    border: 2px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--page-bg);
+    color: var(--text);
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.preset-creator-toolbar select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.14);
+}
+
+.preset-creator-toolbar .primary-btn,
+.preset-creator-toolbar .secondary-btn {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.82rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.preset-creator-toolbar .primary-btn {
+    background: var(--gold);
+    color: #fff;
+}
+
+.preset-creator-toolbar .secondary-btn {
+    background: #3a5a82;
+    color: #fff;
+}
+
+.preset-creator-section {
+    margin-top: 18px;
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    background: rgba(184, 134, 11, 0.03);
+    overflow: hidden;
+}
+
+.preset-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 14px 16px;
+    background: rgba(58, 90, 130, 0.05);
+    border-bottom: 1px solid var(--card-border);
+}
+
+.preset-section-title {
+    margin: 0;
+    font-size: 1rem;
+    color: var(--text);
+    font-weight: bold;
+}
+
+.preset-add-set-btn {
+    border: none;
+    border-radius: 8px;
+    background: var(--gold);
+    color: #ffffff;
+    padding: 7px 12px;
+    font-size: 0.76rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.preset-slot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    padding: 16px;
+}
+
+.preset-slot-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-left: 4px solid var(--gold);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+.preset-slot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.preset-slot-name {
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: var(--text);
+}
+
+.preset-slot-piece {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--page-bg);
+    color: var(--text);
+    font-size: 0.8rem;
+}
+
+.preset-slot-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.preset-slot-btn {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 9px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.preset-slot-btn.select {
+    background: #3a5a82;
+    color: #fff;
+}
+
+.preset-slot-btn.modify {
+    background: #b8860b;
+    color: #fff;
+}
+
+.preset-slot-btn.save {
+    background: #27ae60;
+    color: #fff;
+}
+
+.preset-slot-btn.clear {
+    background: #d9534f;
+    color: #fff;
+}
+
+.preset-creator-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid var(--card-border);
+}
+
+.preset-creator-generate {
+    background: #27ae60;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-size: 0.88rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.preset-creator-cancel {
+    background: #eee;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    padding: 11px 18px;
+    font-size: 0.88rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.preset-rule-editor {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100040;
+    background: rgba(0,0,0,0.62);
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.preset-rule-editor.open {
+    display: flex;
+}
+
+.preset-rule-editor-box {
+    background: var(--card-bg);
+    color: var(--text);
+    width: min(520px, 92vw);
+    border: 2px solid var(--gold);
+    border-radius: 14px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+    padding: 20px;
+}
+
+.preset-rule-editor-box h3 {
+    margin: 0 0 10px;
+    color: var(--gold);
+    font-size: 1.1rem;
+}
+
+.preset-rule-editor-box label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: bold;
+    display: block;
+    margin: 14px 0 6px;
+}
+
+.preset-rule-editor-box input,
+.preset-rule-editor-box select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--card-border);
+    border-radius: 8px;
+    background: var(--page-bg);
+    color: var(--text);
+    outline: none;
+}
+
+.preset-rule-editor-box input:focus,
+.preset-rule-editor-box select:focus {
+    border-color: var(--gold);
+    box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.14);
+}
+
+.preset-rule-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.preset-rule-editor-actions button {
+    border: none;
+    border-radius: 8px;
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.preset-rule-editor-save {
+    background: var(--gold);
+    color: #fff;
+}
+
+.preset-rule-editor-cancel {
+    background: #eee;
+    color: #333;
+}
+
+@media (max-width: 700px) {
+    .preset-mode-picker {
+        grid-template-columns: 1fr;
+    }
+
+    .preset-slot-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.preset-generated-geez {
+    font-family: 'Abyssinica SIL', serif;
+    font-size: clamp(2rem, 6vw, 5rem);
+    line-height: 1.45;
+    color: #000000;
+    text-align: center;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
         
     </style>
 </head>
@@ -2076,6 +2487,82 @@
             <div class="keyword-finder-empty">
                 Your search results will appear here.
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Slideshow Preset Creator -->
+<div id="preset-creator-overlay">
+    <div class="preset-creator-box">
+        <div class="preset-creator-header">
+            <h2>🎞️ Slideshow Preset Creator</h2>
+            <button class="preset-creator-close" type="button" onclick="closePresetCreator()">×</button>
+        </div>
+
+        <div class="preset-creator-body">
+            <div id="preset-creator-step-mode" class="preset-creator-step active">
+                <div class="preset-mode-picker">
+                    <div class="preset-mode-card" onclick="presetSelectMode('manual')">
+                        <strong>⚙️ Manual Selection</strong>
+                        <span>Line-by-line slideshow flow</span>
+                    </div>
+
+                    <div class="preset-mode-card" onclick="presetSelectMode('preset')">
+                        <strong>📋 Use Preset</strong>
+                        <span>Guided sequence with rules</span>
+                    </div>
+                </div>
+            </div>
+
+            <div id="preset-creator-step-preset" class="preset-creator-step">
+                <div class="preset-creator-toolbar">
+                    <label for="preset-select">Preset:</label>
+                    <select id="preset-select">
+                        <option value="Sirate Negs">Sirate Negs</option>
+                    </select>
+                    <button class="secondary-btn" type="button" onclick="presetBackToMode()">← Back</button>
+                </div>
+
+                <div id="preset-creator-sections"></div>
+
+                <div class="preset-creator-footer">
+                    <button class="preset-creator-cancel" type="button" onclick="closePresetCreator()">Cancel</button>
+                    <button class="preset-creator-generate" type="button" onclick="generatePresetDeck()">Generate Slideshow</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="preset-rule-editor" class="preset-rule-editor">
+    <div class="preset-rule-editor-box">
+        <h3 id="preset-rule-editor-title">Edit Slot Rule</h3>
+        <label>Rule Type</label>
+        <select id="preset-rule-type-select">
+            <option value="Melk">Melk</option>
+            <option value="Ziq">Ziq</option>
+            <option value="Wereb">Wereb</option>
+            <option value="Isme Lealem Zema">Isme Lealem Zema</option>
+            <option value="Angergari Zema">Angergari Zema</option>
+            <option value="Zimame">Zimame</option>
+            <option value="Miltan Zimame">Miltan Zimame</option>
+            <option value="Tsifat">Tsifat</option>
+            <option value="Nish Tsifat">Nish Tsifat</option>
+            <option value="Amelales">Amelales</option>
+            <option value="Zigita">Zigita</option>
+            <option value="Mulu Tsifat">Mulu Tsifat</option>
+            <option value="Qum">Qum</option>
+            <option value="Mulu Qum">Mulu Qum</option>
+            <option value="Mereged Mansha">Mereged Mansha</option>
+            <option value="Leqeqa">Leqeqa</option>
+        </select>
+
+        <label>Custom Rule</label>
+        <input id="preset-rule-custom-input" type="text" placeholder="e.g. first 2 then 35 lines" />
+
+        <div class="preset-rule-editor-actions">
+            <button class="preset-rule-editor-cancel" type="button" onclick="closePresetRuleEditor()">Cancel</button>
+            <button class="preset-rule-editor-save" type="button" onclick="savePresetRuleEditor()">Save</button>
         </div>
     </div>
 </div>
@@ -4535,7 +5022,7 @@ function isImagePieceHtml(html) {
         return !temp.querySelector('.letter-container') && !!temp.querySelector('img');
 }
 
-function goToSlides() {
+function goToSlidesManual() {
     const notes = {};
     if (currentUser && appData[currentUser]) {
         appData[currentUser].folders.forEach(folder => {
@@ -4664,6 +5151,10 @@ function renderSlideBuilder() {
 
     container.appendChild(grid);
     updateSelectionCount();
+}
+
+function goToSlides() {
+    openPresetCreator();
 }
 
 function renderSlideReorder(container) {
@@ -5526,6 +6017,21 @@ function applySlideZoom() {
 }
 
 function renderSlideshowSlide() {
+    if (
+        !Array.isArray(_ssSlides) ||
+        !_ssSlides.length ||
+        !_ssSlides[_ssIndex]
+    ) {
+        console.error(
+           'Cannot render slideshow slide:',
+           {
+                index: _ssIndex,
+                slides: _ssSlides
+            }
+        );
+        return;
+    }
+    
     const slide = _ssSlides[_ssIndex];
     const geezEl = document.getElementById('ss-geez');
     const transEl = document.getElementById('ss-translation');
@@ -5720,6 +6226,67 @@ window.addEventListener('resize', function() {
         renderSlideshowSlide();
     }
 });
+
+function presetSlideshowKeyboardHandler(event) {
+    const overlay = document.getElementById('slideshow-overlay');
+
+    if (
+        !overlay ||
+        overlay.style.display === 'none' ||
+        !Array.isArray(_ssSlides) ||
+        !_ssSlides.length
+    ) {
+        return;
+    }
+
+    const activeElement = document.activeElement;
+
+    if (
+        activeElement &&
+        (
+            activeElement.tagName === 'INPUT' ||
+            activeElement.tagName === 'TEXTAREA' ||
+            activeElement.tagName === 'SELECT' ||
+            activeElement.isContentEditable
+        )
+    ) {
+        return;
+    }
+
+    if (event.key === 'ArrowRight' || event.key === 'PageDown') {
+        event.preventDefault();
+        event.stopPropagation();
+        slideshowNav(1);
+        return;
+    }
+
+    if (event.key === 'ArrowLeft' || event.key === 'PageUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        slideshowNav(-1);
+        return;
+    }
+
+    if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+
+        if (typeof exitSlideshow === 'function') {
+            exitSlideshow();
+        }
+    }
+}
+
+document.removeEventListener(
+    'keydown',
+    presetSlideshowKeyboardHandler
+);
+
+document.addEventListener(
+    'keydown',
+    presetSlideshowKeyboardHandler,
+    true
+);
 
 function slideshowNav(dir) {
     const next = _ssIndex + dir;
@@ -8129,6 +8696,683 @@ function updateChronoDisplay() {
         }
     });
 })();
+
+(function () {
+    'use strict';
+
+    const PRESET_STYLES = {
+        Melk: { label: 'Melk', chunkRule: 'Melk' },
+        Ziq: { label: 'Ziq', chunkRule: 'Ziq' },
+        Wereb: { label: 'Wereb', chunkRule: 'Wereb' },
+        'Isme Lealem Zema': { label: 'Isme Lealem Zema', chunkRule: 'Isme Lealem Zema' },
+        'Angergari Zema': { label: 'Angergari Zema', chunkRule: 'Angergari Zema' },
+        Zimame: { label: 'Zimame', chunkRule: 'Zimame' },
+        'Miltan Zimame': { label: 'Miltan Zimame', chunkRule: 'Miltan Zimame' },
+        Tsifat: { label: 'Tsifat', chunkRule: 'Tsifat' },
+        'Nish Tsifat': { label: 'Nish Tsifat', chunkRule: 'Nish Tsifat' },
+        Amelales: { label: 'Amelales', chunkRule: 'Amelales' },
+        Zigita: { label: 'Zigita', chunkRule: 'Zigita' },
+        'Mulu Tsifat': { label: 'Mulu Tsifat', chunkRule: 'Mulu Tsifat' },
+        Qum: { label: 'Qum', chunkRule: 'Qum' },
+        'Mulu Qum': { label: 'Mulu Qum', chunkRule: 'Mulu Qum' },
+        'Mereged Mansha': { label: 'Mereged Mansha', chunkRule: 'Mereged Mansha' },
+        Leqeqa: { label: 'Leqeqa', chunkRule: 'Leqeqa' }
+    };
+
+    const presetState = {
+        mode: 'manual',
+        presetName: 'Sirate Negs',
+        sections: []
+    };
+
+    let presetEditorTarget = null;
+
+    function presetNormalizeText(value) {
+        return String(value || '')
+            .normalize('NFC')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    function presetPieceText(piece) {
+        let text = '';
+
+        if (piece && piece.visualData) {
+            const temp = document.createElement('div');
+            temp.innerHTML = piece.visualData;
+
+            const spans = temp.querySelectorAll('.baseletter');
+
+            if (spans.length) {
+                spans.forEach(el => {
+                    const val = el.innerText || el.textContent || '';
+                    if (el.classList.contains('whitespace') || val.trim() === '0') {
+                        text += ' ';
+                    } else {
+                        text += val.replace(/[\u200A\u200B\u200C\u200D]/g, '');
+                    }
+                });
+            } else {
+                text = temp.innerText || temp.textContent || '';
+            }
+        }
+
+        if (!text && piece && piece.content) {
+            text = piece.content;
+        }
+
+        return presetNormalizeText(text);
+    }
+
+    function getProjectPieceOptions() {
+        if (!currentUser || !appData[currentUser]) return [];
+
+        const list = [];
+
+        (appData[currentUser].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(piece => {
+                list.push({
+                    value: piece.id || piece.name,
+                    label: piece.name || 'Untitled Piece',
+                    folderName: folder.name,
+                    piece
+                });
+            });
+        });
+
+        return list;
+    }
+
+    function defaultPresetConfig() {
+        const projectPieces = getProjectPieceOptions();
+
+        const slots = [
+            { id: 'Melk 1', type: 'Melk', selectedId: projectPieces[0]?.value || '' },
+            { id: 'Ziq 1', type: 'Ziq', selectedId: projectPieces[1]?.value || '' },
+            { id: 'Wereb 1', type: 'Wereb', selectedId: projectPieces[2]?.value || '' },
+            { id: 'Melk 2', type: 'Melk', selectedId: projectPieces[3]?.value || '' },
+            { id: 'Ziq 2', type: 'Ziq', selectedId: projectPieces[4]?.value || '' },
+            { id: 'Wereb 2', type: 'Wereb', selectedId: projectPieces[5]?.value || '' },
+            { id: 'Melk 3', type: 'Melk', selectedId: projectPieces[6]?.value || '' },
+            { id: 'Ziq 3', type: 'Ziq', selectedId: projectPieces[7]?.value || '' },
+            { id: 'Wereb 3', type: 'Wereb', selectedId: projectPieces[8]?.value || '' },
+            { id: 'Melk 4', type: 'Melk', selectedId: projectPieces[9]?.value || '' },
+            { id: 'Ziq 4', type: 'Ziq', selectedId: projectPieces[10]?.value || '' },
+            { id: 'Wereb 4', type: 'Wereb', selectedId: projectPieces[11]?.value || '' }
+        ];
+
+        return {
+            name: 'Sirate Negs',
+            sections: [
+                {
+                    title: 'Sirate Negs',
+                    slots
+                },
+                {
+                    title: 'Sirate Angergari',
+                    slots: [
+                        { id: 'Isme Lealem Zema', type: 'Isme Lealem Zema', selectedId: '' },
+                        { id: 'Angergari Zema', type: 'Angergari Zema', selectedId: '' },
+                        { id: 'Zimame Loop A', type: 'Zimame', selectedId: '' },
+                        { id: 'Zimame Loop B', type: 'Miltan Zimame', selectedId: '' },
+                        { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
+                        { id: 'Amelales', type: 'Amelales', selectedId: '' },
+                        { id: 'Nish Tsifat', type: 'Nish Tsifat', selectedId: '' },
+                        { id: 'Zigita', type: 'Zigita', selectedId: '' },
+                        { id: 'Mulu Tsifat', type: 'Mulu Tsifat', selectedId: '' },
+                        { id: 'Wereb Qum', type: 'Wereb', selectedId: '' },
+                        { id: 'Qum', type: 'Qum', selectedId: '' }
+                    ]
+                },
+                {
+                    title: 'Sirate Isme Lealem',
+                    slots: [
+                        { id: 'Mulu Qum', type: 'Mulu Qum', selectedId: '' },
+                        { id: 'Mereged Mansha', type: 'Mereged Mansha', selectedId: '' },
+                        { id: 'Mereged', type: 'Mereged Mansha', selectedId: '' },
+                        { id: 'Mansha Tsifat', type: 'Tsifat', selectedId: '' },
+                        { id: 'Amelales', type: 'Amelales', selectedId: '' },
+                        { id: 'Tsifat Wereb', type: 'Wereb', selectedId: '' },
+                        { id: 'Leqeqa', type: 'Leqeqa', selectedId: '' }
+                    ]
+                }
+            ]
+        };
+    }
+
+    function presetSelectMode(mode) {
+        presetState.mode = mode;
+
+        if (mode === 'manual') {
+            closePresetCreator();
+
+            if (typeof goToSlidesManual === 'function') {
+                goToSlidesManual();
+            } else {
+            alert('The original manual slideshow function is missing.');
+            }
+
+            return;
+        }
+
+        document.getElementById('preset-creator-step-mode').classList.remove('active');
+        document.getElementById('preset-creator-step-preset').classList.add('active');
+
+        presetState.presetName = document.getElementById('preset-select')?.value || 'Sirate Negs';
+        presetState.sections = defaultPresetConfig().sections;
+        renderPresetCreator();
+    }
+
+    function presetBackToMode() {
+        document.getElementById('preset-creator-step-preset').classList.remove('active');
+        document.getElementById('preset-creator-step-mode').classList.add('active');
+    }
+
+    function openPresetCreator() {
+        const overlay = document.getElementById('preset-creator-overlay');
+        if (!overlay) return;
+
+        presetState.sections = defaultPresetConfig().sections;
+        presetState.presetName = 'Sirate Negs';
+
+        const select = document.getElementById('preset-select');
+        if (select) {
+            select.value = 'Sirate Negs';
+        }
+
+        document.getElementById('preset-creator-step-mode').classList.add('active');
+        document.getElementById('preset-creator-step-preset').classList.remove('active');
+
+        overlay.classList.add('open');
+    }
+
+    function closePresetCreator() {
+        const overlay = document.getElementById('preset-creator-overlay');
+        if (overlay) overlay.classList.remove('open');
+        closePresetRuleEditor();
+    }
+
+    function renderPresetCreator() {
+        const target = document.getElementById('preset-creator-sections');
+        if (!target) return;
+
+        const options = getProjectPieceOptions();
+
+        target.innerHTML = '';
+
+        (presetState.sections || []).forEach((section, sectionIndex) => {
+            const sectionEl = document.createElement('div');
+            sectionEl.className = 'preset-creator-section';
+
+            const header = document.createElement('div');
+            header.className = 'preset-section-header';
+
+            const title = document.createElement('h3');
+            title.className = 'preset-section-title';
+            title.textContent = section.title;
+
+            const addSetBtn = document.createElement('button');
+            addSetBtn.type = 'button';
+            addSetBtn.className = 'preset-add-set-btn';
+            addSetBtn.textContent = '+ Add Set';
+            addSetBtn.onclick = function () {
+                addPresetSet(sectionIndex);
+            };
+
+            header.appendChild(title);
+            header.appendChild(addSetBtn);
+
+            const grid = document.createElement('div');
+            grid.className = 'preset-slot-grid';
+
+            (section.slots || []).forEach((slot, slotIndex) => {
+                const card = document.createElement('div');
+                card.className = 'preset-slot-card';
+
+                const headerRow = document.createElement('div');
+                headerRow.className = 'preset-slot-header';
+
+                const name = document.createElement('div');
+                name.className = 'preset-slot-name';
+                name.textContent = slot.id;
+
+                const selectBtn = document.createElement('button');
+                selectBtn.type = 'button';
+                selectBtn.className = 'preset-slot-btn select';
+                selectBtn.textContent = 'Reselect';
+                selectBtn.onclick = function () {
+                    presetChoosePieceForSlot(sectionIndex, slotIndex);
+                };
+
+                headerRow.appendChild(name);
+                headerRow.appendChild(selectBtn);
+
+                const pieceSelect = document.createElement('select');
+                pieceSelect.className = 'preset-slot-piece';
+                pieceSelect.innerHTML = '<option value=\"\">— Empty / Skip —</option>';
+
+                options.forEach(opt => {
+                    const option = document.createElement('option');
+                    option.value = opt.value;
+                    option.textContent = `${opt.label} (${opt.folderName})`;
+                    if (slot.selectedId === opt.value) option.selected = true;
+                    pieceSelect.appendChild(option);
+                });
+
+                pieceSelect.onchange = function () {
+                    const val = pieceSelect.value;
+                    slot.selectedId = val;
+                };
+
+                const actions = document.createElement('div');
+                actions.className = 'preset-slot-actions';
+
+                const modifyBtn = document.createElement('button');
+                modifyBtn.type = 'button';
+                modifyBtn.className = 'preset-slot-btn modify';
+                modifyBtn.textContent = '✏️ Modify';
+                modifyBtn.onclick = function () {
+                    openPresetRuleEditor(sectionIndex, slotIndex, slot);
+                };
+
+                const saveBtn = document.createElement('button');
+                saveBtn.type = 'button';
+                saveBtn.className = 'preset-slot-btn save';
+                saveBtn.textContent = 'Save Preset';
+                saveBtn.onclick = function () {
+                    savePresetConfig();
+                };
+
+                const clearBtn = document.createElement('button');
+                clearBtn.type = 'button';
+                clearBtn.className = 'preset-slot-btn clear';
+                clearBtn.textContent = 'Clear';
+                clearBtn.onclick = function () {
+                    slot.selectedId = '';
+                    renderPresetCreator();
+                };
+
+                actions.appendChild(modifyBtn);
+                actions.appendChild(saveBtn);
+                actions.appendChild(clearBtn);
+
+                card.appendChild(headerRow);
+                card.appendChild(pieceSelect);
+                card.appendChild(actions);
+
+                grid.appendChild(card);
+            });
+
+            sectionEl.appendChild(header);
+            sectionEl.appendChild(grid);
+            target.appendChild(sectionEl);
+        });
+    }
+
+    function addPresetSet(sectionIndex) {
+        const section = presetState.sections[sectionIndex];
+        if (!section) return;
+
+        const nextNumber = (section.slots || []).filter(s => s.id.includes('Melk')).length + 1;
+
+        section.slots.push(
+            { id: `Melk ${nextNumber}`, type: 'Melk', selectedId: '' },
+            { id: `Ziq ${nextNumber}`, type: 'Ziq', selectedId: '' },
+            { id: `Wereb ${nextNumber}`, type: 'Wereb', selectedId: '' }
+        );
+
+        renderPresetCreator();
+    }
+
+    function presetChoosePieceForSlot(sectionIndex, slotIndex) {
+        const section = presetState.sections[sectionIndex];
+        const slot = section?.slots?.[slotIndex];
+        if (!slot) return;
+
+        const options = getProjectPieceOptions();
+
+        if (!options.length) {
+            alert('No pieces are available in this project.');
+            return;
+        }
+
+        const optionsText = options.map((opt, idx) =>
+            `${idx + 1}. ${opt.label} (${opt.folderName})`
+        ).join('\\n');
+
+        const answer = prompt(
+            `Choose a piece for ${slot.id}\\n\\n${optionsText}\\n\\nType the number:`,
+            '1'
+        );
+
+        if (answer === null) return;
+
+        const index = Number(answer) - 1;
+        if (!options[index]) {
+            alert('Invalid selection.');
+            return;
+        }
+
+        slot.selectedId = options[index].value;
+        renderPresetCreator();
+    }
+
+    function openPresetRuleEditor(sectionIndex, slotIndex, slot) {
+        presetEditorTarget = { sectionIndex, slotIndex, slot };
+
+        const typeSelect = document.getElementById('preset-rule-type-select');
+        const customInput = document.getElementById('preset-rule-custom-input');
+        const label = document.getElementById('preset-rule-editor-title');
+
+        if (typeSelect) typeSelect.value = slot.type || 'Melk';
+        if (customInput) customInput.value = slot.customRule || '';
+        if (label) label.textContent = `Edit Rule — ${slot.id}`;
+
+        const editor = document.getElementById('preset-rule-editor');
+        if (editor) editor.classList.add('open');
+    }
+
+    function closePresetRuleEditor() {
+        const editor = document.getElementById('preset-rule-editor');
+        if (editor) editor.classList.remove('open');
+        presetEditorTarget = null;
+    }
+
+    function savePresetRuleEditor() {
+        if (!presetEditorTarget) return;
+
+        const typeSelect = document.getElementById('preset-rule-type-select');
+        const customInput = document.getElementById('preset-rule-custom-input');
+
+        const slot = presetEditorTarget.slot;
+        if (slot) {
+            slot.type = typeSelect.value;
+            slot.customRule = customInput.value.trim();
+        }
+
+        closePresetRuleEditor();
+        renderPresetCreator();
+    }
+
+    function savePresetConfig() {
+        const name = prompt('Save this preset as:', presetState.presetName || 'My Custom Preset');
+        if (!name || !name.trim()) return;
+
+        const safeName = name.trim();
+
+        const saved = {
+            name: safeName,
+            sections: JSON.parse(JSON.stringify(presetState.sections))
+        };
+
+        if (!window.__miliketPresetLibrary) {
+            window.__miliketPresetLibrary = [];
+        }
+
+        const existingIndex = window.__miliketPresetLibrary.findIndex(item => item.name === safeName);
+        if (existingIndex !== -1) {
+            window.__miliketPresetLibrary[existingIndex] = saved;
+        } else {
+            window.__miliketPresetLibrary.push(saved);
+        }
+
+        alert(`Preset saved as "${safeName}"`);
+    }
+
+    function getPieceById(id) {
+        if (!currentUser || !appData[currentUser]) return null;
+
+        for (const folder of appData[currentUser].folders || []) {
+            for (const piece of folder.pieces || []) {
+                if ((piece.id || piece.name) === id) {
+                    return piece;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    function splitTextIntoLines(value) {
+        const text = presetNormalizeText(value);
+        return text ? text.split(/(?<=[።፤፡፠፨፣])|\\s+/).filter(Boolean) : [];
+    }
+
+function presetChunkSegments(segments, ruleType, customRule) {
+    if (!Array.isArray(segments) || !segments.length) {
+        return [];
+    }
+
+    const custom = String(customRule || '').toLowerCase();
+
+    if (
+        custom.includes('1 line') ||
+        custom.includes('one line')
+    ) {
+        return segments.map(segment => [segment]);
+    }
+
+    if (
+        custom.includes('2 lines') ||
+        custom.includes('2-line') ||
+        custom.includes('two lines')
+    ) {
+        const chunks = [];
+
+        for (let i = 0; i < segments.length; i += 2) {
+            chunks.push(segments.slice(i, i + 2));
+        }
+
+        return chunks;
+    }
+
+    if (
+        custom.includes('3 lines') ||
+        custom.includes('3-line') ||
+        custom.includes('three lines')
+    ) {
+        const chunks = [];
+
+        for (let i = 0; i < segments.length; i += 3) {
+            chunks.push(segments.slice(i, i + 3));
+        }
+
+        return chunks;
+    }
+
+    if (custom.includes('35')) {
+        const chunks = [];
+
+        for (let i = 0; i < segments.length; i += 35) {
+            chunks.push(segments.slice(i, i + 35));
+        }
+
+        return chunks;
+    }
+
+    switch (ruleType) {
+        case 'Melk': {
+            const chunks = [];
+
+            // The first slide contains the first two complete
+            // Miliket-rendered lines, including their Miliket markup.
+            chunks.push(segments.slice(0, 2));
+
+            for (let i = 2; i < segments.length; i += 35) {
+                chunks.push(segments.slice(i, i + 35));
+            }
+
+            return chunks.filter(chunk => chunk.length);
+        }
+
+        case 'Ziq':
+        case 'Isme Lealem Zema':
+        case 'Angergari Zema':
+        case 'Zimame':
+        case 'Mulu Tsifat':
+        case 'Leqeqa': {
+            const chunks = [];
+
+            for (let i = 0; i < segments.length; i += 3) {
+                chunks.push(segments.slice(i, i + 3));
+            }
+
+            return chunks;
+        }
+
+        case 'Zigita':
+            return segments.map(segment => [segment]);
+
+        case 'Wereb':
+        case 'Tsifat':
+        case 'Nish Tsifat':
+        case 'Amelales':
+        case 'Mereged Mansha':
+        case 'Miltan Zimame':
+            return [segments];
+
+        case 'Mulu Qum': {
+            const chunks = [];
+
+            for (let i = 0; i < segments.length; i += 3) {
+                chunks.push(segments.slice(i, i + 3));
+            }
+
+            return chunks;
+        }
+
+        case 'Qum':
+            return [segments];
+
+        default:
+            return [segments];
+    }
+}
+
+function buildPresetSlideDeck() {
+    const deck = [];
+
+    (presetState.sections || []).forEach(section => {
+        (section.slots || []).forEach(slot => {
+            if (!slot.selectedId) return;
+
+            const piece = getPieceById(slot.selectedId);
+            if (!piece || !piece.visualData) return;
+
+            const segments = splitByPunctuation(piece.visualData);
+
+            if (!Array.isArray(segments) || !segments.length) {
+                return;
+            }
+
+            const translationSegments =
+                splitTranslation(piece.translation || '');
+
+            const chunks = presetChunkSegments(
+                segments,
+                slot.type,
+                slot.customRule
+            );
+
+            let segmentOffset = 0;
+
+            chunks.forEach(chunk => {
+                if (!chunk.length) return;
+
+                const geezHtml = chunk
+                    .map(segment => {
+                        if (typeof segment === 'string') {
+                            return segment;
+                        }
+
+                        return segment.segmentHtml || '';
+                    })
+                    .join('');
+
+                const translation = translationSegments
+                    .slice(
+                        segmentOffset,
+                        segmentOffset + chunk.length
+                    )
+                    .filter(Boolean)
+                    .join(' ');
+
+                segmentOffset += chunk.length;
+
+                if (!geezHtml.trim()) return;
+
+                deck.push({
+                    geezHtml,
+                    translation,
+                    pieceName: piece.name || slot.id,
+                    presetSlot: slot.id,
+                    isImage: isImagePieceHtml(geezHtml)
+                });
+            });
+        });
+    });
+
+    return deck;
+}
+
+function generatePresetDeck() {
+    const generated = buildPresetSlideDeck();
+
+    if (!Array.isArray(generated) || !generated.length) {
+        alert(
+            'No valid slides were generated. ' +
+            'Assign at least one piece to a slot.'
+        );
+        return;
+    }
+
+    _ssSlides = generated;
+    _ssIndex = 0;
+    _ssHudHidden = false;
+
+    const overlay = document.getElementById('slideshow-overlay');
+
+    if (!overlay) {
+        alert('The slideshow display could not be found.');
+        return;
+    }
+
+    overlay.style.display = 'flex';
+    overlay.style.visibility = 'visible';
+
+    const hud = document.getElementById('ss-hud');
+    const prevButton = document.getElementById('ss-prev');
+    const nextButton = document.getElementById('ss-next');
+
+    if (hud) {
+        hud.style.visibility = 'visible';
+        hud.style.opacity = '1';
+    }
+
+    if (prevButton) {
+        prevButton.style.visibility = 'visible';
+    }
+
+    if (nextButton) {
+        nextButton.style.visibility = 'visible';
+    }
+
+    closePresetCreator();
+
+    if (
+        !Array.isArray(_ssSlides) ||
+        !_ssSlides[_ssIndex]
+    ) {
+        console.error(
+            'Preset generated an invalid slideshow deck:',
+            _ssSlides
+        );
+        return;
+    }
+
+    renderSlideshowSlide();
+}
+
 </script>
 </body>
 </html>
