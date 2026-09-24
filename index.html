@@ -2705,7 +2705,7 @@ function populateContainer() {
         var $letter = text[i] === " "
             ? $('<span class="baseletter whitespace">0</span>')
             : $('<span class="baseletter">' + text[i] + '&hairsp;</span>');
-        var $space = $('<span id="space' + (idcount++) + '" class="letter">&hairsp;</span>');
+        var $space = $('<span id="space' + (idcount++) + '" class="letter">&hairsp;&hairsp;</span>');
         $lc.append($space).append($letter);
         $c.append($lc);
     }
@@ -2715,7 +2715,7 @@ function populateContainer() {
 function addStack() {
     $('#container').children('.letter-container').each(function() {
         $(this).prepend(
-            $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&hairsp;</span>')
+            $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&hairsp;&hairsp;</span>')
         );
     });
     bindLetterClicks();
@@ -3123,7 +3123,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         var $s = $('#container').find('#' + selectedSpanId);
         if (!$s.length) return;
         snapshotForUndo();
-        $s.html('&hairsp;');
+        $s.html('&hairsp;&hairsp;');
         e.stopImmediatePropagation();
     });
 
