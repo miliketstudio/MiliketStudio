@@ -1886,6 +1886,11 @@
     color: #fff;
 }
 
+.preset-rule-editor-preview {
+    background: #3a5a82;
+    color: #fff;
+}
+
 .preset-rule-editor-cancel {
     background: #eee;
     color: #333;
@@ -2558,10 +2563,11 @@
         </select>
 
         <label>Custom Rule</label>
-        <input id="preset-rule-custom-input" type="text" placeholder="e.g. first 2 then 35 lines" />
+        <input id="preset-rule-custom-input" type="text" placeholder="e.g. 5 lines, or all (leave blank for the rule type's default)" />
 
         <div class="preset-rule-editor-actions">
             <button class="preset-rule-editor-cancel" type="button" onclick="closePresetRuleEditor()">Cancel</button>
+            <button class="preset-rule-editor-preview" type="button" onclick="previewPresetRuleEditor()">▶ Preview</button>
             <button class="preset-rule-editor-save" type="button" onclick="savePresetRuleEditor()">Save</button>
         </div>
     </div>
@@ -6363,6 +6369,21 @@ function exitSlideshow() {
     document.getElementById('slideshow-overlay').removeEventListener('wheel', ssWheelHandler);
     const g = document.getElementById('ss-geez');
     if (g) { g.style.justifyContent = ''; g.style.alignItems = ''; }
+
+    // If this slideshow was launched from the rule-editor Preview button,
+    // reopen the preset creator (so it's not left closed underneath) and
+    // that same rule editor on top of it, so the tweak → preview → tweak
+    // loop stays fast.
+    if (window.__presetPreviewReturn) {
+        const ret = window.__presetPreviewReturn;
+        window.__presetPreviewReturn = null;
+        const presetCreator = document.getElementById('preset-creator-overlay');
+        if (presetCreator) presetCreator.classList.add('open');
+        const editor = document.getElementById('preset-rule-editor');
+        if (editor && typeof openPresetRuleEditor === 'function') {
+            openPresetRuleEditor(ret.sectionIndex, ret.slotIndex, ret.slot);
+        }
+    }
 }
 
 async function copyCurrentSlide(btn) {
@@ -9088,7 +9109,7 @@ function updateChronoDisplay() {
         if (editor) editor.classList.remove('open');
         presetEditorTarget = null;
     }
-
+    
     function savePresetRuleEditor() {
         if (!presetEditorTarget) return;
 
@@ -9103,6 +9124,113 @@ function updateChronoDisplay() {
 
         closePresetRuleEditor();
         renderPresetCreator();
+    }
+
+    function previewPresetRuleEditor() {
+        if (!presetEditorTarget) return;
+
+        const slot = presetEditorTarget.slot;
+        if (!slot) return;
+
+        if (!slot.selectedId) {
+            alert('Assign a piece to this slot before previewing.');
+            return;
+        }
+
+        const typeSelect = document.getElementById('preset-rule-type-select');
+        const customInput = document.getElementById('preset-rule-custom-input');
+
+        // Use whatever is currently set in the modal, even if not saved yet —
+        // so previewing reflects live edits without requiring Save first.
+        const previewType = typeSelect ? typeSelect.value : slot.type;
+        const previewCustomRule = customInput ? customInput.value.trim() : (slot.customRule || '');
+
+        const piece = getPieceById(slot.selectedId);
+        if (!piece || !piece.visualData) {
+            alert('This piece has no visual content to preview yet.');
+            return;
+        }
+
+        const segments = splitByPunctuation(piece.visualData);
+        if (!Array.isArray(segments) || !segments.length) {
+            alert('No slide content found for this piece.');
+            return;
+        }
+
+        const translationSegments = splitTranslation(piece.translation || '');
+        const chunks = presetChunkSegments(segments, previewType, previewCustomRule);
+
+        const previewDeck = [];
+        let segmentOffset = 0;
+
+        chunks.forEach(chunk => {
+            if (!chunk.length) return;
+
+            const geezHtml = chunk
+                .map(segment => (typeof segment === 'string' ? segment : (segment.segmentHtml || '')))
+                .join('');
+
+            const translation = translationSegments
+                .slice(segmentOffset, segmentOffset + chunk.length)
+                .filter(Boolean)
+                .join(' ');
+
+            segmentOffset += chunk.length;
+
+            if (!geezHtml.trim()) return;
+
+            previewDeck.push({
+                geezHtml,
+                translation,
+                pieceName: piece.name || slot.id,
+                presetSlot: slot.id,
+                isImage: isImagePieceHtml(geezHtml)
+            });
+        });
+
+        if (!previewDeck.length) {
+            alert('This rule produced no slides — try a different rule.');
+            return;
+        }
+
+        // Stash what to return to once the preview is closed.
+        window.__presetPreviewReturn = {
+            sectionIndex: presetEditorTarget.sectionIndex,
+            slotIndex: presetEditorTarget.slotIndex,
+            slot: presetEditorTarget.slot
+        };
+
+        // Close both modals first — otherwise they sit on top of the
+        // slideshow overlay (their z-index is higher) and the preview
+        // renders invisibly behind a tinted, still-open modal.
+        const ruleEditor = document.getElementById('preset-rule-editor');
+        if (ruleEditor) ruleEditor.classList.remove('open');
+        const presetCreator = document.getElementById('preset-creator-overlay');
+        if (presetCreator) presetCreator.classList.remove('open');
+
+        _ssSlides = previewDeck;
+        _ssIndex = 0;
+        _ssHudHidden = false;
+        _ssZoomLevels = [];
+        _ssLayoutOverrides = {};
+
+        const overlay = document.getElementById('slideshow-overlay');
+        overlay.style.display = 'flex';
+        overlay.style.visibility = 'visible';
+
+        const hud = document.getElementById('ss-hud');
+        const prevButton = document.getElementById('ss-prev');
+        const nextButton = document.getElementById('ss-next');
+        if (hud) { hud.style.visibility = 'visible'; hud.style.opacity = '1'; }
+        if (prevButton) prevButton.style.visibility = 'visible';
+        if (nextButton) nextButton.style.visibility = 'visible';
+
+        renderSlideshowSlide();
+        showSsHud();
+        document.addEventListener('keydown', ssKeyHandler);
+        overlay.addEventListener('touchstart', ssHandleTouchStart, { passive: true });
+        overlay.addEventListener('touchend', ssHandleTouchEnd, { passive: true });
+        overlay.addEventListener('wheel', ssWheelHandler, { passive: false });
     }
 
     function savePresetConfig() {
@@ -9156,49 +9284,20 @@ function presetChunkSegments(segments, ruleType, customRule) {
 
     const custom = String(customRule || '').toLowerCase();
 
-    if (
-        custom.includes('1 line') ||
-        custom.includes('one line')
-    ) {
-        return segments.map(segment => [segment]);
+    if (custom.includes('all')) {
+        return [segments];
     }
 
-    if (
-        custom.includes('2 lines') ||
-        custom.includes('2-line') ||
-        custom.includes('two lines')
-    ) {
-        const chunks = [];
-
-        for (let i = 0; i < segments.length; i += 2) {
-            chunks.push(segments.slice(i, i + 2));
+    const numberMatch = custom.match(/(\d+)\s*lines?/);
+    if (numberMatch) {
+        const n = parseInt(numberMatch[1], 10);
+        if (n > 0) {
+            const chunks = [];
+            for (let i = 0; i < segments.length; i += n) {
+                chunks.push(segments.slice(i, i + n));
+            }
+            return chunks;
         }
-
-        return chunks;
-    }
-
-    if (
-        custom.includes('3 lines') ||
-        custom.includes('3-line') ||
-        custom.includes('three lines')
-    ) {
-        const chunks = [];
-
-        for (let i = 0; i < segments.length; i += 3) {
-            chunks.push(segments.slice(i, i + 3));
-        }
-
-        return chunks;
-    }
-
-    if (custom.includes('35')) {
-        const chunks = [];
-
-        for (let i = 0; i < segments.length; i += 35) {
-            chunks.push(segments.slice(i, i + 35));
-        }
-
-        return chunks;
     }
 
     switch (ruleType) {
@@ -9390,6 +9489,7 @@ function generatePresetDeck() {
     window.openPresetRuleEditor = openPresetRuleEditor;
     window.closePresetRuleEditor = closePresetRuleEditor;
     window.savePresetRuleEditor = savePresetRuleEditor;
+    window.previewPresetRuleEditor = previewPresetRuleEditor;
     window.savePresetConfig = savePresetConfig;
     window.generatePresetDeck = generatePresetDeck;
 })();
