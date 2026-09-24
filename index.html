@@ -2364,6 +2364,63 @@
         </div>
     </div>
 </div>
+<!-- Batch Translate — Scope Selection Modal -->
+<div id="batch-select-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:28px;width:540px;max-width:92%;max-height:85vh;overflow-y:auto;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.3);box-sizing:border-box;">
+
+        <div id="batch-select-step-choice">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <h3 style="margin:0;font-size:15px;color:#1a2a3a;">🌐 Batch Translate</h3>
+                <button onclick="closeBatchSelectModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+            </div>
+            <p style="margin:0 0 16px;font-size:12px;color:#3a5a82;">Choose which pieces in this project to translate.</p>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+                <button type="button" onclick="batchSelectChooseScope('all')" style="text-align:left;padding:14px;border:2px solid #ddd;border-radius:8px;background:#fafafa;cursor:pointer;">
+                    <div style="font-size:13px;font-weight:bold;color:#1a2a3a;">🌐 All Pieces</div>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">Translate every piece in the project, replacing any existing translations.</div>
+                </button>
+                <button type="button" onclick="batchSelectChooseScope('untranslated')" style="text-align:left;padding:14px;border:2px solid #ddd;border-radius:8px;background:#fafafa;cursor:pointer;">
+                    <div style="font-size:13px;font-weight:bold;color:#1a2a3a;">✨ Only Untranslated</div>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">Skip pieces that already have a translation.</div>
+                </button>
+                <button type="button" onclick="batchSelectChooseScope('custom')" style="text-align:left;padding:14px;border:2px solid #ddd;border-radius:8px;background:#fafafa;cursor:pointer;">
+                    <div style="font-size:13px;font-weight:bold;color:#1a2a3a;">☑ Specific / Custom</div>
+                    <div style="font-size:11px;color:#888;margin-top:4px;">Pick exactly which pieces to translate.</div>
+                </button>
+            </div>
+        </div>
+
+        <div id="batch-select-step-custom" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <h3 style="margin:0;font-size:15px;color:#1a2a3a;">Select Pieces</h3>
+                <button onclick="closeBatchSelectModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+            </div>
+            <p style="margin:0 0 10px;font-size:12px;color:#3a5a82;">Only pieces with translatable text are listed.</p>
+            <div style="display:flex;gap:8px;margin-bottom:10px;">
+                <button type="button" onclick="batchSelectSetAll(true)" style="flex:1;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:bold;cursor:pointer;">Select All</button>
+                <button type="button" onclick="batchSelectSetAll(false)" style="flex:1;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:bold;cursor:pointer;">Select None</button>
+            </div>
+            <div id="batch-select-piece-list" style="max-height:320px;overflow-y:auto;border:1px solid #eee;border-radius:8px;padding:6px;"></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;">
+                <button type="button" onclick="batchSelectBackToChoice()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 18px;font-weight:bold;cursor:pointer;font-size:13px;">← Back</button>
+                <button type="button" onclick="batchSelectCustomContinue()" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">Continue →</button>
+            </div>
+        </div>
+
+        <div id="batch-select-step-confirm" style="display:none;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <h3 style="margin:0;font-size:15px;color:#1a2a3a;">Are you sure?</h3>
+                <button onclick="closeBatchSelectModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+            </div>
+            <p id="batch-select-confirm-text" style="margin:0 0 18px;font-size:13px;color:#333;line-height:1.5;"></p>
+            <div style="display:flex;justify-content:flex-end;gap:8px;">
+                <button type="button" onclick="batchSelectConfirmBack()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">← Go Back</button>
+                <button type="button" onclick="batchSelectConfirmProceed()" style="background:#27ae60;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Confirm</button>
+            </div>
+        </div>
+
+    </div>
+</div>
 
 <div id="batch-translate-overlay" class="batch-translate-overlay" role="dialog" aria-modal="true" aria-labelledby="batch-translate-title">
     <div class="batch-translate-box">
@@ -4056,7 +4113,165 @@ function batchTranslationExtractText(piece) {
     return rawText;
 }
 
-async function batchTranslateCurrentProject() {
+// ============================================================
+// BATCH TRANSLATE — SCOPE SELECTION MODAL
+// ============================================================
+let _batchSelectScope = null;
+let _batchSelectCustomIds = new Set();
+
+function batchTranslateCurrentProject() {
+    if (
+        !currentUser ||
+        !appData[currentUser] ||
+        !Array.isArray(appData[currentUser].folders)
+    ) {
+        alert('Open a project before starting batch translation.');
+        return;
+    }
+    openBatchSelectModal();
+}
+
+function openBatchSelectModal() {
+    _batchSelectScope = null;
+    _batchSelectCustomIds = new Set();
+    document.getElementById('batch-select-step-choice').style.display = '';
+    document.getElementById('batch-select-step-custom').style.display = 'none';
+    document.getElementById('batch-select-step-confirm').style.display = 'none';
+    document.getElementById('batch-select-modal').style.display = 'flex';
+}
+
+function closeBatchSelectModal() {
+    document.getElementById('batch-select-modal').style.display = 'none';
+    _batchSelectScope = null;
+    _batchSelectCustomIds = new Set();
+}
+
+function _batchSelectPieceId(item) {
+    return item.piece.id || `project_${currentUser}_folder_${item.folderIndex}_piece_${item.pieceIndex}`;
+}
+
+function _batchSelectGetAllPieces() {
+    const list = [];
+    if (!currentUser || !appData[currentUser]) return list;
+    (appData[currentUser].folders || []).forEach((folder, folderIndex) => {
+        (folder.pieces || []).forEach((piece, pieceIndex) => {
+            const text = batchTranslationExtractText(piece);
+            if (!text) return;
+            list.push({ piece, folder, folderIndex, pieceIndex, text });
+        });
+    });
+    return list;
+}
+
+function batchSelectChooseScope(scope) {
+    _batchSelectScope = scope;
+    if (scope === 'custom') {
+        renderBatchSelectCustomList();
+        document.getElementById('batch-select-step-choice').style.display = 'none';
+        document.getElementById('batch-select-step-custom').style.display = '';
+        document.getElementById('batch-select-step-confirm').style.display = 'none';
+        return;
+    }
+    showBatchSelectConfirmStep();
+}
+
+function renderBatchSelectCustomList() {
+    const container = document.getElementById('batch-select-piece-list');
+    const items = _batchSelectGetAllPieces();
+    if (!items.length) {
+        container.innerHTML = '<p style="font-size:12px;color:#888;padding:10px;">No translatable pieces found in this project.</p>';
+        return;
+    }
+    const byFolder = {};
+    items.forEach(item => {
+        const key = item.folder.name || 'Untitled Folder';
+        if (!byFolder[key]) byFolder[key] = [];
+        byFolder[key].push(item);
+    });
+    let html = '';
+    Object.keys(byFolder).forEach(folderName => {
+        html += '<div style="font-size:11px;font-weight:bold;color:#3a5a82;margin:8px 0 4px;text-transform:uppercase;letter-spacing:0.4px;">' + _escHtml(folderName) + '</div>';
+        byFolder[folderName].forEach(item => {
+            const id = _batchSelectPieceId(item);
+            const checked = _batchSelectCustomIds.has(id);
+            const hasTranslation = item.piece.translation && item.piece.translation.trim();
+            html += '<label style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;font-size:13px;color:#1a2a3a;" onmouseover="this.style.background=\'rgba(184,134,11,0.06)\'" onmouseout="this.style.background=\'\'">'
+                + '<input type="checkbox" onchange="batchSelectToggleCustom(\'' + id.replace(/'/g, "\\'") + '\', this.checked)" ' + (checked ? 'checked' : '') + '>'
+                + '<span style="flex:1;">' + _escHtml(item.piece.name) + '</span>'
+                + (hasTranslation ? '<span style="font-size:10px;color:#27ae60;">translated</span>' : '<span style="font-size:10px;color:#aaa;">untranslated</span>')
+                + '</label>';
+        });
+    });
+    container.innerHTML = html;
+}
+
+function batchSelectToggleCustom(id, checked) {
+    if (checked) _batchSelectCustomIds.add(id);
+    else _batchSelectCustomIds.delete(id);
+}
+
+function batchSelectSetAll(checked) {
+    const items = _batchSelectGetAllPieces();
+    _batchSelectCustomIds = new Set();
+    if (checked) items.forEach(item => _batchSelectCustomIds.add(_batchSelectPieceId(item)));
+    renderBatchSelectCustomList();
+}
+
+function batchSelectBackToChoice() {
+    document.getElementById('batch-select-step-custom').style.display = 'none';
+    document.getElementById('batch-select-step-choice').style.display = '';
+}
+
+function batchSelectCustomContinue() {
+    if (!_batchSelectCustomIds.size) { alert('Select at least one piece.'); return; }
+    showBatchSelectConfirmStep();
+}
+
+function showBatchSelectConfirmStep() {
+    document.getElementById('batch-select-step-choice').style.display = 'none';
+    document.getElementById('batch-select-step-custom').style.display = 'none';
+    document.getElementById('batch-select-step-confirm').style.display = '';
+
+    const textEl = document.getElementById('batch-select-confirm-text');
+    if (_batchSelectScope === 'all') {
+        const count = _batchSelectGetAllPieces().length;
+        textEl.textContent = `This will translate all ${count} piece(s) in this project, replacing any existing translations. Continue?`;
+    } else if (_batchSelectScope === 'untranslated') {
+        const count = _batchSelectGetAllPieces().filter(i => !(i.piece.translation && i.piece.translation.trim())).length;
+        textEl.textContent = `This will translate the ${count} piece(s) that don't yet have a translation. Existing translations are left untouched. Continue?`;
+    } else if (_batchSelectScope === 'custom') {
+        textEl.textContent = `This will translate the ${_batchSelectCustomIds.size} selected piece(s), replacing any existing translations on them. Continue?`;
+    }
+}
+
+function batchSelectConfirmBack() {
+    document.getElementById('batch-select-step-confirm').style.display = 'none';
+    if (_batchSelectScope === 'custom') document.getElementById('batch-select-step-custom').style.display = '';
+    else document.getElementById('batch-select-step-choice').style.display = '';
+}
+
+function batchSelectConfirmProceed() {
+    const scope = _batchSelectScope;
+    const customIds = new Set(_batchSelectCustomIds);
+    closeBatchSelectModal();
+
+    let filterFn;
+    if (scope === 'untranslated') {
+        filterFn = (item) => !(item.piece.translation && item.piece.translation.trim());
+    } else if (scope === 'custom') {
+        filterFn = (item) => customIds.has(_batchSelectPieceId(item));
+    } else {
+        filterFn = () => true; // 'all'
+    }
+
+    runBatchTranslationWithFilter(filterFn);
+}
+
+// ============================================================
+// Actual translation run — same workflow as before, just scoped
+// to whatever pieces filterFn lets through.
+// ============================================================
+async function runBatchTranslationWithFilter(filterFn) {
     if (
         !currentUser ||
         !appData[currentUser] ||
@@ -4078,6 +4293,7 @@ async function batchTranslateCurrentProject() {
             const text = batchTranslationExtractText(piece);
 
             if (!text) return;
+            if (filterFn && !filterFn({ piece, folder, folderIndex, pieceIndex })) return;
 
             const pieceId =
                 piece.id ||
@@ -4092,22 +4308,8 @@ async function batchTranslateCurrentProject() {
     });
 
     if (!projectPieces.length) {
-        alert('No translatable pieces were found in this project.');
+        alert('No translatable pieces match your selection.');
         return;
-    }
-
-    const alreadyTranslated = projectPieces.filter(item =>
-        item.piece.translation &&
-        String(item.piece.translation).trim()
-    );
-
-    if (alreadyTranslated.length) {
-        const shouldContinue = confirm(
-            `${alreadyTranslated.length} piece${alreadyTranslated.length === 1 ? '' : 's'} already have translations.\n\n` +
-            'Click OK to replace all existing translations in this project, or Cancel to stop.'
-        );
-
-        if (!shouldContinue) return;
     }
 
     const payloadItems = projectPieces.map(item => ({
@@ -4167,7 +4369,7 @@ async function batchTranslateCurrentProject() {
         setBatchTranslationStatus(
             missingCount
                 ? `Completed ${savedCount}. ${missingCount} piece${missingCount === 1 ? '' : 's'} were not returned.`
-                : `Completed all ${savedCount} project translation${savedCount === 1 ? '' : 's'}.`,
+                : `Completed all ${savedCount} translation${savedCount === 1 ? '' : 's'}.`,
             100
         );
 
@@ -4176,24 +4378,20 @@ async function batchTranslateCurrentProject() {
 
         if (missingCount) {
             alert(
-                `Project batch translation completed with missing results.\n\n` +
+                `Batch translation completed with missing results.\n\n` +
                 `Translated: ${savedCount}\n` +
                 `Missing: ${missingCount}`
             );
         } else {
             alert(
-                `Project batch translation completed successfully.\n\n` +
-                `${savedCount} piece${savedCount === 1 ? '' : 's'} translated across ${folders.length} folder${folders.length === 1 ? '' : 's'}.`
+                `Batch translation completed successfully.\n\n` +
+                `${savedCount} piece${savedCount === 1 ? '' : 's'} translated.`
             );
         }
 
     } catch (error) {
-        console.error('Project batch translation failed:', error);
-
-        showBatchTranslationFailure(
-            error,
-            payloadItems
-        );
+        console.error('Batch translation failed:', error);
+        showBatchTranslationFailure(error, payloadItems);
     }
 }
 
