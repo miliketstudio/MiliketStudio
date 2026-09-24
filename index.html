@@ -2281,8 +2281,8 @@
         </div>
     </div>
     <!-- Nav buttons -->
-    <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;">‹</button>
-    <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:1;z-index:20;">›</button>
+    <button id="ss-prev" onclick="slideshowNav(-1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;">‹</button>
+    <button id="ss-next" onclick="slideshowNav(1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.25);color:white;border-radius:50%;width:52px;height:52px;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;z-index:20;">›</button>
 </div>
 
 <!-- Google account picker — shown only when a saved session exists -->
@@ -5077,6 +5077,7 @@ function goToSlidesManual() {
     _passUsedIndices = new Set();
     _isSecondPass = false;
     _secondPassSlideStartIndex = 0;
+    _presetBuiltDeck = false;
 
     $('.page').removeClass('active');
     document.getElementById('main-navbar').style.display = 'none';
@@ -5161,7 +5162,7 @@ function renderSlideReorder(container) {
     container.innerHTML = '';
     const header = document.createElement('div');
     header.style.cssText = 'text-align:center;padding:24px 40px 12px;';
-    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">All lines assigned — drag to reorder, then click <b>Finish &amp; Present</b>.</p><p style="font-size:1.1rem;color:#b8860b;margin:8px 0 0;font-weight:bold;">Tip: enter fullscreen mode before exporting for better results.</p><div style="display:flex;justify-content:center;margin-top:14px;"><button onclick="enterAddSlidesPass()" style="background:#8e44ad;border:none;color:white;border-radius:7px;padding:9px 28px;font-size:0.9rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">＋ Add Slides</button></div>';
+    header.innerHTML = '<p style="font-size:1.1rem;color:#3a5a82;margin:0;">Your slides are ready — drag to reorder, then click <b>Finish &amp; Present</b>.</p><p style="font-size:1.1rem;color:#b8860b;margin:8px 0 0;font-weight:bold;">Tip: enter fullscreen mode before exporting for better results.</p><div style="display:flex;justify-content:center;margin-top:14px;"><button onclick="enterAddSlidesPass()" style="background:#8e44ad;border:none;color:white;border-radius:7px;padding:9px 28px;font-size:0.9rem;font-weight:bold;cursor:pointer;letter-spacing:0.3px;">＋ Add Slides</button></div>';
     container.appendChild(header);
 
     const list = document.createElement('div');
@@ -5653,7 +5654,17 @@ function updateSelectionCount() {
     document.getElementById('slides-count').textContent = _builtSlides.length + ' slides built';
 }
 
+let _presetBuiltDeck = false; // true when the current #page-slides deck came from the Preset Creator
+
 function undoLastSlide() {
+    if (_presetBuiltDeck) {
+        // Preset-generated decks have no line-by-line picker to step back
+        // into — Back just exits the builder the same way an empty deck does.
+        _ssZoomLevels = [];
+        _presetBuiltDeck = false;
+        exitSlides();
+        return;
+    }
     if (_builtSlides.length === 0) {
         _ssZoomLevels = [];
         exitSlides();
@@ -9326,52 +9337,61 @@ function generatePresetDeck() {
         return;
     }
 
-    _ssSlides = generated;
-    _ssIndex = 0;
-    _ssHudHidden = false;
+       // Feed the manual builder's data structures so preset-generated
+    // decks land on the same "all assigned" reorder/export page as
+    // the manual line-by-line flow, instead of jumping straight to
+    // the live presenter.
+    _allLines = generated.map((slide, i) => ({
+        pieceName: slide.pieceName || slide.presetSlot || ('Slide ' + (i + 1)),
+        segIndex: 0,
+        segmentHtml: slide.geezHtml,
+        translation: slide.translation || '',
+        isImage: !!slide.isImage
+    }));
 
-    const overlay = document.getElementById('slideshow-overlay');
-
-    if (!overlay) {
-        alert('The slideshow display could not be found.');
-        return;
-    }
-
-    overlay.style.display = 'flex';
-    overlay.style.visibility = 'visible';
-
-    const hud = document.getElementById('ss-hud');
-    const prevButton = document.getElementById('ss-prev');
-    const nextButton = document.getElementById('ss-next');
-
-    if (hud) {
-        hud.style.visibility = 'visible';
-        hud.style.opacity = '1';
-    }
-
-    if (prevButton) {
-        prevButton.style.visibility = 'visible';
-    }
-
-    if (nextButton) {
-        nextButton.style.visibility = 'visible';
-    }
+    _builtSlides = _allLines.map((_, i) => [i]);
+    _currentSlideIndices = [];
+    _passUsedIndices = new Set();
+    _isSecondPass = false;
+    _secondPassSlideStartIndex = 0;
+    _presetBuiltDeck = true;
 
     closePresetCreator();
 
-    if (
-        !Array.isArray(_ssSlides) ||
-        !_ssSlides[_ssIndex]
-    ) {
-        console.error(
-            'Preset generated an invalid slideshow deck:',
-            _ssSlides
-        );
-        return;
-    }
+    // Show the slide-builder page in its "finished" state
+    $('.page').removeClass('active');
+    document.getElementById('main-navbar').style.display = 'none';
+    document.getElementById('main-footer').style.display = 'none';
+    $('#page-slides').addClass('active');
+    document.getElementById('theme-toggle').style.display = 'none';
+    document.getElementById('sync-indicator').style.display = 'none';
 
-    renderSlideshowSlide();
+    document.getElementById('next-slide-btn').style.display = 'none';
+    document.getElementById('view-results-btn').style.display = 'none';
+    document.getElementById('finish-present-btn').style.display = '';
+    document.getElementById('export-pptx-btn').style.display = '';
+    document.getElementById('export-pptx-exact-btn').style.display = '';
+
+    document.getElementById('slides-count').textContent = _builtSlides.length + ' slides built';
+    document.getElementById('selection-count').textContent =
+        'All ' + _allLines.length + ' slide' + (_allLines.length === 1 ? '' : 's') + ' assigned from preset';
+
+    renderSlideReorder(document.getElementById('slides-container'));
 }
+
+    // Expose to global scope so inline onclick="" handlers and
+    // goToSlides() (outside this IIFE) can reach these.
+    window.presetSelectMode = presetSelectMode;
+    window.presetBackToMode = presetBackToMode;
+    window.openPresetCreator = openPresetCreator;
+    window.closePresetCreator = closePresetCreator;
+    window.addPresetSet = addPresetSet;
+    window.presetChoosePieceForSlot = presetChoosePieceForSlot;
+    window.openPresetRuleEditor = openPresetRuleEditor;
+    window.closePresetRuleEditor = closePresetRuleEditor;
+    window.savePresetRuleEditor = savePresetRuleEditor;
+    window.savePresetConfig = savePresetConfig;
+    window.generatePresetDeck = generatePresetDeck;
 })();
 </script>
 </body>
