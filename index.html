@@ -2707,7 +2707,19 @@
 <div id="remote-change-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:200000;background:#b8860b;color:white;padding:10px 20px;font-family:sans-serif;font-size:0.85rem;align-items:center;justify-content:center;gap:16px;box-shadow:0 2px 10px rgba(0,0,0,0.25);">
     <span>⚠ This account was just updated on another device.</span>
     <button onclick="location.reload()" style="background:white;color:#8e6a00;border:none;border-radius:5px;padding:5px 14px;font-weight:bold;cursor:pointer;font-size:0.8rem;">↻ Refresh Now</button>
-    <button onclick="hideRemoteChangeBanner()" style="background:transparent;border:1px solid rgba(255,255,255,0.5);color:white;border-radius:5px;padding:5px 12px;cursor:pointer;font-size:0.8rem;">Dismiss</button>
+        <button onclick="hideRemoteChangeBanner()" style="background:transparent;border:1px solid rgba(255,255,255,0.5);color:white;border-radius:5px;padding:5px 12px;cursor:pointer;font-size:0.8rem;">Dismiss</button>
+</div>
+
+<!-- Edit Lock Warning Modal -->
+<div id="lock-warning-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);color:var(--text);border-radius:12px;padding:28px;width:420px;max-width:92%;border-top:4px solid #e74c3c;box-shadow:0 10px 40px rgba(0,0,0,0.35);box-sizing:border-box;">
+        <h3 style="margin:0 0 10px;font-size:16px;">⚠ Piece Currently Open Elsewhere</h3>
+        <p id="lock-warning-text" style="margin:0 0 20px;font-size:13px;color:var(--text-muted);line-height:1.5;"></p>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button id="lock-warning-back" style="background:#eee;color:#333;border:none;border-radius:6px;padding:10px 18px;font-weight:bold;cursor:pointer;font-size:13px;">← Go Back</button>
+            <button id="lock-warning-overwrite" style="background:#e74c3c;color:white;border:none;border-radius:6px;padding:10px 18px;font-weight:bold;cursor:pointer;font-size:13px;">Open Anyway (Overwrite)</button>
+        </div>
+    </div>
 </div>
 
 <!-- Confirm Modal -->
@@ -3325,7 +3337,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
             $b.prop('disabled', false).text(restLabel);
             if (check.conflict) {
                 var when = check.remotePiece.lastModified ? new Date(check.remotePiece.lastModified).toLocaleString() : 'recently';
-                var proceed = confirm('This piece was changed by someone else on ' + when + ', since you opened it here.\n\nSaving now will overwrite their changes with yours.\n\nClick OK to overwrite anyway, or Cancel to stop and review first.');
+                var proceed = confirm('This piece was changed by someone else on ' + when + ', since you opened it here.\n\nSaving now will overwrite their changes with yours.\n\nClick OK to overwrite anyway, or Cancel to stop and review first.Click Copy HTML before Page Refresh to Paste HTML if you do not like the other users change.');
                 if (!proceed) return;
             }
         }
@@ -3578,6 +3590,7 @@ let currentPiece = null;
 let confirmCallback = null;
 let confirmAnswer = '';
 let _editorPieceId = null;
+let _lockedPieceId = null; // pieceId this device currently holds the edit lock for
 let _editorPieceLoadedModified = null; // lastModified of the piece as loaded into the editor — used to detect if someone else changed it in the cloud since then
 
 // Stable identifier for this browser/device, so the listener knows
@@ -3878,6 +3891,7 @@ function goToPresent() {
 
 function exitToStudio() {
     savePieceNow();
+    releaseLock();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('main-navbar').style.display = 'none';
     document.getElementById('main-footer').style.display = 'none';
@@ -4238,6 +4252,82 @@ function showRemoteChangeBanner() {
 function hideRemoteChangeBanner() {
     const el = document.getElementById('remote-change-banner');
     if (el) el.style.display = 'none';
+}
+
+// --- Edit Lock: warn before opening a piece someone else has open ---
+const LOCK_STALE_MS = 5 * 60 * 1000; // a lock older than this is treated as abandoned, not active
+
+async function acquireLock(pieceId) {
+    const user = firebase.auth().currentUser;
+    if (!user || !pieceId) return;
+    try {
+        await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).set({
+            deviceId: _deviceId,
+            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        _lockedPieceId = pieceId;
+    } catch (e) {
+        console.warn('Could not acquire edit lock:', e);
+    }
+}
+
+async function releaseLock() {
+    const user = firebase.auth().currentUser;
+    if (!user || !_lockedPieceId) return;
+    const pieceId = _lockedPieceId;
+    _lockedPieceId = null;
+    try {
+        await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).delete();
+    } catch (e) {
+        console.warn('Could not release edit lock:', e);
+    }
+}
+
+function refreshLock() {
+    if (!_lockedPieceId) return;
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    fsdb.collection('users').doc(user.uid).collection('locks').doc(_lockedPieceId).set({
+        deviceId: _deviceId,
+        lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(() => {});
+}
+
+async function checkLock(pieceId) {
+    const user = firebase.auth().currentUser;
+    if (!user || !pieceId || !navigator.onLine) return { lockedByOther: false };
+    try {
+        const doc = await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).get({ source: 'server' });
+        if (!doc.exists) return { lockedByOther: false };
+        const data = doc.data() || {};
+        if (data.deviceId === _deviceId) return { lockedByOther: false };
+        const lockedAtMs = data.lockedAt?.toMillis?.() || 0;
+        if (!lockedAtMs || (Date.now() - lockedAtMs) > LOCK_STALE_MS) return { lockedByOther: false };
+        return { lockedByOther: true, lockedAt: new Date(lockedAtMs) };
+    } catch (e) {
+        console.warn('Lock check failed:', e);
+        return { lockedByOther: false };
+    }
+}
+
+function showLockWarningModal(lockedAt) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('lock-warning-modal');
+        const text = document.getElementById('lock-warning-text');
+        const whenStr = lockedAt ? lockedAt.toLocaleString() : 'a moment ago';
+        text.textContent = 'Someone else opened this piece for editing ' + whenStr + ' and may still be working on it. Opening it here now could overwrite their changes.';
+        modal.style.display = 'flex';
+        const backBtn = document.getElementById('lock-warning-back');
+        const overwriteBtn = document.getElementById('lock-warning-overwrite');
+        function cleanup(result) {
+            modal.style.display = 'none';
+            backBtn.onclick = null;
+            overwriteBtn.onclick = null;
+            resolve(result);
+        }
+        backBtn.onclick = () => cleanup('back');
+        overwriteBtn.onclick = () => cleanup('overwrite');
+    });
 }
 
 // --- Local Recovery ---
@@ -5190,9 +5280,18 @@ function continueEditingCurrentPiece() {
     showPage('editor');
 }
 
-function loadPieceIntoEditor(index) {
-    currentPiece = index;
+async function loadPieceIntoEditor(index) {
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
+
+    const lockCheck = await checkLock(piece.id);
+    if (lockCheck.lockedByOther) {
+        const choice = await showLockWarningModal(lockCheck.lockedAt);
+        if (choice === 'back') return;
+    }
+    if (_lockedPieceId && _lockedPieceId !== piece.id) await releaseLock();
+    await acquireLock(piece.id);
+
+    currentPiece = index;
     enterEditorMode();
     _undoStack = [];
     _redoStack = [];
@@ -5517,6 +5616,7 @@ function triggerAutoSave() {
     autoSaveTimer = setTimeout(async () => {
         savePieceNow();
         saveData();
+        refreshLock();
         await pushToFirestore();
     }, 10000);
     showSyncStatus('pending');
@@ -8307,6 +8407,7 @@ function logOut() {
         } catch(e) {
             console.error('Sign out failed:', e);
         }
+        await releaseLock();
         _studioInitialized = false;
         currentUser = null;
         currentFolder = null;
@@ -8514,6 +8615,7 @@ function checkSyncReminder() {
 }
 
 window.addEventListener('beforeunload', (e) => {
+    releaseLock();
     if (unsavedChanges) {
         e.preventDefault();
         e.returnValue = '';
