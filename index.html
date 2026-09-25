@@ -390,6 +390,16 @@
             pointer-events: none;
             flex-shrink: 0;
         }
+        .guest-badge {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: bold;
+            color: #7a5200;
+            background: #f0c040;
+            flex-shrink: 0;
+            cursor: help;
+        }
 
         /* Theme toggle */
         #theme-toggle,
@@ -1960,7 +1970,7 @@
             <p>Where would you like to go?</p>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:32px;max-width:900px;width:100%;">
-            <div class="studio-card" style="padding:48px 24px;" onclick="studioEntryRequested=true; showStudioPage('page-login')">
+            <div class="studio-card" style="padding:48px 24px;" onclick="studioEntryRequested=true; (firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) ? enterStudio() : showStudioPage('page-login')">
                 <div class="card-icon">✏️</div>
                 <div class="card-name" style="font-size:1.1rem;">Miliket Studio</div>
                 <div class="card-meta">Create &amp; present pieces</div>
@@ -2039,6 +2049,7 @@
             <button class="transfer-btn" style="background:#27ae60;" onclick="exportAllData()">💾 Export Data</button>
             <button class="transfer-btn" style="background:#e67e22;" onclick="importAllData()">📁 Import Data</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="saveAndSync()">☁ Sync Now</button>
+            <button class="transfer-btn" style="background:#8e44ad;" onclick="openRecoveryModal()">🛟 Recovery</button>
             <button class="transfer-btn" style="background:#884fb7;" onclick="showStudioPage('page-calendar'); renderCalendar();">📅 Calendar</button>
             <button class="transfer-btn" style="background:#3a5a82;" onclick="openChangeEmail()">✉ Change Email</button>
             <button class="transfer-btn" style="background:#c0392b;" onclick="logOut()">⏻ Log Out</button>
@@ -2382,12 +2393,34 @@
             <button onclick="pasteBulkImportFromClipboard()" style="flex:1;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📥 Paste from Clipboard</button>
         </div>
         <textarea id="bulk-import-input" rows="8" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:0.85rem;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;" placeholder='{"piece name": "<div class=...", ...}'></textarea>
-        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
+                <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:14px;">
             <button onclick="closeBulkImportModal()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">Dismiss</button>
             <button onclick="processBulkImport()" style="background:#27ae60;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Import</button>
         </div>
     </div>
 </div>
+
+<!-- Local Recovery Modal — shows what's actually saved on this computer,
+     independent of cloud state, so a sync problem can be reviewed and
+     recovered from without guessing. -->
+<div id="recovery-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);color:var(--text);border-radius:12px;padding:28px;width:620px;max-width:94%;max-height:85vh;overflow-y:auto;border-top:4px solid #8e44ad;box-shadow:0 10px 40px rgba(0,0,0,0.35);box-sizing:border-box;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <h3 style="margin:0;font-size:16px;">🛟 Local Recovery</h3>
+            <button onclick="closeRecoveryModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+        </div>
+        <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted);">
+            This is what's saved on this computer right now, independent of the cloud. Hover a piece below to preview it. If it looks right, you can push it to the cloud as the current version.
+        </p>
+        <div id="recovery-piece-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;"></div>
+        <div id="recovery-summary" style="font-size:12px;color:var(--text-muted);margin-bottom:18px;"></div>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button onclick="closeRecoveryModal()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:10px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✕ Cancel</button>
+            <button onclick="confirmRecoveryUseLocal()" style="background:#27ae60;color:white;border:none;border-radius:6px;padding:10px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Use This Saved Data</button>
+        </div>
+    </div>
+</div>
+
 <!-- Batch Translate — Scope Selection Modal -->
 <div id="batch-select-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
     <div style="background:white;border-radius:12px;padding:28px;width:540px;max-width:92%;max-height:85vh;overflow-y:auto;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.3);box-sizing:border-box;">
@@ -2668,6 +2701,13 @@
             <button type="button" onclick="window.confirmSmartSelectionModal()" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Run Smart Selection</button>
         </div>
     </div>
+</div>
+
+<!-- Live remote-change banner -->
+<div id="remote-change-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:200000;background:#b8860b;color:white;padding:10px 20px;font-family:sans-serif;font-size:0.85rem;align-items:center;justify-content:center;gap:16px;box-shadow:0 2px 10px rgba(0,0,0,0.25);">
+    <span>⚠ This account was just updated on another device.</span>
+    <button onclick="location.reload()" style="background:white;color:#8e6a00;border:none;border-radius:5px;padding:5px 14px;font-weight:bold;cursor:pointer;font-size:0.8rem;">↻ Refresh Now</button>
+    <button onclick="hideRemoteChangeBanner()" style="background:transparent;border:1px solid rgba(255,255,255,0.5);color:white;border-radius:5px;padding:5px 12px;cursor:pointer;font-size:0.8rem;">Dismiss</button>
 </div>
 
 <!-- Confirm Modal -->
@@ -3522,18 +3562,42 @@ let confirmCallback = null;
 let confirmAnswer = '';
 let _editorPieceId = null;
 
+// Stable identifier for this browser/device, so the listener knows
+// whether the current write was from this device or another one.
+let _deviceId = (function() {
+    let id = null;
+    try { id = localStorage.getItem('miliket_device_id'); } catch(e) {}
+    if (!id) {
+        id = 'dev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+        try { localStorage.setItem('miliket_device_id', id); } catch(e) {}
+    }
+    return id;
+})();
+
+let _indexListenerUnsub = null;
+let _lastKnownCloudSaved = 0;
+
 const DB_NAME = 'MiliketStudio';
 const DB_STORE = 'appData';
 
 // --- Dirty tracking ---
 let _dirtyPieceIds = new Set();
 let _deletedPieceIds = new Set();
+// Folder/project deletions need their own tombstones — without these, merging
+// against a cloud copy that still has the old folder/project resurrects it as
+// an empty shell (its pieces get filtered out by the piece-level deletion
+// below, but the folder/project record itself would otherwise survive).
+let _deletedFolderKeys = new Set();   // "ProjectName::normalizedfoldername"
+let _deletedProjectNames = new Set();
 
 function markPieceDirty(pieceId) {
     if (pieceId) _dirtyPieceIds.add(pieceId);
 }
 function markPieceDeleted(pieceId) {
     if (pieceId) { _deletedPieceIds.add(pieceId); _dirtyPieceIds.delete(pieceId); }
+}
+function _folderDeleteKey(projName, folderName) {
+    return projName + '::' + String(folderName || '').trim().toLowerCase();
 }
 function migrateMissingIds() {
     let changed = false;
@@ -3601,6 +3665,85 @@ function buildIndexData() {
         };
     });
     return index;
+}
+
+// Merges this device's index against whatever is currently in the cloud,
+// instead of blindly replacing it. Projects/folders present on only one
+// side are kept as-is; pieces present on both sides keep whichever copy
+// has the newer lastModified. Known limitation: folders are matched by
+// name (they have no IDs), so a folder renamed on two devices at once
+// will end up as two folders rather than a merge conflict — rare, and
+// much safer than the old behavior of losing whole pieces silently.
+function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames) {
+    const deleted = new Set(deletingIds || []);
+    const deletedFolders = new Set(deletingFolderKeys || []);
+    const deletedProjects = new Set(deletingProjectNames || []);
+    const merged = { _lastSaved: Date.now() };
+    const projNames = new Set([
+        ...Object.keys(cloudIndex).filter(k => k !== '_lastSaved'),
+        ...Object.keys(localIndex).filter(k => k !== '_lastSaved')
+    ]);
+
+    const norm = name => String(name || '').trim().toLowerCase();
+
+    projNames.forEach(projName => {
+        // Whole project deleted on this device — never resurrect it from the
+        // cloud copy, even as an empty shell.
+        if (deletedProjects.has(projName)) return;
+
+        const cloudProj = cloudIndex[projName];
+        const localProj = localIndex[projName];
+
+        if (!cloudProj) { merged[projName] = localProj; return; }
+        if (!localProj) { merged[projName] = cloudProj; return; }
+
+        const folderKeys = new Set([
+            ...(cloudProj.folders || []).map(f => norm(f.name)),
+            ...(localProj.folders || []).map(f => norm(f.name))
+        ]);
+
+        const mergedFolders = [];
+        folderKeys.forEach(key => {
+            // Same idea, one level down: a folder deleted on this device is
+            // dropped outright instead of coming back empty after the
+            // piece-level cleanup below strips its pieces.
+            if (deletedFolders.has(_folderDeleteKey(projName, key))) return;
+
+            const cloudFolder = (cloudProj.folders || []).find(f => norm(f.name) === key);
+            const localFolder = (localProj.folders || []).find(f => norm(f.name) === key);
+
+            if (!cloudFolder) { mergedFolders.push(localFolder); return; }
+            if (!localFolder) { mergedFolders.push(cloudFolder); return; }
+
+            const pieceById = new Map();
+            (cloudFolder.pieces || []).forEach(p => pieceById.set(p.id, p));
+            (localFolder.pieces || []).forEach(p => {
+                const existing = pieceById.get(p.id);
+                if (!existing || new Date(p.lastModified || 0) >= new Date(existing.lastModified || 0)) {
+                    pieceById.set(p.id, p);
+                }
+            });
+
+            // Keep the local device's own name/casing — it's the one actively saving.
+            mergedFolders.push({ name: localFolder.name, pieces: Array.from(pieceById.values()) });
+        });
+
+        merged[projName] = { folders: mergedFolders };
+    });
+
+    // Piece deletions applied globally, last. A piece deleted on this device
+    // is removed everywhere it might appear, even in a folder that only
+    // exists in the cloud copy (the early-return branches above can't see
+    // deletingIds on their own).
+    if (deleted.size) {
+        Object.keys(merged).filter(k => k !== '_lastSaved').forEach(projName => {
+            (merged[projName].folders || []).forEach(folder => {
+                folder.pieces = (folder.pieces || []).filter(p => !deleted.has(p.id));
+            });
+        });
+    }
+
+    return merged;
 }
 
 // --- IndexedDB ---
@@ -3672,10 +3815,36 @@ function showStudioPage(id) {
     const target = document.getElementById(id);
     if (target) target.classList.add('active');
     if (id === 'page-projects') {
-        const user = firebase.auth().currentUser;
-        const logoutBtn = document.querySelector('[onclick="logOut()"]');
-        if (logoutBtn) logoutBtn.style.display = (user && user.isAnonymous) ? 'none' : '';
+        updateGuestUI();
     }
+}
+
+// Guests are a real, permanent Firebase Auth session — same as a logged-in
+// account — except there's no email/password to get back in with if this
+// browser's storage is ever cleared. Surface that instead of hiding the exit.
+function updateGuestUI() {
+    const user = firebase.auth().currentUser;
+    const isGuest = !!(user && user.isAnonymous);
+    const logoutBtn = document.querySelector('[onclick="logOut()"]');
+    if (logoutBtn) {
+        logoutBtn.style.display = '';
+        logoutBtn.textContent = isGuest ? '⏻ End Guest Session' : '⏻ Log Out';
+    }
+    ['sync-indicator', 'sync-indicator-folders', 'sync-indicator-pieces'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const prev = el.previousElementSibling;
+        const hasBadge = prev && prev.classList && prev.classList.contains('guest-badge');
+        if (isGuest && !hasBadge) {
+            const badge = document.createElement('span');
+            badge.className = 'guest-badge';
+            badge.textContent = '👤 Guest';
+            badge.title = 'Temporary session — sign up to keep access to this data if your browser data is ever cleared.';
+            el.parentNode.insertBefore(badge, el);
+        } else if (!isGuest && hasBadge) {
+            prev.remove();
+        }
+    });
 }
 
 function enterEditorMode() {
@@ -3775,6 +3944,7 @@ function deleteProject(name) {
         (appData[name].folders || []).forEach(f => {
             (f.pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
         });
+        _deletedProjectNames.add(name);
         delete appData[name];
         if (currentUser === name) { currentUser = null; currentFolder = null; currentPiece = null; _editorPieceId = null; }
         saveAndSync();
@@ -3845,6 +4015,7 @@ function deleteFolder(index) {
     const name = appData[currentUser].folders[index].name;
     openConfirm('Delete Folder', `"${name}" and all its pieces will be permanently deleted.`, name, () => {
         (appData[currentUser].folders[index].pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
+        _deletedFolderKeys.add(_folderDeleteKey(currentUser, name));
         appData[currentUser].folders.splice(index, 1);
         if (currentFolder === index) { currentFolder = null; currentPiece = null; _editorPieceId = null; }
         else if (currentFolder !== null && currentFolder > index) currentFolder--;
@@ -4006,6 +4177,144 @@ function createPiece() {
     });
     saveAndSync();
     renderPieces();
+}
+
+// --- Live remote-change detection ---
+// Watches the account doc while the studio is open. Fires only for changes
+// this device didn't itself make (tagged via indexUpdatedByDevice), so a
+// person sees "someone else just saved" in real time instead of only
+// discovering it the next time they happen to reload.
+function startIndexConflictListener(uid) {
+    stopIndexConflictListener();
+
+    const userRef = fsdb.collection('users').doc(uid);
+
+    _indexListenerUnsub = userRef.onSnapshot(snapshot => {
+        if (!snapshot.exists) return;
+
+        const data = snapshot.data() || {};
+        if (data.indexUpdatedByDevice === _deviceId) return;
+
+        const updatedAtMs = data.indexUpdatedAt?.toMillis?.() || 0;
+        if (!updatedAtMs || updatedAtMs === _lastKnownCloudSaved) return;
+
+        _lastKnownCloudSaved = updatedAtMs;
+        showRemoteChangeBanner();
+    }, err => {
+        console.error('Index conflict listener failed:', err);
+    });
+}
+
+function stopIndexConflictListener() {
+    if (_indexListenerUnsub) {
+        _indexListenerUnsub();
+        _indexListenerUnsub = null;
+    }
+}
+
+function showRemoteChangeBanner() {
+    const el = document.getElementById('remote-change-banner');
+    if (el) el.style.display = 'flex';
+}
+
+function hideRemoteChangeBanner() {
+    const el = document.getElementById('remote-change-banner');
+    if (el) el.style.display = 'none';
+}
+
+// --- Local Recovery ---
+// IndexedDB on this device is treated as a bank: only ever written by this
+// device's own saves, never cleared, never silently overwritten by cloud
+// data unless the content matches exactly. This lets a person inspect what
+// is actually sitting in that bank and, if needed, deliberately push it out
+// as the authoritative version.
+let _recoveryLocalSnapshot = null;
+
+function _recoveryFindTop5Pieces(data) {
+    const all = [];
+    Object.keys(data || {}).filter(k => k !== '_lastSaved').forEach(projName => {
+        (data[projName].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(piece => {
+                all.push({ piece, projName, folderName: folder.name });
+            });
+        });
+    });
+    all.sort((a, b) => new Date(b.piece.lastModified || 0) - new Date(a.piece.lastModified || 0));
+    return all.slice(0, 5);
+}
+
+async function openRecoveryModal() {
+    const local = await idbGet('miliket_data');
+    _recoveryLocalSnapshot = local;
+    const listEl = document.getElementById('recovery-piece-list');
+    const summaryEl = document.getElementById('recovery-summary');
+    listEl.innerHTML = '';
+
+    const hasAny = local && Object.keys(local).filter(k => k !== '_lastSaved').length > 0;
+    if (!hasAny) {
+        listEl.innerHTML = '<div class="empty-state" style="padding:20px;"><p>Nothing is saved locally on this computer yet.</p></div>';
+        summaryEl.textContent = '';
+        document.getElementById('recovery-modal').style.display = 'flex';
+        return;
+    }
+
+    const top5 = _recoveryFindTop5Pieces(local);
+    const totalPieces = Object.keys(local).filter(k => k !== '_lastSaved')
+        .reduce((sum, p) => sum + (local[p].folders || []).reduce((s, f) => s + (f.pieces || []).length, 0), 0);
+
+    top5.forEach(({ piece, projName, folderName }) => {
+        const row = document.createElement('div');
+        // Reuses .studio-card so the existing hover-to-preview thumbnail
+        // mechanism (buildThumbPreview + its lazy image loader) works here
+        // with no extra wiring — layout is overridden inline below.
+        row.className = 'recovery-row studio-card';
+        row.style.cssText = 'text-align:left;padding:12px 14px;cursor:default;display:flex;align-items:center;justify-content:space-between;gap:12px;';
+        const date = piece.lastModified
+            ? new Date(piece.lastModified).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : 'Unknown';
+        row.innerHTML = `
+            <div style="min-width:0;">
+                <div style="font-weight:bold;font-size:13px;">${_escHtml(piece.name)}</div>
+                <div style="font-size:11px;color:var(--text-muted);">${_escHtml(projName)} / ${_escHtml(folderName)}</div>
+            </div>
+            <div style="font-size:11px;color:var(--text-muted);white-space:nowrap;">${date}</div>
+            ${buildThumbPreview(piece)}
+        `;
+        listEl.appendChild(row);
+    });
+
+    summaryEl.textContent = `${totalPieces} piece(s) total saved locally on this computer.`;
+    document.getElementById('recovery-modal').style.display = 'flex';
+}
+
+function closeRecoveryModal() {
+    document.getElementById('recovery-modal').style.display = 'none';
+    _recoveryLocalSnapshot = null;
+}
+
+async function confirmRecoveryUseLocal() {
+    if (!_recoveryLocalSnapshot) { closeRecoveryModal(); return; }
+    if (!confirm('This will push the locally saved copy on this computer to the cloud, making it the version everyone sees. Anything that exists only in the cloud, and not on this computer, is left untouched. Continue?')) return;
+
+    appData = _recoveryLocalSnapshot;
+    // Stamp every piece as edited "now" so it decisively wins the normal
+    // newest-wins merge against whatever is currently in the cloud — that's
+    // the whole point of a deliberate recovery action.
+    const now = new Date().toISOString();
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(projName => {
+        (appData[projName].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(piece => { piece.lastModified = now; });
+        });
+    });
+    markAllPiecesDirty();
+    await saveAndSync();
+
+    renderProjects();
+    if (currentUser && appData[currentUser] && currentFolder !== null) renderPieces();
+    else if (currentUser && appData[currentUser]) renderFolders();
+
+    closeRecoveryModal();
+    alert('Local data restored and pushed to the cloud as the current version.');
 }
 
 // --- Bulk Import ---
@@ -7699,15 +8008,73 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
     });
 }
 
+// Sorts object keys recursively (arrays keep their order) so two objects
+// with identical data but different property insertion order compare equal.
+function _canonicalize(obj) {
+    if (Array.isArray(obj)) return obj.map(_canonicalize);
+    if (obj && typeof obj === 'object') {
+        const out = {};
+        Object.keys(obj).sort().forEach(k => { out[k] = _canonicalize(obj[k]); });
+        return out;
+    }
+    return obj;
+}
+
+// Reduces an appData-shaped object down to the same comparable fields
+// buildIndexData() sends to the cloud (id, name, content, translation,
+// lastModified per piece) — no visualData, and every optional field
+// explicitly defaulted. Comparing this shape instead of the raw objects is
+// what makes the diff check trustworthy: the raw local piece and the raw
+// cloud piece (round-tripped through Firestore) can hold the same data but
+// in different key order, and an untranslated local piece simply omits its
+// "translation" key while the cloud copy always carries translation:'' —
+// both looked like real differences before, even when nothing had changed.
+function _buildComparableIndex(data) {
+    const out = {};
+    Object.keys(data || {}).filter(k => k !== '_lastSaved').forEach(projName => {
+        out[projName] = {
+            folders: ((data[projName] || {}).folders || []).map(folder => ({
+                name: folder.name,
+                pieces: (folder.pieces || []).map(piece => ({
+                    id: piece.id,
+                    name: piece.name,
+                    content: piece.content || '',
+                    translation: piece.translation || '',
+                    lastModified: piece.lastModified || ''
+                }))
+            }))
+        };
+    });
+    return out;
+}
+
+// Compares a cloud index snapshot against a local appData snapshot on the
+// fields that actually matter for "are these two devices in sync," ignoring
+// visualData entirely (any real edit always bumps lastModified, so
+// lastModified plus content is a reliable signal without diffing potentially
+// huge compressed blobs) and ignoring the top-level _lastSaved bookkeeping field.
+function _sameIndexContent(cloudIndex, localData) {
+    const cloudComparable = _canonicalize(_buildComparableIndex(cloudIndex));
+    const localComparable = _canonicalize(_buildComparableIndex(localData));
+    return JSON.stringify(cloudComparable) === JSON.stringify(localComparable);
+}
+
 async function loadFromFirestore(uid) {
     try {
         const doc = await fsdb.collection('users').doc(uid).get({ source: 'server' });
-        if (!doc.exists) { showSyncStatus('saved'); return; }
+        if (!doc.exists) {
+            showSyncStatus('saved');
+            return;
+        }
 
         const cloudIndex = doc.data().index || {};
         const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
         const pieceMap = {};
-        pieceSnaps.forEach(p => { pieceMap[p.id] = decompressFromCloud(p.data().visualData || ''); });
+        pieceSnaps.forEach(p => {
+            const data = p.data() || {};
+            pieceMap[p.id] = decompressFromCloud(data.visualData || '');
+        });
+
         Object.keys(cloudIndex).filter(k => k !== '_lastSaved').forEach(projName => {
             (cloudIndex[projName].folders || []).forEach(folder => {
                 (folder.pieces || []).forEach(piece => {
@@ -7719,22 +8086,29 @@ async function loadFromFirestore(uid) {
         const localData = await idbGet('miliket_data');
         const localTs = localData?._lastSaved || 0;
         const cloudTs = cloudIndex._lastSaved || 0;
-        const localHasData = localData && Object.keys(localData).filter(k => k !== '_lastSaved').length > 0;
-        const cloudHasData = Object.keys(cloudIndex).filter(k => k !== '_lastSaved').length > 0;
+        _lastKnownCloudSaved = doc.data().indexUpdatedAt?.toMillis?.() || 0;
 
-        if (localHasData && cloudHasData && localTs !== cloudTs) {
+        const localHasData =
+            localData && Object.keys(localData).filter(k => k !== '_lastSaved').length > 0;
+
+        const cloudHasData =
+            Object.keys(cloudIndex).filter(k => k !== '_lastSaved').length > 0;
+
+        if (localHasData && cloudHasData && !_sameIndexContent(cloudIndex, localData)) {
             await showCloudLocalPicker(cloudIndex, localData, cloudTs, localTs);
-        } else if (cloudHasData) {
+        } else if (cloudHasData && !localHasData) {
             appData = cloudIndex;
             saveData();
-        } else if (localHasData) {
+        } else if (localHasData && !cloudHasData) {
             appData = localData;
             markAllPiecesDirty();
             saveData();
+        } else if (cloudHasData) {
+            appData = cloudIndex;
         }
 
         showSyncStatus('saved');
-    } catch(e) {
+    } catch (e) {
         console.error('Firestore load failed:', e);
         showSyncStatus('failed');
     }
@@ -7748,8 +8122,8 @@ async function pushToFirestore() {
     _pushInFlight = (async () => {
         const pushingIds = Array.from(_dirtyPieceIds);
         const deletingIds = Array.from(_deletedPieceIds);
-        _dirtyPieceIds.clear();
-        _deletedPieceIds.clear();
+        const deletingFolderKeys = Array.from(_deletedFolderKeys);
+        const deletingProjectNames = Array.from(_deletedProjectNames);
         try {
             showSyncStatus('pending');
             const byId = {};
@@ -7758,11 +8132,12 @@ async function pushToFirestore() {
                     (folder.pieces || []).forEach(piece => { if (piece.id) byId[piece.id] = piece; })
                 )
             );
+
+            // Piece content goes first. If this fails, the cloud index hasn't
+            // moved yet, so nothing ends up pointing at content that was never written.
             let batch = fsdb.batch();
             let count = 0;
             const flush = async () => { if (count > 0) { await batch.commit(); batch = fsdb.batch(); count = 0; } };
-            batch.set(fsdb.collection('users').doc(user.uid), { index: buildIndexData() }, { mergeFields: ['index'] });
-            count++;
             for (const pieceId of pushingIds) {
                 const found = byId[pieceId];
                 if (!found) continue;
@@ -7779,11 +8154,52 @@ async function pushToFirestore() {
                 if (count >= 400) await flush();
             }
             await flush();
+
+            // Only publish the index once its referenced content is safely written.
+            const userRef = fsdb.collection('users').doc(user.uid);
+            await fsdb.runTransaction(async (tx) => {
+                const snap = await tx.get(userRef);
+                const cloudData = snap.exists ? snap.data() : {};
+                const cloudIndex = cloudData.index || {};
+                const localIndex = buildIndexData();
+                // Server-authoritative timestamp, not a client Date.now() value —
+                // immune to clock skew between devices and to two saves landing
+                // in the same millisecond.
+                const cloudUpdatedAtMs = cloudData.indexUpdatedAt?.toMillis?.() || 0;
+
+                if (_lastKnownCloudSaved && cloudUpdatedAtMs && cloudUpdatedAtMs !== _lastKnownCloudSaved) {
+                    const historyRef = userRef.collection('indexHistory').doc();
+                    tx.set(historyRef, {
+                        index: cloudIndex,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                }
+
+                const mergedIndex = mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames);
+                tx.set(userRef, {
+                    index: mergedIndex,
+                    indexUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    indexUpdatedByDevice: _deviceId
+                }, { merge: true });
+            });
+
+            // serverTimestamp() only resolves once the write actually commits, so it
+            // can't be read back inside the transaction above — one cheap follow-up
+            // read gets the real resolved value to use as this device's bookmark.
+            const freshSnap = await userRef.get();
+            _lastKnownCloudSaved = freshSnap.data()?.indexUpdatedAt?.toMillis?.() || Date.now();
+
+            // Only drop from the retry queues once everything above actually succeeded.
+            pushingIds.forEach(id => _dirtyPieceIds.delete(id));
+            deletingIds.forEach(id => _deletedPieceIds.delete(id));
+            deletingFolderKeys.forEach(k => _deletedFolderKeys.delete(k));
+            deletingProjectNames.forEach(n => _deletedProjectNames.delete(n));
             showSyncStatus('saved');
         } catch(e) {
             console.error('Firestore push failed:', e);
-            pushingIds.forEach(id => _dirtyPieceIds.add(id));
-            deletingIds.forEach(id => _deletedPieceIds.add(id));
+            // pushingIds/deletingIds were never removed from the real sets above,
+            // so they're still marked dirty/deleted and the next autosave or
+            // manual save will retry them automatically.
             showSyncStatus('failed');
         }
     })();
@@ -7827,7 +8243,13 @@ function showLoginError(msg) {
 }
 
 function logOut() {
-    openConfirm('Log Out', 'You will be signed out of this account.', 'LOGOUT', async () => {
+    const user = firebase.auth().currentUser;
+    const isGuest = !!(user && user.isAnonymous);
+    const msg = isGuest
+        ? 'This guest session has no email or password. Ending it means there is no way to sign back into this exact data later — it will be gone from this browser for good. End the guest session anyway?'
+        : 'Log out of this account?';
+    if (!confirm(msg)) return;
+    (async () => {
         try {
             await firebase.auth().signOut();
         } catch(e) {
@@ -7841,10 +8263,16 @@ function logOut() {
         appData = {};
         _dirtyPieceIds.clear();
         _deletedPieceIds.clear();
-        try { await idbSet('miliket_data', {}); } catch(err) { console.error('Could not clear local cache', err); }
+        _deletedFolderKeys.clear();
+        _deletedProjectNames.clear();
+        stopIndexConflictListener();
+        hideRemoteChangeBanner();
+        // No longer wiping IndexedDB here — doing so destroyed the local baseline
+        // loadFromFirestore() needs to correctly detect a real cloud/local conflict
+        // the next time someone logs into this same account on this device.
         localStorage.removeItem('miliket_last_saved');
         showStudioPage('page-welcome');
-    });
+    })();
 }
 
 async function openChangeEmail() {
@@ -7980,11 +8408,13 @@ async function enterStudio() {
             );
         }
         await loadFromFirestore(firebaseUser.uid);
+        startIndexConflictListener(firebaseUser.uid);
     } catch (error) {
         console.error('Auth failed:', error);
         showSyncStatus('failed');
     }
 
+    updateGuestUI();
     renderProjects();
     checkSyncReminder();
 }
