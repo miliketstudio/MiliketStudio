@@ -3309,15 +3309,31 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         var $b = $(this); $b.text('✓ Pushed!'); setTimeout(()=>$b.text('📡 Push to Present'),1400);
     });
 
-    $('#saveform').off('click.sf').on('click.sf', function(e){
+    $('#saveform').off('click.sf').on('click.sf', async function(e){
         e.preventDefault();
         var name = (currentUser !== null && currentFolder !== null && currentPiece !== null)
             ? (appData[currentUser].folders[currentFolder].pieces[currentPiece].name || '').trim()
             : '';
         if (!name) { alert('No piece loaded — open a piece first.'); return; }
+
+        var $b = $(this);
+        var restLabel = '💾 Save';
+
+        if (_editorPieceId) {
+            $b.prop('disabled', true).text('Checking…');
+            var check = await checkRemoteConflict(_editorPieceId, _editorPieceLoadedModified);
+            $b.prop('disabled', false).text(restLabel);
+            if (check.conflict) {
+                var when = check.remotePiece.lastModified ? new Date(check.remotePiece.lastModified).toLocaleString() : 'recently';
+                var proceed = confirm('This piece was changed by someone else on ' + when + ', since you opened it here.\n\nSaving now will overwrite their changes with yours.\n\nClick OK to overwrite anyway, or Cancel to stop and review first.');
+                if (!proceed) return;
+            }
+        }
+
         savePieceNow();
         saveAndSync();
-        var $b = $(this); $b.text('Saved!'); setTimeout(()=>$b.text('💾 Save'),1200);
+        _editorPieceLoadedModified = new Date().toISOString();
+        $b.text('Saved!'); setTimeout(()=>$b.text(restLabel),1200);
     });
 
 }
@@ -3526,6 +3542,7 @@ $('#submitBtn').on('click', function(){
     if (currentUser && currentFolder !== null && currentPiece !== null) {
         appData[currentUser].folders[currentFolder].pieces[currentPiece].content = entered;
         _editorPieceId = appData[currentUser].folders[currentFolder].pieces[currentPiece].id;
+        _editorPieceLoadedModified = appData[currentUser].folders[currentFolder].pieces[currentPiece].lastModified || null;
         saveData();
     } else {
         _editorPieceId = null;
@@ -3561,6 +3578,7 @@ let currentPiece = null;
 let confirmCallback = null;
 let confirmAnswer = '';
 let _editorPieceId = null;
+let _editorPieceLoadedModified = null; // lastModified of the piece as loaded into the editor — used to detect if someone else changed it in the cloud since then
 
 // Stable identifier for this browser/device, so the listener knows
 // whether the current write was from this device or another one.
@@ -5168,6 +5186,7 @@ function continueEditingCurrentPiece() {
     }
     text = ($('#textInput').val() || '').trim() || (piece.content || '');
     _editorPieceId = piece.id;
+    _editorPieceLoadedModified = piece.lastModified || null;
     showPage('editor');
 }
 
@@ -5182,6 +5201,7 @@ function loadPieceIntoEditor(index) {
     if (piece.visualData && piece.visualData.trim()) {
         // Has saved visual — activate editor page directly, never call populateContainer
         _editorPieceId = piece.id;
+        _editorPieceLoadedModified = piece.lastModified || null;
         text = piece.content || '';
         $('.page').removeClass('active');
         $('#page-editor').addClass('active');
@@ -5244,6 +5264,35 @@ function savePieceNow() {
     markPieceDirty(piece.id);
     unsavedChanges = false;
     saveData();
+}
+
+// Checks whether this piece was changed in the cloud after this device loaded it.
+// Fails open (returns no conflict) if offline or the check itself errors — a
+// network hiccup here should never block a normal save.
+async function checkRemoteConflict(pieceId, loadedModified) {
+    if (!pieceId) return { conflict: false };
+    const user = firebase.auth().currentUser;
+    if (!user || !navigator.onLine) return { conflict: false };
+    try {
+        const doc = await fsdb.collection('users').doc(user.uid).get({ source: 'server' });
+        if (!doc.exists) return { conflict: false };
+        const index = doc.data().index || {};
+        let remotePiece = null;
+        Object.keys(index).filter(k => k !== '_lastSaved').forEach(projName => {
+            (index[projName].folders || []).forEach(folder => {
+                (folder.pieces || []).forEach(p => {
+                    if (p.id === pieceId) remotePiece = p;
+                });
+            });
+        });
+        if (!remotePiece) return { conflict: false };
+        const remoteModified = new Date(remotePiece.lastModified || 0).getTime();
+        const localLoadedModified = new Date(loadedModified || 0).getTime();
+        return { conflict: remoteModified > localLoadedModified, remotePiece };
+    } catch (e) {
+        console.warn('Remote conflict check failed:', e);
+        return { conflict: false };
+    }
 }
 
 // --- Export / Import ---
@@ -5469,7 +5518,6 @@ function triggerAutoSave() {
         savePieceNow();
         saveData();
         await pushToFirestore();
-        showSyncStatus('saved');
     }, 10000);
     showSyncStatus('pending');
 }
@@ -8118,6 +8166,10 @@ let _pushInFlight = null;
 async function pushToFirestore() {
     const user = firebase.auth().currentUser;
     if (!user) return;
+    if (!navigator.onLine) {
+        showSyncStatus('failed');
+        return;
+    }
     if (_pushInFlight) { try { await _pushInFlight; } catch(e) {} }
     _pushInFlight = (async () => {
         const pushingIds = Array.from(_dirtyPieceIds);
