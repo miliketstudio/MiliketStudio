@@ -2606,6 +2606,7 @@
                     <select id="preset-select">
                         <option value="Sirate Negs">Sirate Negs</option>
                     </select>
+                    <button class="primary-btn" type="button" onclick="window.openSmartSelectionModal()">✨ Smart Selection</button>
                     <button class="secondary-btn" type="button" onclick="presetBackToMode()">← Back</button>
                 </div>
 
@@ -2651,6 +2652,20 @@
             <button class="preset-rule-editor-cancel" type="button" onclick="closePresetRuleEditor()">Cancel</button>
             <button class="preset-rule-editor-preview" type="button" onclick="previewPresetRuleEditor()">▶ Preview</button>
             <button class="preset-rule-editor-save" type="button" onclick="savePresetRuleEditor()">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- Smart Selection — Isme Lealem Folder Picker -->
+<div id="smart-select-scope-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100050;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);color:var(--text);border-radius:12px;padding:26px;width:420px;max-width:92%;border-top:4px solid #b8860b;box-shadow:0 10px 40px rgba(0,0,0,0.35);box-sizing:border-box;">
+        <h3 style="margin:0 0 6px;font-size:15px;">✨ Smart Selection</h3>
+        <p style="margin:0 0 16px;font-size:12px;color:var(--text-muted);">Your project may have more than one folder that could be the Isme Lealem source. Choose which one to pull from.</p>
+        <label style="font-size:12px;font-weight:bold;color:var(--text);display:block;margin-bottom:6px;">Isme Lealem folder:</label>
+        <select id="smart-select-isme-lealem-folder" style="width:100%;padding:9px;border:2px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text);font-size:0.9rem;box-sizing:border-box;"></select>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:18px;">
+            <button type="button" onclick="window.closeSmartSelectionModal()" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 18px;font-weight:bold;cursor:pointer;font-size:13px;">Cancel</button>
+            <button type="button" onclick="window.confirmSmartSelectionModal()" style="background:#b8860b;color:white;border:none;border-radius:6px;padding:9px 20px;font-weight:bold;cursor:pointer;font-size:13px;">✓ Run Smart Selection</button>
         </div>
     </div>
 </div>
@@ -8974,6 +8989,26 @@ function updateChronoDisplay() {
         Leqeqa: { label: 'Leqeqa', chunkRule: 'Leqeqa' }
     };
 
+    const RULE_ALIASES = {
+        'melk': ['መልክዕ'],
+        'ziq': ['ዚቅ'],
+        'wereb': ['ወረብ'],
+        'nish': ['ንሽ'],
+        'tsifat': ['ጽፋት', 'ጽፋ'],
+        'nish tsifat': ['ንሽ ጽፋት', 'ንሽ ጽፋ'],
+        'amelales': ['አመላለስ', 'አመ'],
+        'zigita': ['ዝግታ'],
+        'mulu tsifat': ['ሙሉ ጽፋት', 'ሙሉን ጽፋት'],
+        'qum': ['ቁም'],
+        'mulu qum': ['ሙሉ ቁም', 'ሙሉን ቁም'],
+        'mereged mansha': ['መረግድ ማንሻ', 'መረ ማ'],
+        'leqeqa': ['ለቀቃ'],
+        'isme lealem zema': ['ዜማ'],
+        'angergari zema': ['ዜማ'],
+        'zimame': ['ዝማሜ', 'ዝም'],
+        'miltan zimame': ['ምልጣን ዝማሜ', 'ምል ዝም']
+    };
+
     const presetState = {
         mode: 'manual',
         presetName: 'Sirate Negs',
@@ -8981,6 +9016,7 @@ function updateChronoDisplay() {
     };
 
     let presetEditorTarget = null;
+        let ismeLealemFolderOverride = '';
 
     function presetNormalizeText(value) {
         return String(value || '')
@@ -9039,21 +9075,19 @@ function updateChronoDisplay() {
     }
 
     function defaultPresetConfig() {
-        const projectPieces = getProjectPieceOptions();
-
         const slots = [
-            { id: 'Melk 1', type: 'Melk', selectedId: projectPieces[0]?.value || '' },
-            { id: 'Ziq 1', type: 'Ziq', selectedId: projectPieces[1]?.value || '' },
-            { id: 'Wereb 1', type: 'Wereb', selectedId: projectPieces[2]?.value || '' },
-            { id: 'Melk 2', type: 'Melk', selectedId: projectPieces[3]?.value || '' },
-            { id: 'Ziq 2', type: 'Ziq', selectedId: projectPieces[4]?.value || '' },
-            { id: 'Wereb 2', type: 'Wereb', selectedId: projectPieces[5]?.value || '' },
-            { id: 'Melk 3', type: 'Melk', selectedId: projectPieces[6]?.value || '' },
-            { id: 'Ziq 3', type: 'Ziq', selectedId: projectPieces[7]?.value || '' },
-            { id: 'Wereb 3', type: 'Wereb', selectedId: projectPieces[8]?.value || '' },
-            { id: 'Melk 4', type: 'Melk', selectedId: projectPieces[9]?.value || '' },
-            { id: 'Ziq 4', type: 'Ziq', selectedId: projectPieces[10]?.value || '' },
-            { id: 'Wereb 4', type: 'Wereb', selectedId: projectPieces[11]?.value || '' }
+            { id: 'Melk 1', type: 'Melk', selectedId: '' },
+            { id: 'Ziq 1', type: 'Ziq', selectedId: '' },
+            { id: 'Wereb 1', type: 'Wereb', selectedId: '' },
+            { id: 'Melk 2', type: 'Melk', selectedId: '' },
+            { id: 'Ziq 2', type: 'Ziq', selectedId: '' },
+            { id: 'Wereb 2', type: 'Wereb', selectedId: '' },
+            { id: 'Melk 3', type: 'Melk', selectedId: '' },
+            { id: 'Ziq 3', type: 'Ziq', selectedId: '' },
+            { id: 'Wereb 3', type: 'Wereb', selectedId: '' },
+            { id: 'Melk 4', type: 'Melk', selectedId: '' },
+            { id: 'Ziq 4', type: 'Ziq', selectedId: '' },
+            { id: 'Wereb 4', type: 'Wereb', selectedId: '' }
         ];
 
         return {
@@ -9116,6 +9150,7 @@ function updateChronoDisplay() {
 
         presetState.presetName = document.getElementById('preset-select')?.value || 'Sirate Negs';
         presetState.sections = defaultPresetConfig().sections;
+        smartSelectPresetPieces(false);
         renderPresetCreator();
     }
 
@@ -9129,6 +9164,7 @@ function updateChronoDisplay() {
         if (!overlay) return;
 
         presetState.sections = defaultPresetConfig().sections;
+        smartSelectPresetPieces(false);
         presetState.presetName = 'Sirate Negs';
 
         const select = document.getElementById('preset-select');
@@ -9553,6 +9589,296 @@ function addPresetSet(sectionIndex) {
 
         alert(`Preset saved as "${safeName}"`);
     }
+    
+    function smartNormalize(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[×*_'"`]/g, ' ')
+        .replace(/[^a-z0-9\u1200-\u137f]+/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function smartLevenshtein(a, b) {
+    a = smartNormalize(a);
+    b = smartNormalize(b);
+
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+
+    const previous = Array.from(
+        { length: b.length + 1 },
+        (_, index) => index
+    );
+
+    for (let i = 1; i <= a.length; i++) {
+        const current = [i];
+
+        for (let j = 1; j <= b.length; j++) {
+            const insert = current[j - 1] + 1;
+            const remove = previous[j] + 1;
+            const replace =
+                previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1);
+
+            current[j] = Math.min(insert, remove, replace);
+        }
+
+        for (let j = 0; j < current.length; j++) {
+            previous[j] = current[j];
+        }
+    }
+
+    return previous[b.length];
+}
+
+function smartSimilarity(a, b) {
+    const left = smartNormalize(a);
+    const right = smartNormalize(b);
+
+    if (!left || !right) return 0;
+    if (left === right) return 1;
+    if (left.includes(right) || right.includes(left)) return 0.9;
+
+    const distance = smartLevenshtein(left, right);
+    return 1 - distance / Math.max(left.length, right.length);
+}
+
+function smartFolderMatches(folderName, allowedFolders) {
+    const folder = smartNormalize(folderName);
+
+    return allowedFolders.some(name => {
+        const allowed = smartNormalize(name);
+
+        return (
+            folder === allowed ||
+            folder.includes(allowed) ||
+            allowed.includes(folder)
+        );
+    });
+}
+
+function smartAllowedFolders(section, slot) {
+    const sectionName = smartNormalize(section.title);
+    const slotType = smartNormalize(slot.type);
+    const slotName = smartNormalize(slot.id);
+
+    if (slotType === 'melk' || slotName.startsWith('melk')) {
+        return ['Melk', 'መልክዕ', 'መልክ'];
+    }
+
+    if (slotType === 'ziq' || slotName.startsWith('ziq')) {
+        return ['Ziq', 'ዚቅ']
+    }
+
+    if (slotType === 'wereb' || slotName.startsWith('wereb')) {
+        return ['Wereb', 'ወረብ'];
+    }
+
+    if (
+        sectionName.includes('angergari') ||
+        slotType.includes('angergari') ||
+        slotType.includes('zema')
+    ) {
+        return ['Angergari', 'አንገርጋሪ', 'Miltan', 'ምልጣን'];
+    }
+
+    if (
+        sectionName.includes('isme lealem') ||
+        [
+            'amelales',
+            'tsifat',
+            'leqeqa',
+            'nish',
+            'miltan zimame',
+            'zimame',
+            'mulu qum',
+            'mereged mansha'
+        ].some(value =>
+            slotType.includes(smartNormalize(value))
+        )
+    ) {
+        return ismeLealemFolderOverride ? [ismeLealemFolderOverride] : ['Isme Lealem', 'እስመ ለዓለም'];
+    }
+
+    return [];
+}
+
+function smartSlotSearchText(slot) {
+    return smartNormalize(
+        `${slot.id || ''} ${slot.type || ''}`
+    )
+        .replace(/\b[0-9]+\b/g, '')
+        .replace(/\b(nish|mil|zimame|loop|custom|slot)\b/g, '')
+        .trim();
+}
+
+function smartFindPieceForSlot(section, slot, options) {
+    const allowedFolders = smartAllowedFolders(section, slot);
+
+    if (!allowedFolders.length) {
+        return null;
+    }
+
+    const candidates = options
+        .filter(option =>
+            smartFolderMatches(
+                option.folderName,
+                allowedFolders
+            )
+        )
+        .map(option => {
+            const piece = getPieceById(option.value);
+
+            const labelScore = smartSimilarity(
+                smartSlotSearchText(slot),
+                option.label
+            );
+
+            const amharicScore = piece
+                ? smartSimilarity(
+                    smartSlotSearchText(slot),
+                    piece.name
+                )
+                : 0;
+
+            return {
+                option,
+                score: Math.max(labelScore, amharicScore, smartAliasScore(slot, option, piece))
+            };
+        })
+        .sort((a, b) => b.score - a.score);
+
+    if (!candidates.length) {
+        return null;
+    }
+
+    /*
+     * For generic numbered slots such as Melk 1, Melk 2,
+     * use the numbered candidate in that folder.
+     */
+    const numberMatch = String(slot.id || '').match(/\d+/);
+
+    if (
+        numberMatch &&
+        ['melk', 'ziq', 'wereb'].includes(
+            smartNormalize(slot.type)
+        )
+    ) {
+        const requestedIndex = Number(numberMatch[0]) - 1;
+
+        if (
+            requestedIndex >= 0 &&
+            requestedIndex < candidates.length
+        ) {
+            return candidates[requestedIndex].option;
+        }
+    }
+
+    /*
+     * Require a reasonable fuzzy match for named sections.
+     * If none exists, leave the slot empty for manual selection.
+     */
+    return candidates[0].score >= 0.55
+        ? candidates[0].option
+        : null;
+}
+
+function smartSelectPresetPieces(showStatus = true) {
+    const options = getProjectPieceOptions();
+    let selectedCount = 0;
+    let emptyCount = 0;
+
+    (presetState.sections || []).forEach(section => {
+        (section.slots || []).forEach(slot => {
+            const match = smartFindPieceForSlot(
+                section,
+                slot,
+                options
+            );
+
+            if (match) {
+                slot.selectedId = match.value;
+                slot.smartSelected = true;
+                selectedCount++;
+            } else {
+                slot.selectedId = '';
+                slot.smartSelected = false;
+                emptyCount++;
+            }
+        });
+    });
+
+    renderPresetCreator();
+
+    if (showStatus) {
+        const message =
+            `Smart Selection: ${selectedCount} selected, ` +
+            `${emptyCount} left for manual selection.`;
+
+        console.log(message);
+
+        if (typeof showToast === 'function') {
+            showToast(message);
+        } else {
+            alert(message);
+        }
+    }
+}
+
+    function openSmartSelectionModal() {
+        const modal = document.getElementById('smart-select-scope-modal');
+        const select = document.getElementById('smart-select-isme-lealem-folder');
+        if (!modal || !select) { smartSelectPresetPieces(true); return; }
+
+        const folders = (currentUser && appData[currentUser] && appData[currentUser].folders) || [];
+        if (!folders.length) { alert('Open a project with folders before running Smart Selection.'); return; }
+
+        select.innerHTML = '';
+        folders.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder.name;
+            option.textContent = folder.name;
+            select.appendChild(option);
+        });
+
+        const guess = folders.find(f => {
+            const n = smartNormalize(f.name);
+            return n.includes(smartNormalize('Isme Lealem')) || n.includes(smartNormalize('እስመ ለዓለም'));
+        });
+        select.value = (ismeLealemFolderOverride && folders.some(f => f.name === ismeLealemFolderOverride))
+            ? ismeLealemFolderOverride
+            : (guess ? guess.name : folders[0].name);
+
+        modal.style.display = 'flex';
+    }
+
+    function closeSmartSelectionModal() {
+        const modal = document.getElementById('smart-select-scope-modal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function confirmSmartSelectionModal() {
+        const select = document.getElementById('smart-select-isme-lealem-folder');
+        ismeLealemFolderOverride = select ? select.value : '';
+        closeSmartSelectionModal();
+        smartSelectPresetPieces(true);
+    }
+
+    function smartAliasScore(slot, option, piece) {
+        const aliases = RULE_ALIASES[smartNormalize(slot.type)] || [];
+        if (!aliases.length) return 0;
+        const pieceNames = [option.label, piece ? piece.name : ''].filter(Boolean);
+        let best = 0;
+        aliases.forEach(alias => {
+            pieceNames.forEach(name => {
+                best = Math.max(best, smartSimilarity(alias, name));
+            });
+        });
+        return best;
+    }
 
     function getPieceById(id) {
         if (!currentUser || !appData[currentUser]) return null;
@@ -9892,6 +10218,10 @@ function generatePresetDeck() {
     window.previewPresetRuleEditor = previewPresetRuleEditor;
     window.savePresetConfig = savePresetConfig;
     window.generatePresetDeck = generatePresetDeck;
+    window.smartSelectPresetPieces = smartSelectPresetPieces;
+    window.openSmartSelectionModal = openSmartSelectionModal;
+    window.closeSmartSelectionModal = closeSmartSelectionModal;
+    window.confirmSmartSelectionModal = confirmSmartSelectionModal;
 })();
 </script>
 </body>
