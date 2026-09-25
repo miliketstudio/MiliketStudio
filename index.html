@@ -1915,6 +1915,30 @@
     white-space: normal;
     overflow-wrap: anywhere;
 }
+
+.preset-slot-name-input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    padding: 4px 6px;
+    background: transparent;
+    color: var(--text);
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 0.8rem;
+    font-weight: bold;
+    outline: none;
+}
+
+.preset-slot-name-input:hover,
+.preset-slot-name-input:focus {
+    border-color: var(--gold);
+    background: var(--page-bg);
+}
+
+.preset-slot-name-input:focus {
+    box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.14);
+}
         
     </style>
 </head>
@@ -2607,6 +2631,7 @@
             <option value="Isme Lealem Zema">Isme Lealem Zema</option>
             <option value="Angergari Zema">Angergari Zema</option>
             <option value="Zimame">Zimame</option>
+            <option value="Nish">Nish</option>
             <option value="Miltan Zimame">Miltan Zimame</option>
             <option value="Tsifat">Tsifat</option>
             <option value="Nish Tsifat">Nish Tsifat</option>
@@ -9043,14 +9068,14 @@ function updateChronoDisplay() {
                     slots: [
                         { id: 'Isme Lealem Zema', type: 'Isme Lealem Zema', selectedId: '' },
                         { id: 'Angergari Zema', type: 'Angergari Zema', selectedId: '' },
-                        { id: 'Zimame Loop A', type: 'Zimame', selectedId: '' },
-                        { id: 'Zimame Loop B', type: 'Miltan Zimame', selectedId: '' },
+                        { id: 'Nish ×3', type: 'Nish', selectedId: '', customRule: '' },
+                        { id: 'Mil Zimame ×3', type: 'Miltan Zimame', selectedId: '', customRule: '' },
                         { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
                         { id: 'Amelales', type: 'Amelales', selectedId: '' },
                         { id: 'Nish Tsifat', type: 'Nish Tsifat', selectedId: '' },
                         { id: 'Zigita', type: 'Zigita', selectedId: '' },
                         { id: 'Mulu Tsifat', type: 'Mulu Tsifat', selectedId: '' },
-                        { id: 'Wereb Qum', type: 'Wereb', selectedId: '' },
+                        { id: 'Wereb', type: 'Wereb', selectedId: '' },
                         { id: 'Qum', type: 'Qum', selectedId: '' }
                     ]
                 },
@@ -9062,7 +9087,8 @@ function updateChronoDisplay() {
                         { id: 'Mereged', type: 'Mereged Mansha', selectedId: '' },
                         { id: 'Mansha Tsifat', type: 'Tsifat', selectedId: '' },
                         { id: 'Amelales', type: 'Amelales', selectedId: '' },
-                        { id: 'Tsifat Wereb', type: 'Wereb', selectedId: '' },
+                        { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
+                        { id: 'Wereb', type: 'Wereb', selectedId: '', customRule: '' },
                         { id: 'Leqeqa', type: 'Leqeqa', selectedId: '' }
                     ]
                 }
@@ -9162,9 +9188,22 @@ function updateChronoDisplay() {
                 const headerRow = document.createElement('div');
                 headerRow.className = 'preset-slot-header';
 
-                const name = document.createElement('div');
-                name.className = 'preset-slot-name';
-                name.textContent = slot.id;
+                const name = document.createElement('input');
+                name.type = 'text';
+                name.className = 'preset-slot-name preset-slot-name-input';
+                name.value = slot.id || '';
+                name.title = 'Click to rename this slot';
+                name.setAttribute('aria-label', 'Slot name');
+
+                name.addEventListener('change', function () {
+                    const newName = name.value.trim();
+
+                    if (newName) {
+                        slot.id = newName;
+                    } else {
+                        name.value = slot.id || '';
+                    }
+                });
 
                 const selectBtn = document.createElement('button');
                 selectBtn.type = 'button';
@@ -9239,20 +9278,79 @@ function updateChronoDisplay() {
         });
     }
 
-    function addPresetSet(sectionIndex) {
-        const section = presetState.sections[sectionIndex];
-        if (!section) return;
+function addPresetSet(sectionIndex) {
+    const section = presetState.sections[sectionIndex];
 
-        const nextNumber = (section.slots || []).filter(s => s.id.includes('Melk')).length + 1;
+    if (!section) {
+        return;
+    }
+
+    const sectionTitle = String(section.title || '')
+        .trim()
+        .toLowerCase();
+
+    if (!Array.isArray(section.slots)) {
+        section.slots = [];
+    }
+
+    if (sectionTitle === 'sirate negs') {
+        const melkCount = section.slots.filter(slot =>
+            String(slot.type || '').toLowerCase() === 'melk'
+        ).length;
+
+        const nextNumber = melkCount + 1;
 
         section.slots.push(
-            { id: `Melk ${nextNumber}`, type: 'Melk', selectedId: '' },
-            { id: `Ziq ${nextNumber}`, type: 'Ziq', selectedId: '' },
-            { id: `Wereb ${nextNumber}`, type: 'Wereb', selectedId: '' }
+            {
+                id: `Melk ${nextNumber}`,
+                type: 'Melk',
+                selectedId: '',
+                customRule: ''
+            },
+            {
+                id: `Ziq ${nextNumber}`,
+                type: 'Ziq',
+                selectedId: '',
+                customRule: ''
+            },
+            {
+                id: `Wereb ${nextNumber}`,
+                type: 'Wereb',
+                selectedId: '',
+                customRule: ''
+            }
         );
+    } else {
+        const customSlotCount = section.slots.filter(slot =>
+            String(slot.id || '').startsWith('Custom Slot')
+        ).length;
 
-        renderPresetCreator();
+        const nextNumber = customSlotCount + 1;
+
+        section.slots.push(
+            {
+                id: `Custom Slot ${nextNumber}`,
+                type: 'Zimame',
+                selectedId: '',
+                customRule: ''
+            },
+            {
+                id: `Custom Slot ${nextNumber + 1}`,
+                type: 'Zimame',
+                selectedId: '',
+                customRule: ''
+            },
+            {
+                id: `Custom Slot ${nextNumber + 2}`,
+                type: 'Zimame',
+                selectedId: '',
+                customRule: ''
+            }
+        );
     }
+
+    renderPresetCreator();
+}
 
     function presetChoosePieceForSlot(sectionIndex, slotIndex) {
         const section = presetState.sections[sectionIndex];
@@ -9532,6 +9630,7 @@ function presetChunkSegments(segments, ruleType, customRule) {
             return segments.map(segment => [segment]);
 
         case 'Wereb':
+        case 'Nish':
         case 'Tsifat':
         case 'Nish Tsifat':
         case 'Amelales':
@@ -9557,66 +9656,169 @@ function presetChunkSegments(segments, ruleType, customRule) {
     }
 }
 
+function appendPresetSlotToDeck(deck, slot) {
+    if (!slot || !slot.selectedId) {
+        return;
+    }
+
+    const piece = getPieceById(slot.selectedId);
+
+    if (!piece) {
+        console.warn(
+            'Preset slot references a missing piece:',
+            slot
+        );
+        return;
+    }
+
+    const visualData = piece.visualData || '';
+
+    if (!visualData.trim()) {
+        console.warn(
+            'Preset piece has no visualData:',
+            piece
+        );
+        return;
+    }
+
+    const isImage = isImagePieceHtml(visualData);
+
+    /*
+     * Images must remain as one complete slide.
+     * Do not send image HTML through splitByPunctuation().
+     */
+    const segments = isImage
+        ? [visualData]
+        : splitByPunctuation(visualData);
+
+    if (!Array.isArray(segments) || !segments.length) {
+        console.warn(
+            'Preset piece produced no segments:',
+            {
+                slot,
+                pieceName: piece.name,
+                isImage
+            }
+        );
+        return;
+    }
+
+    const translationSegments = isImage
+        ? [piece.translation || '']
+        : splitTranslation(piece.translation || '');
+
+    const chunks = isImage
+        ? [segments]
+        : presetChunkSegments(
+            segments,
+            slot.type,
+            slot.customRule
+        );
+
+    let segmentOffset = 0;
+
+    chunks.forEach(chunk => {
+        if (!Array.isArray(chunk) || !chunk.length) {
+            return;
+        }
+
+        const geezHtml = chunk
+            .map(segment => {
+                if (typeof segment === 'string') {
+                    return segment;
+                }
+
+                return segment.segmentHtml || '';
+            })
+            .join('');
+
+        if (!geezHtml.trim()) {
+            return;
+        }
+
+        const translation = translationSegments
+            .slice(
+                segmentOffset,
+                segmentOffset + chunk.length
+            )
+            .filter(Boolean)
+            .join(' ');
+
+        segmentOffset += chunk.length;
+
+        deck.push({
+            geezHtml,
+            translation,
+            pieceName: piece.name || slot.id,
+            presetSlot: slot.id,
+            isImage
+        });
+    });
+}
+
 function buildPresetSlideDeck() {
     const deck = [];
 
     (presetState.sections || []).forEach(section => {
-        (section.slots || []).forEach(slot => {
-            if (!slot.selectedId) return;
+        const slots = section.slots || [];
+        const processedLoopSlots = new Set();
 
-            const piece = getPieceById(slot.selectedId);
-            if (!piece || !piece.visualData) return;
-
-            const segments = splitByPunctuation(piece.visualData);
-
-            if (!Array.isArray(segments) || !segments.length) {
+        slots.forEach(slot => {
+            if (!slot || !slot.selectedId) {
                 return;
             }
 
-            const translationSegments =
-                splitTranslation(piece.translation || '');
+            const isNishLoop = slot.id === 'Nish ×3';
+            const isMilZimameLoop = slot.id === 'Mil Zimame ×3';
 
-            const chunks = presetChunkSegments(
-                segments,
-                slot.type,
-                slot.customRule
-            );
+            if (isNishLoop || isMilZimameLoop) {
+                if (processedLoopSlots.has('Nish ×3')) {
+                    return;
+                }
 
-            let segmentOffset = 0;
+                if (processedLoopSlots.has('Mil Zimame ×3')) {
+                    return;
+                }
 
-            chunks.forEach(chunk => {
-                if (!chunk.length) return;
+                const nishSlot = slots.find(item =>
+                    item.id === 'Nish ×3'
+                );
 
-                const geezHtml = chunk
-                    .map(segment => {
-                        if (typeof segment === 'string') {
-                            return segment;
-                        }
+                const milZimameSlot = slots.find(item =>
+                    item.id === 'Mil Zimame ×3'
+                );
 
-                        return segment.segmentHtml || '';
-                    })
-                    .join('');
+                if (nishSlot && nishSlot.selectedId) {
+                    processedLoopSlots.add('Nish ×3');
+                }
 
-                const translation = translationSegments
-                    .slice(
-                        segmentOffset,
-                        segmentOffset + chunk.length
-                    )
-                    .filter(Boolean)
-                    .join(' ');
+                if (milZimameSlot && milZimameSlot.selectedId) {
+                    processedLoopSlots.add('Mil Zimame ×3');
+                }
 
-                segmentOffset += chunk.length;
+                for (let repeat = 0; repeat < 3; repeat++) {
+                    if (nishSlot && nishSlot.selectedId) {
+                        appendPresetSlotToDeck(
+                            deck,
+                            nishSlot
+                        );
+                    }
 
-                if (!geezHtml.trim()) return;
+                    if (
+                        milZimameSlot &&
+                        milZimameSlot.selectedId
+                    ) {
+                        appendPresetSlotToDeck(
+                            deck,
+                            milZimameSlot
+                        );
+                    }
+                }
 
-                deck.push({
-                    geezHtml,
-                    translation,
-                    pieceName: piece.name || slot.id,
-                    presetSlot: slot.id,
-                    isImage: isImagePieceHtml(geezHtml)
-                });
-            });
+                return;
+            }
+
+            appendPresetSlotToDeck(deck, slot);
         });
     });
 
