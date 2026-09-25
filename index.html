@@ -2400,6 +2400,21 @@
     </div>
 </div>
 
+<!-- Remote Conflict Warning Modal -->
+<div id="conflict-warning-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;align-items:center;justify-content:center;">
+    <div style="background:var(--card-bg);color:var(--text);border-radius:12px;padding:28px;width:460px;max-width:92%;border-top:4px solid #e67e22;box-shadow:0 10px 40px rgba(0,0,0,0.35);box-sizing:border-box;">
+        <h3 style="margin:0 0 10px;font-size:16px;">⚠ Changed Elsewhere Since You Opened It</h3>
+        <p id="conflict-warning-text" style="margin:0 0 12px;font-size:13px;color:var(--text-muted);line-height:1.6;"></p>
+        <p style="margin:0 0 20px;font-size:12px;color:var(--text-muted);line-height:1.6;background:rgba(184,134,11,0.08);border-left:3px solid var(--gold);padding:8px 10px;border-radius:0 6px 6px 0;">
+            Tip: if you don't like what happens after saving, click <strong>Copy HTML</strong> now, before refreshing — that lets you <strong>Paste HTML</strong> back in to restore your version.
+        </p>
+        <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button id="conflict-warning-cancel" style="background:#eee;color:#333;border:none;border-radius:6px;padding:10px 18px;font-weight:bold;cursor:pointer;font-size:13px;">Cancel — Let Me Review</button>
+            <button id="conflict-warning-overwrite" style="background:#e67e22;color:white;border:none;border-radius:6px;padding:10px 18px;font-weight:bold;cursor:pointer;font-size:13px;">Overwrite Anyway</button>
+        </div>
+    </div>
+</div>
+
 <!-- Local Recovery Modal — shows what's actually saved on this computer,
      independent of cloud state, so a sync problem can be reviewed and
      recovered from without guessing. -->
@@ -3337,7 +3352,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
             $b.prop('disabled', false).text(restLabel);
             if (check.conflict) {
                 var when = check.remotePiece.lastModified ? new Date(check.remotePiece.lastModified).toLocaleString() : 'recently';
-                var proceed = confirm('This piece was changed by someone else on ' + when + ', since you opened it here.\n\nSaving now will overwrite their changes with yours.\n\nClick OK to overwrite anyway, or Cancel to stop and review first.Click Copy HTML before Page Refresh to Paste HTML if you do not like the other users change.');
+                var proceed = await showConflictWarningModal(when);
                 if (!proceed) return;
             }
         }
@@ -4308,6 +4323,25 @@ async function checkLock(pieceId) {
         console.warn('Lock check failed:', e);
         return { lockedByOther: false };
     }
+}
+
+function showConflictWarningModal(when) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('conflict-warning-modal');
+        const text = document.getElementById('conflict-warning-text');
+        text.textContent = 'This piece was changed by someone else on ' + when + ', since you opened it here. Saving now will overwrite their changes with yours.';
+        modal.style.display = 'flex';
+        const cancelBtn = document.getElementById('conflict-warning-cancel');
+        const overwriteBtn = document.getElementById('conflict-warning-overwrite');
+        function cleanup(result) {
+            modal.style.display = 'none';
+            cancelBtn.onclick = null;
+            overwriteBtn.onclick = null;
+            resolve(result);
+        }
+        cancelBtn.onclick = () => cleanup(false);
+        overwriteBtn.onclick = () => cleanup(true);
+    });
 }
 
 function showLockWarningModal(lockedAt) {
@@ -5618,6 +5652,10 @@ function triggerAutoSave() {
         saveData();
         refreshLock();
         await pushToFirestore();
+        // Autosave just pushed this piece's own lastModified to the cloud —
+        // update our "loaded at" bookmark so the next manual Save doesn't
+        // mistake our own autosave for a change from another device.
+        if (_editorPieceId) _editorPieceLoadedModified = new Date().toISOString();
     }, 10000);
     showSyncStatus('pending');
 }
