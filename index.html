@@ -2690,6 +2690,7 @@
             <option value="Qum">Qum</option>
             <option value="Mulu Qum">Mulu Qum</option>
             <option value="Mereged Mansha">Mereged Mansha</option>
+            <option value="Mulu Mereged">Mulu Mereged</option>
             <option value="Leqeqa">Leqeqa</option>
         </select>
 
@@ -6398,10 +6399,15 @@ let _presetBuiltDeck = false; // true when the current #page-slides deck came fr
 function undoLastSlide() {
     if (_presetBuiltDeck) {
         // Preset-generated decks have no line-by-line picker to step back
-        // into — Back just exits the builder the same way an empty deck does.
+        // into — Back returns to the Preset Creator instead, with the same
+        // section/slot selections still in place, so tweaking a preset and
+        // regenerating stays a fast back-and-forth.
         _ssZoomLevels = [];
         _presetBuiltDeck = false;
         exitSlides();
+        if (typeof window.reopenPresetCreatorPreservingState === 'function') {
+            window.reopenPresetCreatorPreservingState();
+        }
         return;
     }
     if (_builtSlides.length === 0) {
@@ -9631,6 +9637,21 @@ function updateChronoDisplay() {
         'miltan zimame': ['ምልጣን ዝማሜ', 'ምል ዝም']
     };
 
+    // Slots where fuzzy matching regularly gets confused by very similar
+    // short Amharic prefixes (ሙ vs ሙሉ vs ሙሉን, ምል vs ምልጣን, etc). For these,
+    // Smart Selection skips fuzzy scoring and requires the candidate piece's
+    // name to contain one of these phrases as a WHOLE word / word sequence —
+    // never matching when the phrase is merely the start of a longer word.
+    // Keyed by "<section title>::<slot id>" so a slot id reused in a
+    // different section (e.g. "Tsifat" exists in both Sirate Angergari and
+    // Sirate Isme Lealem) isn't affected unless explicitly listed here.
+    const WHOLE_WORD_ALIAS_SLOTS = {
+        'Sirate Angergari::Zimame': ['ዝም', 'ዝማሜ'],
+        'Sirate Angergari::Mil Zimame ×3': ['ምል ዝማሜ', 'ምልጣን ዝም', 'ምል ዝም', 'ምልጣን ዝማሜ'],
+        'Sirate Angergari::Mulu Tsifat': ['ሙሉ ጽፋት', 'ሙሉን ጽፋት', 'ሙሉ ጽ', 'ሙ ጽፍ', 'ሙሉ ጽፍ'],
+        'Sirate Isme Lealem::Mereged': ['መረግድ', 'ሙሉ መረግድ', 'ሙሉን መረ', 'ሙሉን መረግድ', 'ሙሉ መረ'],
+        'Sirate Isme Lealem::Tsifat': ['ሙሉ ጽፋት', 'ሙሉን ጽፋት', 'ሙሉ ጽ', 'ሙ ጽፍ', 'ሙሉ ጽፍ']
+    };
     const presetState = {
         mode: 'manual',
         presetName: 'Sirate Negs',
@@ -9741,10 +9762,10 @@ function updateChronoDisplay() {
                     slots: [
                         { id: 'Mulu Qum', type: 'Mulu Qum', selectedId: '' },
                         { id: 'Mereged Mansha', type: 'Mereged Mansha', selectedId: '' },
-                        { id: 'Mereged', type: 'Mereged Mansha', selectedId: '' },
+                        { id: 'Mereged', type: 'Mulu Mereged', selectedId: '' },
                         { id: 'Mansha Tsifat', type: 'Tsifat', selectedId: '' },
                         { id: 'Amelales', type: 'Amelales', selectedId: '' },
-                        { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
+                        { id: 'Tsifat', type: 'Leqeqa', selectedId: '' },
                         { id: 'Wereb', type: 'Wereb', selectedId: '', customRule: '' },
                         { id: 'Leqeqa', type: 'Leqeqa', selectedId: '' }
                     ]
@@ -9860,6 +9881,21 @@ function updateChronoDisplay() {
         const overlay = document.getElementById('preset-creator-overlay');
         if (overlay) overlay.classList.remove('open');
         closePresetRuleEditor();
+    }
+
+    // Reopens the Preset Creator on the "preset" step without touching
+    // presetState — used when backing out of a generated deck (Undo Slide)
+    // so the same section/slot selections are still sitting there, ready
+    // to tweak and regenerate.
+    function reopenPresetCreatorPreservingState() {
+        const overlay = document.getElementById('preset-creator-overlay');
+        if (!overlay) return;
+
+        document.getElementById('preset-creator-step-mode').classList.remove('active');
+        document.getElementById('preset-creator-step-preset').classList.add('active');
+
+        renderPresetCreator();
+        overlay.classList.add('open');
     }
 
     function renderPresetCreator() {
@@ -10341,6 +10377,29 @@ function smartSimilarity(a, b) {
         });
     }
 
+    function smartTokenizeWords(value) {
+        return smartNormalize(value)
+            .split(/\s+/)
+            .filter(Boolean);
+    }
+
+    function smartContainsWholeWordAlias(pieceName, alias) {
+        const nameWords = smartTokenizeWords(pieceName);
+        const aliasWords = smartTokenizeWords(alias);
+
+        if (!aliasWords.length || !nameWords.length) return false;
+
+        for (let i = 0; i <= nameWords.length - aliasWords.length; i++) {
+            let matched = true;
+            for (let j = 0; j < aliasWords.length; j++) {
+                if (nameWords[i + j] !== aliasWords[j]) { matched = false; break; }
+            }
+            if (matched) return true;
+        }
+
+        return false;
+    }
+
     // Which folder(s) a slot's PIECE PICKER should be restricted to.
     // This governs the dropdown list only — it's a stricter, section-aware
     // version of smartAllowedFolders() (which is used for Smart Selection's
@@ -10358,18 +10417,21 @@ function smartSimilarity(a, b) {
         }
 
         // Sirate Angergari: every card uses the Angergari folder,
-        // EXCEPT Isme Lealem Zema, which uses the Isme Lealem folder.
+        // EXCEPT Isme Lealem Zema (Isme Lealem folder) and Wereb (Wereb folder).
         if (sectionName === smartNormalize('Sirate Angergari')) {
             if (slotType === smartNormalize('Isme Lealem Zema')) {
                 return ismeLealemFolderOverride
                     ? [ismeLealemFolderOverride]
                     : ['Isme Lealem', 'እስመ ለዓለም'];
             }
+            if (slotType === smartNormalize('Wereb')) return ['Wereb', 'ወረብ'];
             return ['Angergari', 'አንገርጋሪ'];
         }
 
-        // Sirate Isme Lealem: every card uses the Isme Lealem folder.
+        // Sirate Isme Lealem: every card uses the Isme Lealem folder,
+        // EXCEPT Wereb, which uses the Wereb folder.
         if (sectionName === smartNormalize('Sirate Isme Lealem')) {
+            if (slotType === smartNormalize('Wereb')) return ['Wereb', 'ወረብ'];
             return ismeLealemFolderOverride
                 ? [ismeLealemFolderOverride]
                 : ['Isme Lealem', 'እስመ ለዓለም'];
@@ -10457,13 +10519,29 @@ function smartFindPieceForSlot(section, slot, options) {
         return null;
     }
 
-    const candidates = options
-        .filter(option =>
-            smartFolderMatches(
-                option.folderName,
-                allowedFolders
-            )
+    const candidatesInFolder = options.filter(option =>
+        smartFolderMatches(
+            option.folderName,
+            allowedFolders
         )
+    );
+
+    const wholeWordAliases = WHOLE_WORD_ALIAS_SLOTS[section.title + '::' + slot.id];
+
+    if (wholeWordAliases) {
+        const wholeWordMatch = candidatesInFolder.find(option => {
+            const piece = getPieceById(option.value);
+            const namesToCheck = [option.label, piece ? piece.name : ''].filter(Boolean);
+
+            return wholeWordAliases.some(alias =>
+                namesToCheck.some(name => smartContainsWholeWordAlias(name, alias))
+            );
+        });
+
+        return wholeWordMatch || null;
+    }
+
+    const candidates = candidatesInFolder
         .map(option => {
             const piece = getPieceById(option.value);
 
@@ -10683,10 +10761,8 @@ function presetChunkSegments(segments, ruleType, customRule) {
 
         case 'Ziq':
         case 'Isme Lealem Zema':
-        case 'Angergari Zema':
-        case 'Zimame':
-        case 'Mulu Tsifat':
-        case 'Leqeqa': {
+        case 'Leqeqa':
+        case 'Mulu Mereged': {
             const chunks = [];
 
             for (let i = 0; i < segments.length; i += 3) {
@@ -10706,6 +10782,9 @@ function presetChunkSegments(segments, ruleType, customRule) {
         case 'Amelales':
         case 'Mereged Mansha':
         case 'Miltan Zimame':
+        case 'Angergari Zema':
+        case 'Zimame':
+        case 'Mulu Tsifat':
             return [segments];
 
         case 'Mulu Qum': {
@@ -10954,6 +11033,7 @@ function generatePresetDeck() {
     window.presetBackToMode = presetBackToMode;
     window.openPresetCreator = openPresetCreator;
     window.closePresetCreator = closePresetCreator;
+    window.reopenPresetCreatorPreservingState = reopenPresetCreatorPreservingState;
     window.addPresetSet = addPresetSet;
     window.presetChoosePieceForSlot = presetChoosePieceForSlot;
     window.openPresetRuleEditor = openPresetRuleEditor;
