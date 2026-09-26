@@ -9724,6 +9724,7 @@ function updateChronoDisplay() {
                     slots: [
                         { id: 'Isme Lealem Zema', type: 'Isme Lealem Zema', selectedId: '' },
                         { id: 'Angergari Zema', type: 'Angergari Zema', selectedId: '' },
+                        { id: 'Zimame', type: 'Angergari Zema', selectedId: '' },
                         { id: 'Nish ×3', type: 'Nish', selectedId: '', customRule: '' },
                         { id: 'Mil Zimame ×3', type: 'Miltan Zimame', selectedId: '', customRule: '' },
                         { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
@@ -9772,8 +9773,63 @@ function updateChronoDisplay() {
 
         presetState.presetName = document.getElementById('preset-select')?.value || 'Sirate Negs';
         presetState.sections = defaultPresetConfig().sections;
-        smartSelectPresetPieces(false);
         renderPresetCreator();
+        openIsmeLealemFolderPickerOnEntry();
+    }
+
+    // Runs the moment "Use Preset" is chosen, so the Isme Lealem folder is
+    // picked up front — before Smart Selection or any manual dropdown needs
+    // it — instead of only being available via the toolbar button later.
+    function openIsmeLealemFolderPickerOnEntry() {
+        const modal = document.getElementById('smart-select-scope-modal');
+        const select = document.getElementById('smart-select-isme-lealem-folder');
+        if (!modal || !select) { smartSelectPresetPieces(false); renderPresetCreator(); return; }
+
+        const folders = (currentUser && appData[currentUser] && appData[currentUser].folders) || [];
+        if (!folders.length) { smartSelectPresetPieces(false); renderPresetCreator(); return; }
+
+        select.innerHTML = '';
+        folders.forEach(folder => {
+            const option = document.createElement('option');
+            option.value = folder.name;
+            option.textContent = folder.name;
+            select.appendChild(option);
+        });
+
+        const guess = folders.find(f => {
+            const n = smartNormalize(f.name);
+            return n.includes(smartNormalize('Isme Lealem')) || n.includes(smartNormalize('እስመ ለዓለም'));
+        });
+        select.value = (ismeLealemFolderOverride && folders.some(f => f.name === ismeLealemFolderOverride))
+            ? ismeLealemFolderOverride
+            : (guess ? guess.name : folders[0].name);
+
+        modal.style.display = 'flex';
+
+        // Override the confirm/cancel buttons just for this initial prompt so
+        // it runs silently (no "N selected" alert) and re-renders afterward,
+        // then restore the normal confirmSmartSelectionModal wiring so the
+        // toolbar's ✨ Smart Selection button keeps its usual (verbose) behavior.
+        const cancelBtn = modal.querySelector('button[onclick="window.closeSmartSelectionModal()"]');
+        const okBtn = modal.querySelector('button[onclick="window.confirmSmartSelectionModal()"]');
+
+        function cleanupAndRender() {
+            modal.style.display = 'none';
+            renderPresetCreator();
+            if (cancelBtn) cancelBtn.onclick = () => window.closeSmartSelectionModal();
+            if (okBtn) okBtn.onclick = () => window.confirmSmartSelectionModal();
+        }
+
+        if (cancelBtn) {
+            cancelBtn.onclick = () => { cleanupAndRender(); };
+        }
+        if (okBtn) {
+            okBtn.onclick = () => {
+                ismeLealemFolderOverride = select.value;
+                smartSelectPresetPieces(false);
+                cleanupAndRender();
+            };
+        }
     }
 
     function presetBackToMode() {
@@ -9878,7 +9934,9 @@ function updateChronoDisplay() {
                 pieceSelect.className = 'preset-slot-piece';
                 pieceSelect.innerHTML = '<option value=\"\">— Empty / Skip —</option>';
 
-                options.forEach(opt => {
+                const scopedOptions = presetOptionsForSlot(section, slot, options);
+
+                scopedOptions.forEach(opt => {
                     const option = document.createElement('option');
                     option.value = opt.value;
                     option.textContent = `${opt.label} (${opt.folderName})`;
@@ -10015,7 +10073,8 @@ function addPresetSet(sectionIndex) {
         const slot = section?.slots?.[slotIndex];
         if (!slot) return;
 
-        const options = getProjectPieceOptions();
+        const allOptions = getProjectPieceOptions();
+        const options = presetOptionsForSlot(section, slot, allOptions);
 
         if (!options.length) {
             alert('No pieces are available in this project.');
@@ -10268,19 +10327,73 @@ function smartSimilarity(a, b) {
     return 1 - distance / Math.max(left.length, right.length);
 }
 
-function smartFolderMatches(folderName, allowedFolders) {
-    const folder = smartNormalize(folderName);
+    function smartFolderMatches(folderName, allowedFolders) {
+        const folder = smartNormalize(folderName);
 
-    return allowedFolders.some(name => {
-        const allowed = smartNormalize(name);
+        return allowedFolders.some(name => {
+            const allowed = smartNormalize(name);
 
-        return (
-            folder === allowed ||
-            folder.includes(allowed) ||
-            allowed.includes(folder)
+            return (
+                folder === allowed ||
+                folder.includes(allowed) ||
+                allowed.includes(folder)
+            );
+        });
+    }
+
+    // Which folder(s) a slot's PIECE PICKER should be restricted to.
+    // This governs the dropdown list only — it's a stricter, section-aware
+    // version of smartAllowedFolders() (which is used for Smart Selection's
+    // fuzzy auto-pick and stays unchanged).
+    function presetFolderScopeForSlot(section, slot) {
+        const sectionName = smartNormalize(section.title);
+        const slotType = smartNormalize(slot.type);
+
+        // Sirate Negs: each card is restricted to its own named folder.
+        if (sectionName === smartNormalize('Sirate Negs')) {
+            if (slotType === smartNormalize('Melk')) return ['Melk', 'መልክዕ', 'መልክ'];
+            if (slotType === smartNormalize('Ziq')) return ['Ziq', 'ዚቅ'];
+            if (slotType === smartNormalize('Wereb')) return ['Wereb', 'ወረብ'];
+            return null; // unrecognized — fall back to showing everything
+        }
+
+        // Sirate Angergari: every card uses the Angergari folder,
+        // EXCEPT Isme Lealem Zema, which uses the Isme Lealem folder.
+        if (sectionName === smartNormalize('Sirate Angergari')) {
+            if (slotType === smartNormalize('Isme Lealem Zema')) {
+                return ismeLealemFolderOverride
+                    ? [ismeLealemFolderOverride]
+                    : ['Isme Lealem', 'እስመ ለዓለም'];
+            }
+            return ['Angergari', 'አንገርጋሪ'];
+        }
+
+        // Sirate Isme Lealem: every card uses the Isme Lealem folder.
+        if (sectionName === smartNormalize('Sirate Isme Lealem')) {
+            return ismeLealemFolderOverride
+                ? [ismeLealemFolderOverride]
+                : ['Isme Lealem', 'እስመ ለዓለም'];
+        }
+
+        return null; // unrecognized section — show everything, unrestricted
+    }
+
+    // Filters the full project piece list down to just the folder(s) that
+    // this slot's card is allowed to pick from, so the dropdown/prompt only
+    // shows relevant pieces instead of every piece in the project.
+    function presetOptionsForSlot(section, slot, options) {
+        const allowedFolders = presetFolderScopeForSlot(section, slot);
+        if (!allowedFolders) return options; // no restriction configured — show all
+
+        const filtered = options.filter(option =>
+            smartFolderMatches(option.folderName, allowedFolders)
         );
-    });
-}
+
+        // If the intended folder doesn't exist yet in this project (e.g. it
+        // hasn't been created), fall back to the full list rather than
+        // showing an empty, confusing dropdown.
+        return filtered.length ? filtered : options;
+    }
 
 function smartAllowedFolders(section, slot) {
     const sectionName = smartNormalize(section.title);
@@ -10490,7 +10603,16 @@ function smartSelectPresetPieces(showStatus = true) {
     }
 
     function smartAliasScore(slot, option, piece) {
-        const aliases = RULE_ALIASES[smartNormalize(slot.type)] || [];
+        // Look up aliases by the slot's TYPE first (e.g. 'Angergari Zema'),
+        // then fall back to the slot's own ID/name (e.g. 'Zimame'). This lets
+        // a slot like the new Zimame card — which shares its type with
+        // Angergari Zema for folder/chunk-rule purposes — still pick up its
+        // own Amharic alias (ዝማሜ) for Smart Selection's name matching.
+        const aliases =
+            RULE_ALIASES[smartNormalize(slot.type)] ||
+            RULE_ALIASES[smartNormalize(slot.id)] ||
+            [];
+
         if (!aliases.length) return 0;
         const pieceNames = [option.label, piece ? piece.name : ''].filter(Boolean);
         let best = 0;
