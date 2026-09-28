@@ -2363,6 +2363,7 @@
             <h3 id="tm-title" style="margin:0;font-size:15px;color:#1a2a3a;">Translation</h3>
             <div style="display:flex;align-items:center;gap:8px;">
                 <button id="tm-retranslate-btn" onclick="retranslateCurrentPiece()" title="Re-run translation" style="display:none;background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">↻ Retranslate</button>
+                <button id="tm-export-btn" onclick="openExportModal()" title="Show the Ge'ez text and translation together so you can copy and share them" style="background:#eaf7ee;border:1px solid #27ae60;color:#1e7e34;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📤 Export</button>
                 <button id="tm-manual-gemini-btn" onclick="openManualGeminiFallback()" title="Copies the translation prompt and opens Gemini in a new tab, in case the automatic translator is unavailable" style="background:#fff8e6;border:1px solid #b8860b;color:#8e6a00;border-radius:6px;padding:4px 10px;font-size:11px;font-weight:bold;cursor:pointer;">📋 Copy to Gemini</button>
                 <button onclick="closeTranslationModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
             </div>
@@ -2370,6 +2371,29 @@
         <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Processing your prompt now! If the automatic translation doesn't appear in a few moments, a Gemini tab will open—just paste your prompt there (Ctrl+V) and bring the response back here.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
+    </div>
+</div>
+
+<!-- Translation Export Modal -->
+<div id="export-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:100000;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:12px;padding:28px;width:600px;max-width:92%;max-height:88vh;overflow-y:auto;border-top:4px solid #27ae60;box-shadow:0 10px 40px rgba(0,0,0,0.3);box-sizing:border-box;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <h3 id="export-title" style="margin:0;font-size:15px;color:#1a2a3a;">Export</h3>
+            <button onclick="closeExportModal()" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#888;line-height:1;">✕</button>
+        </div>
+        <p style="margin:0 0 14px;font-size:12px;color:#3a5a82;">Copy this to share the Ge'ez text and its translation.</p>
+
+        <label style="font-size:11px;font-weight:bold;color:#1a2a3a;display:block;margin-bottom:4px;">Ge'ez</label>
+        <div id="export-geez" style="font-family:'Abyssinica SIL',serif;font-size:1.3rem;line-height:1.6;color:#1a2a3a;background:#fffdf8;border:1px solid #ddd;border-radius:6px;padding:12px;margin-bottom:14px;white-space:pre-wrap;word-break:break-word;user-select:text;"></div>
+
+        <label style="font-size:11px;font-weight:bold;color:#1a2a3a;display:block;margin-bottom:4px;">Translation</label>
+        <div id="export-translation" style="font-size:1rem;line-height:1.6;color:#1a2a3a;background:#eef3ff;border:1px solid #b8d4ee;border-radius:6px;padding:12px;margin-bottom:16px;white-space:pre-wrap;word-break:break-word;user-select:text;"></div>
+
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;">
+            <button onclick="copyExportPart('geez', this)" style="background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Copy Ge'ez</button>
+            <button onclick="copyExportPart('translation', this)" style="background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:8px 14px;font-size:12px;font-weight:bold;cursor:pointer;">Copy Translation</button>
+            <button onclick="copyExportPart('both', this)" style="background:#27ae60;border:none;color:white;border-radius:6px;padding:8px 18px;font-size:12px;font-weight:bold;cursor:pointer;">📋 Copy Both</button>
+        </div>
     </div>
 </div>
 
@@ -3776,6 +3800,30 @@ function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, d
         });
 
         merged[projName] = { folders: mergedFolders };
+    });
+
+    // Moved-piece dedupe. If the same piece id ended up in more than one folder
+    // (e.g. it was moved on this device but the cloud still has it in the old
+    // folder), keep only the copy with the newest lastModified. A move stamps
+    // lastModified, so the destination folder's copy wins and the old-folder
+    // copy is dropped instead of resurrecting as a duplicate.
+    Object.keys(merged).filter(k => k !== '_lastSaved').forEach(projName => {
+        const winners = new Map(); // pieceId -> { time, folder }
+        (merged[projName].folders || []).forEach(folder => {
+            (folder.pieces || []).forEach(p => {
+                if (!p.id) return;
+                const t = new Date(p.lastModified || 0).getTime();
+                const best = winners.get(p.id);
+                if (!best || t > best.time) winners.set(p.id, { time: t, folder });
+            });
+        });
+        (merged[projName].folders || []).forEach(folder => {
+            folder.pieces = (folder.pieces || []).filter(p => {
+                if (!p.id) return true;
+                const w = winners.get(p.id);
+                return !w || w.folder === folder;
+            });
+        });
     });
 
     // Piece deletions applied globally, last. A piece deleted on this device
@@ -5298,7 +5346,11 @@ function movePiece(index) {
     const targetIndex = parseInt(input);
     if (isNaN(targetIndex) || targetIndex === currentFolder || !folders[targetIndex]) { alert('Invalid folder number.'); return; }
     const piece = appData[currentUser].folders[currentFolder].pieces.splice(index, 1)[0];
+    piece.lastModified = new Date().toISOString();
+    if (piece.id) markPieceDirty(piece.id);
     appData[currentUser].folders[targetIndex].pieces.push(piece);
+    if (currentPiece === index) { currentPiece = null; _editorPieceId = null; }
+    else if (currentPiece !== null && currentPiece > index) currentPiece--;
     saveAndSync();
     renderPieces();
 }
@@ -5612,6 +5664,66 @@ function openManualGeminiFallback() {
     window.open('https://gemini.google.com/app', '_blank');
 }
 
+// --- Translation Export ---
+let _exportGeez = '';
+let _exportTranslation = '';
+
+function openExportModal() {
+    if (_translatingIndex === null) return;
+    const piece = appData[currentUser].folders[currentFolder].pieces[_translatingIndex];
+
+    // Use whatever is currently typed in the translation box, so an edit that
+    // hasn't been closed/saved yet is still what gets exported.
+    const liveTranslation = document.getElementById('tm-input').value.trim();
+    const translation = liveTranslation || (piece.translation || '').trim();
+
+    const geez = (_translatingRawText || '').trim();
+
+    if (!geez && !translation) {
+        alert('There is nothing to export yet.');
+        return;
+    }
+
+    _exportGeez = geez;
+    _exportTranslation = translation;
+
+    document.getElementById('export-title').textContent = 'Export — ' + piece.name;
+    document.getElementById('export-geez').textContent = geez || '(no Ge\'ez text)';
+    document.getElementById('export-translation').textContent = translation || '(no translation yet)';
+    document.getElementById('export-modal').style.display = 'flex';
+}
+
+function closeExportModal() {
+    document.getElementById('export-modal').style.display = 'none';
+}
+
+async function copyExportPart(part, btn) {
+    let text = '';
+    if (part === 'geez') text = _exportGeez;
+    else if (part === 'translation') text = _exportTranslation;
+    else text = [_exportGeez, _exportTranslation].filter(Boolean).join('\n\n');
+
+    if (!text) { alert('Nothing to copy for that part.'); return; }
+
+    const original = btn.textContent;
+    try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = '✓ Copied!';
+    } catch (e) {
+        // Fallback for browsers that block clipboard access
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        btn.textContent = '✓ Copied!';
+    }
+    setTimeout(() => btn.textContent = original, 1400);
+}
+
 function closeTranslationModal() {
     if (_translatingIndex === null) return;
     const input = document.getElementById('tm-input');
@@ -5655,6 +5767,7 @@ function submitConfirm() {
 document.addEventListener('keydown', e => {
     if (e.key === 'Enter' && document.getElementById('studio-confirm-modal').classList.contains('open')) submitConfirm();
     if (e.key === 'Escape' && document.getElementById('studio-confirm-modal').classList.contains('open')) closeConfirm();
+    if (e.key === 'Escape' && document.getElementById('export-modal').style.display === 'flex') closeExportModal();
 });
 
 // --- Theme ---
