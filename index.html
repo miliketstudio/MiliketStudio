@@ -3695,6 +3695,73 @@ function markAllPiecesDirty() {
     });
 }
 
+// ============================================================
+// ORDER SYNC — projects / folders / pieces keep their drag order in the cloud
+// ============================================================
+let _orderDirty = (function () {
+    try { return localStorage.getItem('miliket_order_dirty') === '1'; } catch (e) { return false; }
+})();
+function markOrderDirty() {
+    _orderDirty = true;
+    try { localStorage.setItem('miliket_order_dirty', '1'); } catch (e) {}
+}
+function clearOrderDirty() {
+    _orderDirty = false;
+    try { localStorage.removeItem('miliket_order_dirty'); } catch (e) {}
+}
+
+// Merges two ordered name lists. The winning side's order comes first,
+// the other side's extras are appended, and only names in validNames survive.
+function mergeOrderLists(cloudList, localList, localWins, validNames) {
+    const valid = new Set(validNames);
+    const primary = localWins ? localList : cloudList;
+    const secondary = localWins ? cloudList : localList;
+    const out = [];
+    const seen = new Set();
+    [primary, secondary, validNames].forEach(list => {
+        (list || []).forEach(name => {
+            if (valid.has(name) && !seen.has(name)) { seen.add(name); out.push(name); }
+        });
+    });
+    return out;
+}
+
+// Re-inserts project keys in the wanted order (Firestore returns map keys alphabetically).
+function reorderProjectsInPlace(obj, order) {
+    const names = Object.keys(obj).filter(k => k !== '_lastSaved');
+    const wanted = [];
+    (Array.isArray(order) ? order : []).forEach(n => { if (names.includes(n) && !wanted.includes(n)) wanted.push(n); });
+    names.forEach(n => { if (!wanted.includes(n)) wanted.push(n); });
+    const held = {};
+    wanted.forEach(n => { held[n] = obj[n]; delete obj[n]; });
+    wanted.forEach(n => { obj[n] = held[n]; });
+}
+
+// Makes `target` follow the project / folder / piece order of `source`.
+function applyOrderFrom(target, source) {
+    const norm = s => String(s || '').trim().toLowerCase();
+    const rank = (list, key) => { const i = list.indexOf(key); return i === -1 ? Number.MAX_SAFE_INTEGER : i; };
+
+    reorderProjectsInPlace(target, Object.keys(source || {}).filter(k => k !== '_lastSaved'));
+
+    Object.keys(target).filter(k => k !== '_lastSaved').forEach(projName => {
+        const srcProj = source[projName];
+        if (!srcProj) return;
+        const srcFolders = srcProj.folders || [];
+        const folderOrder = srcFolders.map(f => norm(f.name));
+        const tgtFolders = target[projName].folders || [];
+
+        tgtFolders.sort((a, b) => rank(folderOrder, norm(a.name)) - rank(folderOrder, norm(b.name)));
+
+        tgtFolders.forEach(folder => {
+            const srcFolder = srcFolders.find(f => norm(f.name) === norm(folder.name));
+            if (!srcFolder) return;
+            const pieceOrder = (srcFolder.pieces || []).map(p => p.id);
+            (folder.pieces || []).sort((a, b) => rank(pieceOrder, a.id) - rank(pieceOrder, b.id));
+        });
+    });
+}
+
 // --- Compression helpers ---
 function compressForCloud(visualData) {
     if (!visualData) return '';
@@ -3745,7 +3812,7 @@ function buildIndexData() {
 // name (they have no IDs), so a folder renamed on two devices at once
 // will end up as two folders rather than a merge conflict — rare, and
 // much safer than the old behavior of losing whole pieces silently.
-function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames) {
+function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames, localOrderWins) {
     const deleted = new Set(deletingIds || []);
     const deletedFolders = new Set(deletingFolderKeys || []);
     const deletedProjects = new Set(deletingProjectNames || []);
@@ -3774,7 +3841,10 @@ function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, d
         ]);
 
         const mergedFolders = [];
-        folderKeys.forEach(key => {
+        const _folderPass = localOrderWins
+                ? Array.from(new Set([...(localProj.folders || []).map(f => norm(f.name)), ...folderKeys]))
+                : Array.from(folderKeys);
+            _folderPass.forEach(key => {
             // Same idea, one level down: a folder deleted on this device is
             // dropped outright instead of coming back empty after the
             // piece-level cleanup below strips its pieces.
@@ -3796,7 +3866,16 @@ function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, d
             });
 
             // Keep the local device's own name/casing — it's the one actively saving.
-            mergedFolders.push({ name: localFolder.name, pieces: Array.from(pieceById.values()) });
+            const _cIds = (cloudFolder.pieces || []).map(p => p.id);
+                const _lIds = (localFolder.pieces || []).map(p => p.id);
+                const _seenIds = new Set();
+                const _orderedPieces = [];
+                (localOrderWins ? [..._lIds, ..._cIds] : [..._cIds, ..._lIds]).forEach(id => {
+                    if (!_seenIds.has(id) && pieceById.has(id)) { _seenIds.add(id); _orderedPieces.push(pieceById.get(id)); }
+                });
+                pieceById.forEach((p, id) => { if (!_seenIds.has(id)) _orderedPieces.push(p); });
+
+                mergedFolders.push({ name: localFolder.name, pieces: _orderedPieces });
         });
 
         merged[projName] = { folders: mergedFolders };
@@ -4515,6 +4594,7 @@ async function confirmRecoveryUseLocal() {
     if (!confirm('This will push the locally saved copy on this computer to the cloud, making it the version everyone sees. Anything that exists only in the cloud, and not on this computer, is left untouched. Continue?')) return;
 
     appData = _recoveryLocalSnapshot;
+    markOrderDirty();
     // Stamp every piece as edited "now" so it decisively wins the normal
     // newest-wins merge against whatever is currently in the cloud — that's
     // the whole point of a deliberate recovery action.
@@ -5333,6 +5413,7 @@ function duplicatePiece(index) {
     copy.lastModified = new Date().toISOString();
     appData[currentUser].folders[currentFolder].pieces.splice(index + 1, 0, copy);
     markPieceDirty(copy.id);
+    markOrderDirty();
     saveAndSync();
     renderPieces();
 }
@@ -5532,6 +5613,7 @@ function importAllData() {
             const imported = JSON.parse(event.target.result);
             if (!imported || typeof imported !== 'object' || Array.isArray(imported)) throw new Error('Unexpected backup shape');
             appData = imported;
+            markOrderDirty();
             migrateMissingIds();
             markAllPiecesDirty();
             saveAndSync();
@@ -8217,6 +8299,7 @@ function attachDragHandlers(div, type) {
         const targetIndex = parseInt(div.dataset.index);
         if (_dragSrcIndex === null || targetIndex === _dragSrcIndex || _dragType !== type) return;
         _dragMoved = true;
+        markOrderDirty();
 
         if (type === 'project') {
             const keys = Object.keys(appData).filter(k => k !== '_lastSaved');
@@ -8318,6 +8401,7 @@ function showCloudLocalPicker(cloudData, localData, cloudTs, localTs) {
 
         function finish(val) {
             document.body.removeChild(overlay);
+            if (val === 'LOCAL') markOrderDirty(); else clearOrderDirty();
             if (val === 'CLOUD') {
                 appData = cloudData;
                 saveData();
@@ -8388,7 +8472,15 @@ function _buildComparableIndex(data) {
 function _sameIndexContent(cloudIndex, localData) {
     const cloudComparable = _canonicalize(_buildComparableIndex(cloudIndex));
     const localComparable = _canonicalize(_buildComparableIndex(localData));
-    return JSON.stringify(cloudComparable) === JSON.stringify(localComparable);
+    // Order is handled separately (see ORDER SYNC), so it must not count as a conflict.
+    const stripOrder = idx => {
+        Object.keys(idx).forEach(p => {
+            idx[p].folders.forEach(f => f.pieces.sort((a, b) => String(a.id).localeCompare(String(b.id))));
+            idx[p].folders.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+        });
+        return idx;
+    };
+    return JSON.stringify(stripOrder(cloudComparable)) === JSON.stringify(stripOrder(localComparable));
 }
 
 async function loadFromFirestore(uid) {
@@ -8416,6 +8508,7 @@ async function loadFromFirestore(uid) {
         });
 
         const localData = await idbGet('miliket_data');
+            reorderProjectsInPlace(cloudIndex, doc.data().projectOrder);
         const localTs = localData?._lastSaved || 0;
         const cloudTs = cloudIndex._lastSaved || 0;
         _lastKnownCloudSaved = doc.data().indexUpdatedAt?.toMillis?.() || 0;
@@ -8425,6 +8518,9 @@ async function loadFromFirestore(uid) {
 
         const cloudHasData =
             Object.keys(cloudIndex).filter(k => k !== '_lastSaved').length > 0;
+
+        // A reorder made on this device that never reached the cloud (e.g. offline) is kept.
+        if (_orderDirty && localHasData && cloudHasData) applyOrderFrom(cloudIndex, localData);
 
         if (localHasData && cloudHasData && !_sameIndexContent(cloudIndex, localData)) {
             await showCloudLocalPicker(cloudIndex, localData, cloudTs, localTs);
@@ -8460,6 +8556,7 @@ async function pushToFirestore() {
         const deletingIds = Array.from(_deletedPieceIds);
         const deletingFolderKeys = Array.from(_deletedFolderKeys);
         const deletingProjectNames = Array.from(_deletedProjectNames);
+            const pushingOrder = _orderDirty;
         try {
             showSyncStatus('pending');
             const byId = {};
@@ -8511,9 +8608,16 @@ async function pushToFirestore() {
                     });
                 }
 
-                const mergedIndex = mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames);
+                const mergedIndex = mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, deletingProjectNames, pushingOrder);
+                    const mergedProjectOrder = mergeOrderLists(
+                        Array.isArray(cloudData.projectOrder) ? cloudData.projectOrder : [],
+                        Object.keys(localIndex).filter(k => k !== '_lastSaved'),
+                        pushingOrder,
+                        Object.keys(mergedIndex).filter(k => k !== '_lastSaved')
+                    );
                 tx.set(userRef, {
                     index: mergedIndex,
+                    projectOrder: mergedProjectOrder,
                     indexUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     indexUpdatedByDevice: _deviceId
                 }, { merge: true });
@@ -8530,6 +8634,7 @@ async function pushToFirestore() {
             deletingIds.forEach(id => _deletedPieceIds.delete(id));
             deletingFolderKeys.forEach(k => _deletedFolderKeys.delete(k));
             deletingProjectNames.forEach(n => _deletedProjectNames.delete(n));
+            if (pushingOrder) clearOrderDirty();
             showSyncStatus('saved');
         } catch(e) {
             console.error('Firestore push failed:', e);
