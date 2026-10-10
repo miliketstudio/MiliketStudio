@@ -8101,18 +8101,22 @@ const GS_INSET_Y = 45720;
 // true  = oversize + shift the box by the insets so the TEXT AREA equals the intended rect (effective 0 padding)
 // false = keep the box exactly as captured; text fits inside box minus the default insets
 const GS_COMPENSATE_INSETS = true;
+// Line spacing as a % of the font's natural line height (100 = Google's default, which leaves a lot of air above/below text)
+const GS_LINE_SPACING_PCT = 85;
 
 // Largest whole-point font size at which `text` fits inside widthPt x heightPt,
 // measured with the same font/weight/centering used in the Slides text box.
-function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 80) {
-    const SAFETY = 0.97; // Slides wraps a little differently than the browser — leave headroom
+function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 120) {
+    const SAFETY_W = 0.98;  // width headroom: guards against Slides wrapping differently than the browser
+    const SAFETY_H = 0.98;  // height headroom: nearly the full band height
+    const lineHeight = 1.25 * GS_LINE_SPACING_PCT / 100; // Lexend's natural line height is about 1.25 em
     const probe = document.createElement('div');
     probe.style.cssText =
         'position:fixed;top:0;left:-99999px;visibility:hidden;margin:0;padding:0;border:0;' +
         'box-sizing:border-box;text-align:center;white-space:normal;overflow-wrap:break-word;' +
-        'font-family:Lexend,sans-serif;font-weight:700;line-height:normal;';
-    probe.style.width = (widthPt * SAFETY) + 'pt';           // CSS pt units, so pt font sizes line up exactly
-    const maxHeightPx = heightPt * SAFETY * (96 / 72);       // scrollHeight is in px; 1pt = 96/72 px
+        'font-family:Lexend,sans-serif;font-weight:700;line-height:' + lineHeight + ';';
+    probe.style.width = (widthPt * SAFETY_W) + 'pt';
+    const maxHeightPx = heightPt * SAFETY_H * (96 / 72);
     probe.textContent = text;
     document.body.appendChild(probe);
 
@@ -8270,7 +8274,7 @@ async function exportToGoogleSlides() {
                         objectId: boxId,
                         style: {
                             alignment: 'CENTER',
-                            lineSpacing: 100,
+                            lineSpacing: GS_LINE_SPACING_PCT,
                             spaceAbove: { magnitude: 0, unit: 'PT' },
                             spaceBelow: { magnitude: 0, unit: 'PT' }
                         },
