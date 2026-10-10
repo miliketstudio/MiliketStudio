@@ -4120,31 +4120,48 @@ function openProject(name) {
 function createProject() {
     const name = prompt('Enter project name:');
     if (!name || !name.trim()) return;
-    if (appData[name.trim()]) { alert('A project with that name already exists.'); return; }
-    appData[name.trim()] = { folders: [] };
+    const trimmed = name.trim();
+    if (appData[trimmed]) { alert('A project with that name already exists.'); return; }
+    // If this name was deleted moments ago and that delete hasn't synced yet,
+    // clear the tombstone so the new project isn't dropped from the cloud merge.
+    _deletedProjectNames.delete(trimmed);
+    appData[trimmed] = { folders: [] };
     saveAndSync();
     renderProjects();
 }
 
 function renameProject(oldName) {
     const newName = prompt('Rename project to:', oldName);
-    if (!newName || !newName.trim() || newName === oldName) return;
+    if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
+    if (trimmed === oldName) return;
     if (appData[trimmed]) { alert('Name already exists.'); return; }
-    // Rebuild in place so the renamed project keeps its position in the grid
-    // instead of jumping to the end, since keys render in insertion order.
+    // Rebuild in place so the renamed project keeps its position in the grid.
     const rebuilt = {};
     Object.keys(appData).forEach(k => { rebuilt[k === oldName ? trimmed : k] = appData[k]; });
     appData = rebuilt;
     if (currentUser === oldName) currentUser = trimmed;
+    // The cloud index is keyed by project name, so a rename is "new key + old key deleted".
+    // Without the tombstone the merge resurrects the old project next to the new one.
+    _deletedProjectNames.delete(trimmed);   // renaming back to a just-renamed name
+    _deletedProjectNames.add(oldName);
+    markOrderDirty();                       // keep the renamed project in its slot in the cloud order
     saveAndSync();
     renderProjects();
 }
 
 function deleteProject(name) {
     openConfirm('Delete Project', `"${name}" and all its contents will be permanently deleted.`, name, () => {
+        // Piece IDs that still live in some OTHER project (e.g. an old rename left a
+        // duplicate) must not be deleted, or the surviving copy loses its content.
+        const usedElsewhere = new Set();
+        Object.keys(appData).filter(k => k !== '_lastSaved' && k !== name).forEach(pn => {
+            (appData[pn].folders || []).forEach(f => {
+                (f.pieces || []).forEach(p => { if (p.id) usedElsewhere.add(p.id); });
+            });
+        });
         (appData[name].folders || []).forEach(f => {
-            (f.pieces || []).forEach(p => { if (p.id) markPieceDeleted(p.id); });
+            (f.pieces || []).forEach(p => { if (p.id && !usedElsewhere.has(p.id)) markPieceDeleted(p.id); });
         });
         _deletedProjectNames.add(name);
         delete appData[name];
@@ -4198,17 +4215,44 @@ function openFolder(index) {
 function createFolder() {
     const name = prompt('Enter folder name:');
     if (!name || !name.trim()) return;
+    const trimmed = name.trim();
     if (!appData[currentUser].folders) appData[currentUser].folders = [];
-    appData[currentUser].folders.push({ name: name.trim(), pieces: [] });
+    const key = _folderDeleteKey(currentUser, trimmed);
+    // The cloud merge matches folders by name, so two folders with the same name would collapse into one.
+    if (appData[currentUser].folders.some(f => _folderDeleteKey(currentUser, f.name) === key)) {
+        alert('A folder with that name already exists.');
+        return;
+    }
+    _deletedFolderKeys.delete(key);   // recreating a just-deleted name before its delete synced
+    appData[currentUser].folders.push({ name: trimmed, pieces: [] });
     saveAndSync();
     renderFolders();
 }
 
 function renameFolder(index) {
-    const oldName = appData[currentUser].folders[index].name;
+    const folders = appData[currentUser].folders;
+    const oldName = folders[index].name;
     const newName = prompt('Rename folder to:', oldName);
-    if (!newName || !newName.trim() || newName === oldName) return;
-    appData[currentUser].folders[index].name = newName.trim();
+    if (!newName || !newName.trim()) return;
+    const trimmed = newName.trim();
+    if (trimmed === oldName) return;
+
+    const oldKey = _folderDeleteKey(currentUser, oldName);
+    const newKey = _folderDeleteKey(currentUser, trimmed);
+
+    if (oldKey !== newKey && folders.some((f, i) => i !== index && _folderDeleteKey(currentUser, f.name) === newKey)) {
+        alert('A folder with that name already exists.');
+        return;
+    }
+
+    // Cloud folders are matched by NAME. A rename is "new name appears + old name disappears",
+    // so tombstone the old name or the merge keeps the old cloud folder (with the pieces)
+    // and leaves your renamed folder empty. Skipped for case-only renames (same key).
+    _deletedFolderKeys.delete(newKey);
+    if (oldKey !== newKey) _deletedFolderKeys.add(oldKey);
+
+    folders[index].name = trimmed;
+    markOrderDirty();   // keep the folder in its position in the cloud
     saveAndSync();
     renderFolders();
 }
@@ -8615,12 +8659,17 @@ async function pushToFirestore() {
                         pushingOrder,
                         Object.keys(mergedIndex).filter(k => k !== '_lastSaved')
                     );
-                tx.set(userRef, {
+                                // set(..., {merge:true}) DEEP-MERGES maps, so a project removed from
+                // mergedIndex (deleted / renamed) would silently survive in the cloud.
+                // update() replaces the whole `index` map, which is what we want.
+                const indexPayload = {
                     index: mergedIndex,
                     projectOrder: mergedProjectOrder,
                     indexUpdatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                     indexUpdatedByDevice: _deviceId
-                }, { merge: true });
+                };
+                if (snap.exists) tx.update(userRef, indexPayload);
+                else tx.set(userRef, indexPayload);
             });
 
             // serverTimestamp() only resolves once the write actually commits, so it
