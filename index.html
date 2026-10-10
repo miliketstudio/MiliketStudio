@@ -8093,6 +8093,43 @@ async function _gslidesDeleteImage(path) {
     }
 }
 
+// ── Google Slides text-box helpers ─────────────────────────────────────────
+// The Slides API cannot set text-box insets, so every new text box carries
+// Google's defaults: 0.1" left/right and 0.05" top/bottom (in EMU).
+const GS_INSET_X = 91440;
+const GS_INSET_Y = 45720;
+// true  = oversize + shift the box by the insets so the TEXT AREA equals the intended rect (effective 0 padding)
+// false = keep the box exactly as captured; text fits inside box minus the default insets
+const GS_COMPENSATE_INSETS = true;
+
+// Largest whole-point font size at which `text` fits inside widthPt x heightPt,
+// measured with the same font/weight/centering used in the Slides text box.
+function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 80) {
+    const SAFETY = 0.94; // Slides wraps a little differently than the browser — leave headroom
+    const probe = document.createElement('div');
+    probe.style.cssText =
+        'position:fixed;top:0;left:-99999px;visibility:hidden;margin:0;padding:0;border:0;' +
+        'box-sizing:border-box;text-align:center;white-space:normal;overflow-wrap:break-word;' +
+        'font-family:Lexend,sans-serif;font-weight:700;line-height:normal;';
+    probe.style.width = (widthPt * SAFETY) + 'pt';           // CSS pt units, so pt font sizes line up exactly
+    const maxHeightPx = heightPt * SAFETY * (96 / 72);       // scrollHeight is in px; 1pt = 96/72 px
+    probe.textContent = text;
+    document.body.appendChild(probe);
+
+    let lo = minPt, hi = maxPt, best = minPt;
+    try {
+        while (lo <= hi) {
+            const mid = Math.floor((lo + hi) / 2);
+            probe.style.fontSize = mid + 'pt';
+            const fits = probe.scrollHeight <= maxHeightPx && probe.scrollWidth <= probe.clientWidth + 1;
+            if (fits) { best = mid; lo = mid + 1; } else { hi = mid - 1; }
+        }
+    } finally {
+        document.body.removeChild(probe);
+    }
+    return best;
+}
+
 async function exportToGoogleSlides() {
     if (!_ssSlides.length) { alert('No slides to export.'); return; }
 
@@ -8152,6 +8189,12 @@ async function exportToGoogleSlides() {
         const firstSlideId = presentation.slides && presentation.slides[0] ? presentation.slides[0].objectId : null;
         if (!firstSlideId) throw new Error('Unexpected response creating presentation — no default slide found.');
 
+                // Measure with the real Lexend glyphs, not a fallback font
+        try {
+            await document.fonts.load('700 24px Lexend');
+            await document.fonts.ready;
+        } catch (e) { console.warn('Lexend preload failed, fitting with fallback metrics', e); }
+
         const requests = [];
         imageRequests.forEach((item, i) => {
             const geezFrac = geezHeights[i] !== undefined ? geezHeights[i] : 0.82;
@@ -8181,16 +8224,30 @@ async function exportToGoogleSlides() {
                 }
             });
 
-            if (item.translation) {
+                        if (item.translation) {
                 const boxId = 'txt_' + i + '_' + Date.now();
+
+                // Box = intended rect, grown by the default insets so the usable text area equals the intended rect
+                const padX = GS_COMPENSATE_INSETS ? GS_INSET_X : 0;
+                const padY = GS_COMPENSATE_INSETS ? GS_INSET_Y : 0;
+                const boxW = PW_EMU + 2 * padX;
+                const boxH = transH + 2 * padY;
+                const boxX = -padX;
+                const boxY = transY - padY;
+
+                // Real text area inside the box (box minus Google's fixed insets), in points (12700 EMU = 1pt)
+                const textWpt = (boxW - 2 * GS_INSET_X) / 12700;
+                const textHpt = (boxH - 2 * GS_INSET_Y) / 12700;
+                const fontPt  = _gslidesFitFontPt(item.translation, textWpt, textHpt);
+
                 requests.push({
                     createShape: {
                         objectId: boxId,
                         shapeType: 'TEXT_BOX',
                         elementProperties: {
                             pageObjectId: slideObjectId,
-                            size: { height: { magnitude: transH, unit: 'EMU' }, width: { magnitude: PW_EMU, unit: 'EMU' } },
-                            transform: { scaleX: 1, scaleY: 1, translateX: 0, translateY: transY, unit: 'EMU' }
+                            size: { height: { magnitude: boxH, unit: 'EMU' }, width: { magnitude: boxW, unit: 'EMU' } },
+                            transform: { scaleX: 1, scaleY: 1, translateX: boxX, translateY: boxY, unit: 'EMU' }
                         }
                     }
                 });
@@ -8200,7 +8257,7 @@ async function exportToGoogleSlides() {
                         objectId: boxId,
                         style: {
                             bold: true,
-                            fontSize: { magnitude: 23, unit: 'PT' },
+                            fontSize: { magnitude: fontPt, unit: 'PT' },
                             fontFamily: 'Lexend',
                             foregroundColor: { opaqueColor: { rgbColor: { red: 0, green: 0, blue: 0 } } }
                         },
@@ -8211,9 +8268,22 @@ async function exportToGoogleSlides() {
                 requests.push({
                     updateParagraphStyle: {
                         objectId: boxId,
-                        style: { alignment: 'CENTER' },
+                        style: {
+                            alignment: 'CENTER',
+                            lineSpacing: 100,
+                            spaceAbove: { magnitude: 0, unit: 'PT' },
+                            spaceBelow: { magnitude: 0, unit: 'PT' }
+                        },
                         textRange: { type: 'ALL' },
-                        fields: 'alignment'
+                        fields: 'alignment,lineSpacing,spaceAbove,spaceBelow'
+                    }
+                });
+                // Vertically centre the text in the box, like the in-app translation panel
+                requests.push({
+                    updateShapeProperties: {
+                        objectId: boxId,
+                        shapeProperties: { contentAlignment: 'MIDDLE' },
+                        fields: 'contentAlignment'
                     }
                 });
             }
