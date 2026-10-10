@@ -8105,7 +8105,7 @@ const GS_COMPENSATE_INSETS = true;
 // Largest whole-point font size at which `text` fits inside widthPt x heightPt,
 // measured with the same font/weight/centering used in the Slides text box.
 function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 80) {
-    const SAFETY = 0.94; // Slides wraps a little differently than the browser — leave headroom
+    const SAFETY = 0.97; // Slides wraps a little differently than the browser — leave headroom
     const probe = document.createElement('div');
     probe.style.cssText =
         'position:fixed;top:0;left:-99999px;visibility:hidden;margin:0;padding:0;border:0;' +
