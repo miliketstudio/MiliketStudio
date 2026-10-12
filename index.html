@@ -6207,7 +6207,7 @@ function renderSlideReorder(container) {
     container.appendChild(list);
 }
 
-function fitTranslationFontSize(text, widthInches, heightInches, minPt = 34, maxPt = 60) {
+function fitTranslationFontSize(text, widthInches, heightInches, minPt = 1, maxPt = 60) {
     let probe = document.getElementById('pptx-font-probe');
     if (!probe) {
         probe = document.createElement('div');
@@ -6293,8 +6293,8 @@ async function exportToPptx() {
                 : ssFullLayout();
             const geezH  = PH * (layoutForThisSlide.geez.hPct / 100);
             const rH = Math.round(rW * (geezH / PW));
-            const transY = PH * (layoutForThisSlide.translation.yPct / 100);
-            const transH = PH * (layoutForThisSlide.translation.hPct / 100);
+            let transY = PH * (layoutForThisSlide.translation.yPct / 100);
+            let transH = PH * (layoutForThisSlide.translation.hPct / 100);
             const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
                 .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
             const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
@@ -6360,6 +6360,23 @@ async function exportToPptx() {
             inner.style.transform = 'scale(' + finalScale + ')';
             inner.style.transformOrigin = 'top left';
             void inner.offsetHeight;
+
+            // ---- Adaptive translation band (mirrors the live presenter) ----
+            if (slideHasTranslation && !layoutForThisSlide.manual) {
+                const GAP_PCT = 0.1, MAX_TRANS_PCT = 30;
+                const MIN_TOP_IN = PH * (100 - MAX_TRANS_PCT) / 100;
+                const wrapRect = wrap.getBoundingClientRect();
+                let lastBottom = 0;
+                inner.querySelectorAll('.baseletter').forEach(b => {
+                    lastBottom = Math.max(lastBottom, b.getBoundingClientRect().bottom);
+                });
+                if (wrapRect.height > 0 && lastBottom > 0) {
+                    const geezEndIn = ((lastBottom - wrapRect.top) / wrapRect.height) * geezH;
+                    const adaptedTop = Math.max(MIN_TOP_IN, Math.min(transY, geezEndIn + PH * GAP_PCT / 100));
+                    transY = adaptedTop;
+                    transH = PH - adaptedTop;
+                }
+            }
 
             // Overline fix: background-image gradient gives exact control over
             // position and thickness — CSS `overline` sits too high for this font,
@@ -6910,6 +6927,7 @@ function ssWireFrameInteractions(frameEl) {
 
             state.xPct = rawX; state.yPct = rawY;
             ssApplyFrameGeometry(frameEl, state);
+            ssGetLayoutForSlide(_ssIndex).manual = true;
 
             if (vGuide !== null) ssShowGuide('v', vGuide); else ssHideGuideAxis('v');
             if (hGuide !== null) ssShowGuide('h', hGuide); else ssHideGuideAxis('h');
@@ -6966,6 +6984,7 @@ function ssWireFrameInteractions(frameEl) {
 
                 state.xPct = xPct; state.yPct = yPct; state.wPct = wPct; state.hPct = hPct;
                 ssApplyFrameGeometry(frameEl, state);
+                ssGetLayoutForSlide(_ssIndex).manual = true;
 
                 if (vGuide !== null) ssShowGuide('v', vGuide); else ssHideGuideAxis('v');
                 if (hGuide !== null) ssShowGuide('h', hGuide); else ssHideGuideAxis('h');
@@ -7213,6 +7232,26 @@ function renderSlideshowSlide() {
         inner.style.height          = Math.round(inner.scrollHeight * finalScale) + 'px';
         const zLabel = document.getElementById('ss-zoom-label');
         if (zLabel) zLabel.textContent = Math.round(ssGetZoom() * 100) + '%';
+
+        // ---- Adaptive translation band: claim unused Ge'ez space (capped) ----
+        if (slide.translation && slide.translation.trim()) {
+            const _lay = ssGetLayoutForSlide(_ssIndex);
+            if (!_lay.manual) {
+                const GAP_PCT = 0.1, MAX_TRANS_PCT = 30, MIN_TOP = 100 - MAX_TRANS_PCT;
+                const _stage = document.getElementById('ss-slide-content').getBoundingClientRect();
+                let _bottom = 0;
+                inner.querySelectorAll('.baseletter').forEach(b => {
+                    _bottom = Math.max(_bottom, b.getBoundingClientRect().bottom);
+                });
+                if (_stage.height > 0 && _bottom > 0) {
+                    const _endPct = ((_bottom - _stage.top) / _stage.height) * 100;
+                    const _top = Math.max(MIN_TOP, Math.min(_lay.translation.yPct, _endPct + GAP_PCT));
+                    const _tf = document.getElementById('ss-translation-frame');
+                    _tf.style.top = _top + '%';
+                    _tf.style.height = (100 - _top) + '%';
+                }
+            }
+        }
 
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
