@@ -1916,6 +1916,35 @@
     }
 }
 
+.preset-section-title {
+    font-family: 'Abyssinica SIL', serif;
+}
+
+.preset-slot-drag-handle {
+    flex-shrink: 0;
+    padding: 0 6px 0 2px;
+    color: var(--gold);
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+}
+
+.preset-slot-drag-handle:active {
+    cursor: grabbing;
+}
+
+.preset-slot-card.dragging {
+    opacity: 0.45;
+}
+
+.preset-slot-card.drag-over {
+    outline: 2px solid #3a9ad1;
+    background: rgba(58, 154, 209, 0.08);
+}
+
 .preset-generated-geez {
     font-family: 'Abyssinica SIL', serif;
     font-size: clamp(2rem, 6vw, 5rem);
@@ -2676,7 +2705,7 @@
                 <div class="preset-creator-toolbar">
                     <label for="preset-select">Preset:</label>
                     <select id="preset-select">
-                        <option value="Sirate Negs">Sirate Negs</option>
+                        <option value="Sirate Negs">ሥርዓተ ነግሥ</option>
                     </select>
                     <button class="primary-btn" type="button" onclick="window.openSmartSelectionModal()">✨ Smart Selection</button>
                     <button class="secondary-btn" type="button" onclick="presetBackToMode()">← Back</button>
@@ -10126,57 +10155,64 @@ function updateChronoDisplay() {
         return list;
     }
 
+        // Ethiopic numerals: 1 → ፩, 12 → ፲፪, 20 → ፳
+    function presetGeezNum(n) {
+        return String(Number(n) || 0);
+    }
+
     function defaultPresetConfig() {
-        const slots = [
-            { id: 'Melk 1', type: 'Melk', selectedId: '' },
-            { id: 'Ziq 1', type: 'Ziq', selectedId: '' },
-            { id: 'Wereb 1', type: 'Wereb', selectedId: '' },
-            { id: 'Melk 2', type: 'Melk', selectedId: '' },
-            { id: 'Ziq 2', type: 'Ziq', selectedId: '' },
-            { id: 'Wereb 2', type: 'Wereb', selectedId: '' },
-            { id: 'Melk 3', type: 'Melk', selectedId: '' },
-            { id: 'Ziq 3', type: 'Ziq', selectedId: '' },
-            { id: 'Wereb 3', type: 'Wereb', selectedId: '' },
-            { id: 'Melk 4', type: 'Melk', selectedId: '' },
-            { id: 'Ziq 4', type: 'Ziq', selectedId: '' },
-            { id: 'Wereb 4', type: 'Wereb', selectedId: '' }
-        ];
+        const negsLabels = { Melk: 'መልክዕ', Ziq: 'ዚቅ', Wereb: 'ወረብ' };
+        const negsSlots = [];
+
+        for (let n = 1; n <= 4; n++) {
+            ['Melk', 'Ziq', 'Wereb'].forEach(type => {
+                negsSlots.push({
+                    id: type + ' ' + n,
+                    label: negsLabels[type] + ' ' + presetGeezNum(n),
+                    type: type,
+                    selectedId: ''
+                });
+            });
+        }
 
         return {
             name: 'Sirate Negs',
             sections: [
                 {
                     title: 'Sirate Negs',
-                    slots
+                    label: 'ሥርዓተ ነግሥ',
+                    slots: negsSlots
                 },
                 {
                     title: 'Sirate Angergari',
+                    label: 'ሥርዓተ አንገርጋሪ',
                     slots: [
-                        { id: 'Isme Lealem Zema', type: 'Isme Lealem Zema', selectedId: '' },
-                        { id: 'Angergari Zema', type: 'Angergari Zema', selectedId: '' },
-                        { id: 'Zimame', type: 'Angergari Zema', selectedId: '' },
-                        { id: 'Nish ×3', type: 'Nish', selectedId: '', customRule: '' },
-                        { id: 'Mil Zimame ×3', type: 'Miltan Zimame', selectedId: '', customRule: '' },
-                        { id: 'Tsifat', type: 'Tsifat', selectedId: '' },
-                        { id: 'Amelales', type: 'Amelales', selectedId: '' },
-                        { id: 'Nish Tsifat', type: 'Nish Tsifat', selectedId: '' },
-                        { id: 'Zigita', type: 'Zigita', selectedId: '' },
-                        { id: 'Mulu Tsifat', type: 'Mulu Tsifat', selectedId: '' },
-                        { id: 'Wereb', type: 'Wereb', selectedId: '' },
-                        { id: 'Qum', type: 'Qum', selectedId: '' }
+                        { id: 'Isme Lealem Zema', label: 'እስመ ለዓለም ዜማ', type: 'Isme Lealem Zema', selectedId: '' },
+                        { id: 'Angergari Zema', label: 'አንገርጋሪ ዜማ', type: 'Angergari Zema', selectedId: '' },
+                        { id: 'Zimame', label: 'ዝማሜ', type: 'Angergari Zema', selectedId: '' },
+                        { id: 'Nish ×3', label: 'ንሽ ×3', type: 'Nish', selectedId: '', customRule: '' },
+                        { id: 'Mil Zimame ×3',   , selectedId: '', customRule: '' },
+                        { id: 'Tsifat', label: 'ጽፋት', type: 'Tsifat', selectedId: '' },
+                        { id: 'Amelales', label: 'አመላለስ', type: 'Amelales', selectedId: '' },
+                        { id: 'Nish Tsifat', label: 'ንሽ ጽፋት', type: 'Nish Tsifat', selectedId: '' },
+                        { id: 'Zigita', label: 'ዝግታ', type: 'Zigita', selectedId: '' },
+                        { id: 'Mulu Tsifat', label: 'ሙሉ ጽፋት', type: 'Mulu Tsifat', selectedId: '' },
+                        { id: 'Wereb', label: 'ወረብ', type: 'Wereb', selectedId: '' },
+                        { id: 'Qum', label: 'ቁም', type: 'Qum', selectedId: '' }
                     ]
                 },
                 {
                     title: 'Sirate Isme Lealem',
+                    label: 'ሥርዓተ እስመ ለዓለም',
                     slots: [
-                        { id: 'Mulu Qum', type: 'Mulu Qum', selectedId: '' },
-                        { id: 'Mereged Mansha', type: 'Mereged Mansha', selectedId: '' },
-                        { id: 'Mereged', type: 'Mulu Mereged', selectedId: '' },
-                        { id: 'Mansha Tsifat', type: 'Tsifat', selectedId: '' },
-                        { id: 'Amelales', type: 'Amelales', selectedId: '' },
-                        { id: 'Tsifat', type: 'Leqeqa', selectedId: '' },
-                        { id: 'Wereb', type: 'Wereb', selectedId: '', customRule: '' },
-                        { id: 'Leqeqa', type: 'Leqeqa', selectedId: '' }
+                        { id: 'Mulu Qum', label: 'ቁም', type: 'Mulu Qum', selectedId: '' },
+                        { id: 'Mereged Mansha', label: 'መረግድ ማንሻ', type: 'Mereged Mansha', selectedId: '' },
+                        { id: 'Mereged', label: 'መረግድ', type: 'Mulu Mereged', selectedId: '' },
+                        { id: 'Mansha Tsifat', label: 'ማንሻ ጽፋት', type: 'Tsifat', selectedId: '' },
+                        { id: 'Amelales', label: 'አመላለስ', type: 'Amelales', selectedId: '' },
+                        { id: 'Tsifat', label: 'ጽፋት', type: 'Leqeqa', selectedId: '' },
+                        { id: 'Wereb', label: 'ወረብ', type: 'Wereb', selectedId: '', customRule: '' },
+                        { id: 'Leqeqa', label: 'ለቀቃ', type: 'Leqeqa', selectedId: '' }
                     ]
                 }
             ]
@@ -10307,6 +10343,21 @@ function updateChronoDisplay() {
         overlay.classList.add('open');
     }
 
+        let presetDragState = null;
+
+    function presetMoveSlot(sectionIndex, fromIndex, toIndex) {
+        const section = presetState.sections[sectionIndex];
+        if (!section || !Array.isArray(section.slots)) return;
+        if (fromIndex === toIndex) return;
+        if (fromIndex < 0 || fromIndex >= section.slots.length) return;
+
+        const slots = section.slots;
+        const moved = slots.splice(fromIndex, 1)[0];
+        slots.splice(toIndex, 0, moved);
+
+        renderPresetCreator();
+    }
+
     function renderPresetCreator() {
         const target = document.getElementById('preset-creator-sections');
         if (!target) return;
@@ -10324,7 +10375,7 @@ function updateChronoDisplay() {
 
             const title = document.createElement('h3');
             title.className = 'preset-section-title';
-            title.textContent = section.title;
+            title.textContent = section.label || section.title;
 
             const addSetBtn = document.createElement('button');
             addSetBtn.type = 'button';
@@ -10340,17 +10391,76 @@ function updateChronoDisplay() {
             const grid = document.createElement('div');
             grid.className = 'preset-slot-grid';
 
+            // Dropping on empty grid space sends the dragged card to the end of this section
+            grid.addEventListener('dragover', function (e) {
+                if (presetDragState && presetDragState.sectionIndex === sectionIndex) {
+                    e.preventDefault();
+                }
+            });
+            grid.addEventListener('drop', function (e) {
+                if (!presetDragState || presetDragState.sectionIndex !== sectionIndex) return;
+                e.preventDefault();
+                const from = presetDragState.slotIndex;
+                presetDragState = null;
+                presetMoveSlot(sectionIndex, from, (section.slots || []).length - 1);
+            });
+
             (section.slots || []).forEach((slot, slotIndex) => {
                 const card = document.createElement('div');
                 card.className = 'preset-slot-card';
 
+                // ---- Drag and drop reordering (within this section) ----
+                card.addEventListener('dragover', function (e) {
+                    if (!presetDragState || presetDragState.sectionIndex !== sectionIndex) return;
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (presetDragState.slotIndex !== slotIndex) {
+                        card.classList.add('drag-over');
+                    }
+                });
+
+                card.addEventListener('dragleave', function () {
+                    card.classList.remove('drag-over');
+                });
+
+                card.addEventListener('drop', function (e) {
+                    if (!presetDragState || presetDragState.sectionIndex !== sectionIndex) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    card.classList.remove('drag-over');
+                    const from = presetDragState.slotIndex;
+                    presetDragState = null;
+                    presetMoveSlot(sectionIndex, from, slotIndex);
+                });
+
                 const headerRow = document.createElement('div');
                 headerRow.className = 'preset-slot-header';
+
+                const handle = document.createElement('span');
+                handle.className = 'preset-slot-drag-handle';
+                handle.textContent = '⠿';
+                handle.title = 'Drag to reorder';
+                handle.draggable = true;
+
+                handle.addEventListener('dragstart', function (e) {
+                    presetDragState = { sectionIndex, slotIndex };
+                    card.classList.add('dragging');
+                    e.dataTransfer.effectAllowed = 'move';
+                    try { e.dataTransfer.setData('text/plain', String(slotIndex)); } catch (err) {}
+                    try { e.dataTransfer.setDragImage(card, 20, 20); } catch (err) {}
+                });
+
+                handle.addEventListener('dragend', function () {
+                    presetDragState = null;
+                    document
+                        .querySelectorAll('.preset-slot-card.dragging, .preset-slot-card.drag-over')
+                        .forEach(el => el.classList.remove('dragging', 'drag-over'));
+                });
 
                 const name = document.createElement('input');
                 name.type = 'text';
                 name.className = 'preset-slot-name preset-slot-name-input';
-                name.value = slot.id || '';
+                name.value = slot.label || slot.id || '';
                 name.title = 'Click to rename this slot';
                 name.setAttribute('aria-label', 'Slot name');
 
@@ -10358,9 +10468,9 @@ function updateChronoDisplay() {
                     const newName = name.value.trim();
 
                     if (newName) {
-                        slot.id = newName;
+                        slot.label = newName;
                     } else {
-                        name.value = slot.id || '';
+                        name.value = slot.label || slot.id || '';
                     }
                 });
 
@@ -10372,12 +10482,13 @@ function updateChronoDisplay() {
                     presetChoosePieceForSlot(sectionIndex, slotIndex);
                 };
 
+                headerRow.appendChild(handle);
                 headerRow.appendChild(name);
                 headerRow.appendChild(selectBtn);
 
                 const pieceSelect = document.createElement('select');
                 pieceSelect.className = 'preset-slot-piece';
-                pieceSelect.innerHTML = '<option value=\"\">— Empty / Skip —</option>';
+                pieceSelect.innerHTML = '<option value="">— Empty / Skip —</option>';
 
                 const scopedOptions = presetOptionsForSlot(section, slot, options);
 
@@ -10390,8 +10501,7 @@ function updateChronoDisplay() {
                 });
 
                 pieceSelect.onchange = function () {
-                    const val = pieceSelect.value;
-                    slot.selectedId = val;
+                    slot.selectedId = pieceSelect.value;
                 };
 
                 const actions = document.createElement('div');
@@ -10439,79 +10549,72 @@ function updateChronoDisplay() {
         });
     }
 
-function addPresetSet(sectionIndex) {
-    const section = presetState.sections[sectionIndex];
+    function addPresetSet(sectionIndex) {
+        const section = presetState.sections[sectionIndex];
 
-    if (!section) {
-        return;
-    }
+        if (!section) {
+            return;
+        }
 
-    const sectionTitle = String(section.title || '')
-        .trim()
-        .toLowerCase();
+        const sectionTitle = String(section.title || '')
+            .trim()
+            .toLowerCase();
 
-    if (!Array.isArray(section.slots)) {
-        section.slots = [];
-    }
+        if (!Array.isArray(section.slots)) {
+            section.slots = [];
+        }
 
-    if (sectionTitle === 'sirate negs') {
-        const melkCount = section.slots.filter(slot =>
-            String(slot.type || '').toLowerCase() === 'melk'
-        ).length;
+        if (sectionTitle === 'sirate negs') {
+            const melkCount = section.slots.filter(slot =>
+                String(slot.type || '').toLowerCase() === 'melk'
+            ).length;
 
-        const nextNumber = melkCount + 1;
+            const nextNumber = melkCount + 1;
+            const numeral = presetGeezNum(nextNumber);
 
-        section.slots.push(
-            {
-                id: `Melk ${nextNumber}`,
-                type: 'Melk',
-                selectedId: '',
-                customRule: ''
-            },
-            {
-                id: `Ziq ${nextNumber}`,
-                type: 'Ziq',
-                selectedId: '',
-                customRule: ''
-            },
-            {
-                id: `Wereb ${nextNumber}`,
-                type: 'Wereb',
-                selectedId: '',
-                customRule: ''
+            section.slots.push(
+                {
+                    id: `Melk ${nextNumber}`,
+                    label: `መልክዕ ${numeral}`,
+                    type: 'Melk',
+                    selectedId: '',
+                    customRule: ''
+                },
+                {
+                    id: `Ziq ${nextNumber}`,
+                    label: `ዚቅ ${numeral}`,
+                    type: 'Ziq',
+                    selectedId: '',
+                    customRule: ''
+                },
+                {
+                    id: `Wereb ${nextNumber}`,
+                    label: `ወረብ ${numeral}`,
+                    type: 'Wereb',
+                    selectedId: '',
+                    customRule: ''
+                }
+            );
+        } else {
+            const customSlotCount = section.slots.filter(slot =>
+                String(slot.id || '').startsWith('Custom Slot')
+            ).length;
+
+            const nextNumber = customSlotCount + 1;
+
+            for (let i = 0; i < 3; i++) {
+                section.slots.push({
+                    id: `Custom Slot ${nextNumber + i}`,
+                    label: `ተጨማሪ ${presetGeezNum(nextNumber + i)}`,
+                    type: 'Zimame',
+                    selectedId: '',
+                    customRule: ''
+                });
             }
-        );
-    } else {
-        const customSlotCount = section.slots.filter(slot =>
-            String(slot.id || '').startsWith('Custom Slot')
-        ).length;
+        }
 
-        const nextNumber = customSlotCount + 1;
-
-        section.slots.push(
-            {
-                id: `Custom Slot ${nextNumber}`,
-                type: 'Zimame',
-                selectedId: '',
-                customRule: ''
-            },
-            {
-                id: `Custom Slot ${nextNumber + 1}`,
-                type: 'Zimame',
-                selectedId: '',
-                customRule: ''
-            },
-            {
-                id: `Custom Slot ${nextNumber + 2}`,
-                type: 'Zimame',
-                selectedId: '',
-                customRule: ''
-            }
-        );
+        renderPresetCreator();
     }
-
-    renderPresetCreator();
-}
 
     function presetChoosePieceForSlot(sectionIndex, slotIndex) {
         const section = presetState.sections[sectionIndex];
@@ -10531,7 +10634,7 @@ function addPresetSet(sectionIndex) {
         ).join('\\n');
 
         const answer = prompt(
-            `Choose a piece for ${slot.id}\\n\\n${optionsText}\\n\\nType the number:`,
+            `Choose a piece for ${slot.label || slot.id}\\n\\n${optionsText}\\n\\nType the number:`,
             '1'
         );
 
@@ -10556,7 +10659,7 @@ function addPresetSet(sectionIndex) {
 
         if (typeSelect) typeSelect.value = slot.type || 'Melk';
         if (customInput) customInput.value = slot.customRule || '';
-        if (label) label.textContent = `Edit Rule — ${slot.id}`;
+        if (label) label.textContent = `Edit Rule — ${slot.label || slot.id}`;
 
         const editor = document.getElementById('preset-rule-editor');
         if (editor) editor.classList.add('open');
@@ -10948,6 +11051,16 @@ function smartFindPieceForSlot(section, slot, options) {
         });
 
         return wholeWordMatch || null;
+    }
+
+        // Numbered Melk / Ziq / Wereb slots follow the order of pieces in the folder:
+    // "Melk 1" = 1st piece in the Melk folder, "Melk 2" = 2nd, and so on.
+    const folderOrderType = smartNormalize(slot.type);
+    const folderOrderNumber = String(slot.id || '').match(/\d+/);
+
+    if (['melk', 'ziq', 'wereb'].includes(folderOrderType) && folderOrderNumber) {
+        const folderOrderPick = candidatesInFolder[Number(folderOrderNumber[0]) - 1];
+        return folderOrderPick || null;
     }
 
     const candidates = candidatesInFolder
