@@ -1978,6 +1978,58 @@
 .preset-slot-name-input:focus {
     box-shadow: 0 0 0 2px rgba(184, 134, 11, 0.14);
 }
+
+.preset-double-switch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 0.95rem;
+    font-weight: bold;
+    color: var(--text);
+}
+.preset-double-switch input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.preset-double-track {
+    position: relative;
+    width: 38px;
+    height: 21px;
+    border-radius: 999px;
+    background: #b8c4d4;
+    transition: background 0.2s;
+    flex-shrink: 0;
+}
+.preset-double-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 17px;
+    height: 17px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    transition: transform 0.2s;
+}
+.preset-double-switch input:checked + .preset-double-track { background: var(--gold); }
+.preset-double-switch input:checked + .preset-double-track::after { transform: translateX(17px); }
+.preset-double-switch input:focus-visible + .preset-double-track { box-shadow: 0 0 0 3px rgba(184, 134, 11, 0.25); }
+
+.preset-choose-picker {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+}
+@media (max-width: 700px) {
+    .preset-choose-picker {
+        grid-template-columns: 1fr;
+    }
+}
         
     </style>
 </head>
@@ -2701,14 +2753,40 @@
                 </div>
             </div>
 
+            <div id="preset-creator-step-choose" class="preset-creator-step">
+                <div class="preset-creator-toolbar">
+                    <label>Choose a preset</label>
+                    <button class="secondary-btn" type="button" onclick="presetBackFromChoose()">← Back</button>
+                </div>
+
+                <div class="preset-mode-picker preset-choose-picker">
+                    <div class="preset-mode-card" onclick="presetChoosePreset('Sirate Negs')">
+                        <strong>ሥርዓተ ነግሥ</strong>
+                        <span>Negs, Angergari and Isme Lealem</span>
+                    </div>
+
+                    <div class="preset-mode-card" onclick="presetChoosePreset('Mezmur')">
+                        <strong>መዝሙር</strong>
+                        <span>Negs and Mezmur</span>
+                    </div>
+
+                    <div class="preset-mode-card" onclick="presetChoosePreset('Wazema')">
+                        <strong>ዋዜማ</strong>
+                        <span>Wazema, Yitbarek and Selam</span>
+                    </div>
+                </div>
+            </div>
+
             <div id="preset-creator-step-preset" class="preset-creator-step">
                 <div class="preset-creator-toolbar">
                     <label for="preset-select">Preset:</label>
-                    <select id="preset-select">
+                    <select id="preset-select" onchange="window.presetChangePreset(this.value)">
                         <option value="Sirate Negs">ሥርዓተ ነግሥ</option>
+                    <option value="Mezmur">መዝሙር</option>
+                    <option value="Wazema">ዋዜማ</option>
                     </select>
                     <button class="primary-btn" type="button" onclick="window.openSmartSelectionModal()">✨ Smart Selection</button>
-                    <button class="secondary-btn" type="button" onclick="presetBackToMode()">← Back</button>
+                    <button class="secondary-btn" type="button" onclick="presetBackToChoose()">← Back</button>
                 </div>
 
                 <div id="preset-creator-sections"></div>
@@ -8407,6 +8485,41 @@ document.addEventListener('keydown', function(e){
     }
 });
 
+// Manual slide builder: press 1-9 to select the next N available lines.
+// "Available" = shown on the picking screen, not already selected, and not already used.
+// Spam e.g. 3, Space, 3, Space until every line is placed.
+document.addEventListener('keydown', function (e) {
+    if (!$('#page-slides').hasClass('active')) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+
+    if (!/^[1-9]$/.test(e.key)) return;
+
+    const grid = document.getElementById('line-grid');
+    if (!grid) return; // not on the line-picking screen (e.g. the reorder screen)
+
+    e.preventDefault();
+
+    const wanted = parseInt(e.key, 10);
+    let picked = 0;
+
+    grid.querySelectorAll('.line-card').forEach(function (card) {
+        if (picked >= wanted) return;
+
+        const idx = parseInt(card.dataset.index, 10);
+        if (_currentSlideIndices.includes(idx)) return; // already selected
+        if (_passUsedIndices.has(idx)) return;          // already used in a built slide
+
+        _currentSlideIndices.push(idx);
+        card.classList.add('selected');
+        picked++;
+    });
+
+    updateSelectionCount();
+});
+
 function exitSlides() {
     _ssZoomLevels = [];
     $('#page-slides').removeClass('active');
@@ -10189,14 +10302,14 @@ function updateChronoDisplay() {
                     slots: [
                         { id: 'Isme Lealem Zema', label: 'እስመ ለዓለም ዜማ', type: 'Isme Lealem Zema', selectedId: '' },
                         { id: 'Angergari Zema', label: 'አንገርጋሪ ዜማ', type: 'Angergari Zema', selectedId: '' },
-                        { id: 'Zimame', label: 'ዝማሜ', type: 'Angergari Zema', selectedId: '' },
+                        { id: 'Zimame', label: 'ዝማሜ', type: 'Angergari Zema', customRule: '3 lines', selectedId: '' },
                         { id: 'Nish ×3', label: 'ንሽ ×3', type: 'Nish', selectedId: '', customRule: '' },
-                        { id: 'Mil Zimame ×3',   , selectedId: '', customRule: '' },
+                        { id: 'Mil Zimame ×3', label: 'ምልጣን ዝማሜ ×3', type: 'Miltan Zimame', selectedId: '', customRule: '' },
                         { id: 'Tsifat', label: 'ጽፋት', type: 'Tsifat', selectedId: '' },
                         { id: 'Amelales', label: 'አመላለስ', type: 'Amelales', selectedId: '' },
                         { id: 'Nish Tsifat', label: 'ንሽ ጽፋት', type: 'Nish Tsifat', selectedId: '' },
                         { id: 'Zigita', label: 'ዝግታ', type: 'Zigita', selectedId: '' },
-                        { id: 'Mulu Tsifat', label: 'ሙሉ ጽፋት', type: 'Mulu Tsifat', selectedId: '' },
+                        { id: 'Mulu Tsifat', label: 'ሙሉ ጽፋት', type: 'Mulu Tsifat', customRule: '3 lines', selectedId: '' },
                         { id: 'Wereb', label: 'ወረብ', type: 'Wereb', selectedId: '' },
                         { id: 'Qum', label: 'ቁም', type: 'Qum', selectedId: '' }
                     ]
@@ -10219,8 +10332,101 @@ function updateChronoDisplay() {
         };
     }
 
+        const MEZMUR_FOLDER_NAMES = ['Mezmur', 'መዝሙር'];
+        const WAZEMA_FOLDER_NAMES = ['Wazema', 'ዋዜማ'];
+
+    // Add future presets here: one branch per preset name.
+    function getPresetConfig(name) {
+        if (name === 'Mezmur') return mezmurPresetConfig();
+        if (name === 'Wazema') return wazemaPresetConfig();
+        return defaultPresetConfig();
+    }
+
+    function mezmurPresetConfig() {
+        return {
+            name: 'Mezmur',
+            sections: [
+                defaultPresetConfig().sections[0], // Sirate Negs, unchanged
+                {
+                    title: 'Mezmur',
+                    label: 'መዝሙር',
+                    slots: [
+                        { id: 'Zema ×2', label: 'ዜማ ×2', type: 'Mezmur Zema', repeat: 2, aliases: ['ዜማ'], selectedId: '' },
+                        { id: 'Zema Halleluya', label: 'ሃሌታ', type: 'Zema Halleluya', sameAs: 'Zema ×2', selectedId: '' },
+                        { id: 'Zimame', label: 'ዝማሜ', type: 'Zimame', customRule: '3 lines', aliases: ['ዝማሜ', 'ዝም'], selectedId: '' },
+                        { id: 'Miltan Zema ×3', label: 'ምልጣን ዜማ ×3', type: 'Miltan Zema', loop: 'MezmurLoop1', repeat: 3, aliases: ['ምልጣን ዜማ'], selectedId: '', customRule: '' },
+                        { id: 'Mansha Zimame ×3', label: 'ማንሻ ዝማሜ ×3', type: 'Mansha Zimame', loop: 'MezmurLoop1', repeat: 3, aliases: ['ማንሻ ዝማሜ', 'ማንሻ ዝም'], selectedId: '', customRule: '' },
+                        { id: 'Mansha Tsina', label: 'ማንሻ ጽና', type: 'Mansha Tsina', aliases: ['ማንሻ ጽና'], selectedId: '' },                         { id: 'Mansha ×3', label: 'ማንሻ ጽና ×3', type: 'Mansha', loop: 'MezmurLoop2', repeat: 3, aliases: ['ማንሻ'], selectedId: '', customRule: '' },
+                        { id: 'Miltan Tsina ×2', label: 'ምልጣን ጽና ×2', type: 'Miltan Tsina', loop: 'MezmurLoop2', repeat: 2, aliases: ['ምልጣን ጽና'], selectedId: '', customRule: '' },
+                        { id: 'Qum', label: 'ቁም', type: 'Qum', customRule: '3 lines', aliases: ['ቁም'], selectedId: '' },
+                        { id: 'Mereged', label: 'መረግድ', type: 'Mulu Mereged', aliases: ['መረግድ'], selectedId: '' },
+                        { id: 'Mansha Tsifat', label: 'ማንሻ ጽፋት', type: 'Tsifat', customRule: '3 lines', aliases: ['ማንሻ ጽፋት', 'ማንሻ ጽፋ'], selectedId: '' },
+                        { id: 'Amelales', label: 'አመላለስ', type: 'Amelales', aliases: ['አመላለስ'], selectedId: '' },
+                        { id: 'Miltan Tsifat ×2', label: 'ምልጣን ጽፋት ×2', type: 'Miltan Tsifat', loop: 'MezmurLoop3', repeat: 2, doubleSwitch: true, aliases: ['ምልጣን ጽፋት', 'ምልጣን ጽፋ'], selectedId: '' },
+                        { id: 'Mansha Tsifat ×2', label: 'ማንሻ ጽፋት ×2', type: 'Tsifat', loop: 'MezmurLoop3', repeat: 2, doubleSwitch: true, aliases: ['ማንሻ ጽፋት', 'ማንሻ ጽፋ'], selectedId: '' },
+                        { id: 'Tsifat ×2', label: 'ጽፋት ×2', type: 'Tsifat', customRule: '3 lines', repeat: 2, doubleSwitch: true, aliases: ['ጽፋት'], selectedId: '' },
+                        { id: 'Ararat', label: 'ዓራራት', type: 'Ararat', aliases: ['ዓራራት'], selectedId: '' },
+                        { id: 'Ararai Miltan', label: 'ዓራራት ምልጣን', type: 'Ararai Miltan', aliases: ['ዓራራይ ምልጣን', 'ዓራራይ'], selectedId: '' },
+                        { id: 'Ezel', label: 'ዕዝል', type: 'Ezel', aliases: ['ዕዝል'], selectedId: '' },
+                        { id: 'Selam', label: 'ሰላም', type: 'Selam', aliases: ['ሰላም'], selectedId: '' }
+                    ]
+                }
+            ]
+        };
+    }
+
+    // ዋዜማ: the same slots, rules and ድርብ switch as the Mezmur section (it is built from
+    // mezmurPresetConfig, so the two stay identical), followed by ይትባርክ እና ሰላም.
+    function wazemaPresetConfig() {
+        const wazemaSection = mezmurPresetConfig().sections[1];
+        wazemaSection.title = 'Wazema';
+        wazemaSection.label = 'ዋዜማ';
+
+        return {
+            name: 'Wazema',
+            sections: [
+                wazemaSection,
+                {
+                    title: 'Yitbarek Selam',
+                    label: 'ይትባርክ እና ሰላም',
+                    slots: [
+                        { id: 'Yitbarek', label: 'ይትባርክ', type: 'Yitbarek', customRule: '3 lines', aliases: ['ይትባርክ'], selectedId: '' },
+                        { id: 'Selam Zigita', label: 'ሰላም ዝግታ', type: 'Zigita', customRule: '3 lines', aliases: ['ሰላም ዝግታ', 'ሰላም ዝግ'], selectedId: '' },
+                        { id: 'Selam Tsifat', label: 'ሰላም ጽፋት', type: 'Tsifat', customRule: '3 lines', aliases: ['ሰላም ጽፋት', 'ሰላም ጽፋ'], selectedId: '' },
+                        { id: 'Extra Slot', label: 'አመላለስ', type: 'Zimame', customRule: 'all', aliases: ['ተጨማሪ'], selectedId: '' }
+                    ]
+                }
+            ]
+        };
+    }
+
+    // Loads a preset's sections into the creator. Switching presets resets slot order and picks.
+    function presetLoadPreset(name) {
+        const config = getPresetConfig(name);
+        presetState.presetName = config.name;
+        presetState.sections = config.sections;
+
+        const select = document.getElementById('preset-select');
+        if (select && select.value !== config.name) select.value = config.name;
+
+        const needsIsmeLealemFolder = presetState.sections.some(s => s.title === 'Sirate Isme Lealem');
+
+        if (needsIsmeLealemFolder) {
+            renderPresetCreator();
+            openIsmeLealemFolderPickerOnEntry();
+        } else {
+            smartSelectPresetPieces(false);
+        }
+    }
+
     function presetSelectMode(mode) {
         presetState.mode = mode;
+
+        if (mode === 'preset') {
+            document.getElementById('preset-creator-step-mode').classList.remove('active');
+            document.getElementById('preset-creator-step-choose').classList.add('active');
+            return;
+        }
 
         if (mode === 'manual') {
             closePresetCreator();
@@ -10228,7 +10434,7 @@ function updateChronoDisplay() {
             if (typeof goToSlidesManual === 'function') {
                 goToSlidesManual();
             } else {
-            alert('The original manual slideshow function is missing.');
+                alert('The original manual slideshow function is missing.');
             }
 
             return;
@@ -10237,13 +10443,8 @@ function updateChronoDisplay() {
         document.getElementById('preset-creator-step-mode').classList.remove('active');
         document.getElementById('preset-creator-step-preset').classList.add('active');
 
-        presetState.presetName = document.getElementById('preset-select')?.value || 'Sirate Negs';
-        presetState.sections = defaultPresetConfig().sections;
-        renderPresetCreator();
-        openIsmeLealemFolderPickerOnEntry();
+        presetLoadPreset(document.getElementById('preset-select')?.value || 'Sirate Negs');
     }
-
-    // Runs the moment "Use Preset" is chosen, so the Isme Lealem folder is
     // picked up front — before Smart Selection or any manual dropdown needs
     // it — instead of only being available via the toolbar button later.
     function openIsmeLealemFolderPickerOnEntry() {
@@ -10298,18 +10499,35 @@ function updateChronoDisplay() {
         }
     }
 
+    function presetChoosePreset(name) {
+        document.getElementById('preset-creator-step-choose').classList.remove('active');
+        document.getElementById('preset-creator-step-preset').classList.add('active');
+        presetLoadPreset(name);
+    }
+
+    function presetBackToChoose() {
+        document.getElementById('preset-creator-step-preset').classList.remove('active');
+        document.getElementById('preset-creator-step-choose').classList.add('active');
+    }
+
+    function presetBackFromChoose() {
+        document.getElementById('preset-creator-step-choose').classList.remove('active');
+        document.getElementById('preset-creator-step-mode').classList.add('active');
+    }
+
     function presetBackToMode() {
         document.getElementById('preset-creator-step-preset').classList.remove('active');
         document.getElementById('preset-creator-step-mode').classList.add('active');
     }
 
-    function openPresetCreator() {
+        function openPresetCreator() {
         const overlay = document.getElementById('preset-creator-overlay');
         if (!overlay) return;
 
-        presetState.sections = defaultPresetConfig().sections;
-        smartSelectPresetPieces(false);
         presetState.presetName = 'Sirate Negs';
+        document.getElementById('preset-creator-step-choose').classList.remove('active');
+        presetState.sections = getPresetConfig('Sirate Negs').sections;
+        smartSelectPresetPieces(false);
 
         const select = document.getElementById('preset-select');
         if (select) {
@@ -10321,7 +10539,7 @@ function updateChronoDisplay() {
 
         overlay.classList.add('open');
     }
-
+    
     function closePresetCreator() {
         const overlay = document.getElementById('preset-creator-overlay');
         if (overlay) overlay.classList.remove('open');
@@ -10329,12 +10547,14 @@ function updateChronoDisplay() {
     }
 
     // Reopens the Preset Creator on the "preset" step without touching
-    // presetState — used when backing out of a generated deck (Undo Slide)
-    // so the same section/slot selections are still sitting there, ready
-    // to tweak and regenerate.
+    // presetState, so the same section/slot selections are still there
+    // after backing out of a generated deck.
     function reopenPresetCreatorPreservingState() {
         const overlay = document.getElementById('preset-creator-overlay');
         if (!overlay) return;
+
+        const presetSelectEl = document.getElementById('preset-select');
+        if (presetSelectEl) presetSelectEl.value = presetState.presetName;
 
         document.getElementById('preset-creator-step-mode').classList.remove('active');
         document.getElementById('preset-creator-step-preset').classList.add('active');
@@ -10343,7 +10563,7 @@ function updateChronoDisplay() {
         overlay.classList.add('open');
     }
 
-        let presetDragState = null;
+    let presetDragState = null;
 
     function presetMoveSlot(sectionIndex, fromIndex, toIndex) {
         const section = presetState.sections[sectionIndex];
@@ -10357,7 +10577,7 @@ function updateChronoDisplay() {
 
         renderPresetCreator();
     }
-
+    
     function renderPresetCreator() {
         const target = document.getElementById('preset-creator-sections');
         if (!target) return;
@@ -10385,7 +10605,35 @@ function updateChronoDisplay() {
                 addPresetSet(sectionIndex);
             };
 
-            header.appendChild(title);
+            const headerLeft = document.createElement('div');
+            headerLeft.style.cssText = 'display:flex;align-items:center;gap:18px;flex-wrap:wrap;';
+            headerLeft.appendChild(title);
+
+            if ((section.slots || []).some(s => s.doubleSwitch)) {
+                const doubleSwitch = document.createElement('label');
+                doubleSwitch.className = 'preset-double-switch';
+                doubleSwitch.title = 'On: looping slots repeat. Off: they play once.';
+
+                const doubleInput = document.createElement('input');
+                doubleInput.type = 'checkbox';
+                doubleInput.checked = section.double !== false;
+                doubleInput.onchange = function () {
+                    presetSetDouble(sectionIndex, doubleInput.checked);
+                };
+
+                const doubleTrack = document.createElement('span');
+                doubleTrack.className = 'preset-double-track';
+
+                const doubleText = document.createElement('span');
+                doubleText.textContent = 'ድርብ';
+
+                doubleSwitch.appendChild(doubleInput);
+                doubleSwitch.appendChild(doubleTrack);
+                doubleSwitch.appendChild(doubleText);
+                headerLeft.appendChild(doubleSwitch);
+            }
+
+            header.appendChild(headerLeft);
             header.appendChild(addSetBtn);
 
             const grid = document.createElement('div');
@@ -10549,6 +10797,28 @@ function updateChronoDisplay() {
         });
     }
 
+    // ድርብ switch: flips every slot flagged doubleSwitch between ×2 and ×1,
+    // and swaps the "×2" / "×1" in the card name to match.
+    function presetSetDouble(sectionIndex, on) {
+        const section = presetState.sections[sectionIndex];
+        if (!section) return;
+
+        section.double = !!on;
+
+        (section.slots || []).forEach(slot => {
+            if (!slot.doubleSwitch) return;
+
+            slot.repeat = on ? 2 : 1;
+
+            const label = String(slot.label || '');
+            slot.label = on
+                ? label.replace(/×\s*1(?!\d)/, '×2')
+                : label.replace(/×\s*2(?!\d)/, '×1');
+        });
+
+        renderPresetCreator();
+    }
+
     function addPresetSet(sectionIndex) {
         const section = presetState.sections[sectionIndex];
 
@@ -10657,7 +10927,16 @@ function updateChronoDisplay() {
         const customInput = document.getElementById('preset-rule-custom-input');
         const label = document.getElementById('preset-rule-editor-title');
 
-        if (typeSelect) typeSelect.value = slot.type || 'Melk';
+        if (typeSelect) {
+            const wantedType = slot.type || 'Melk';
+            if (![...typeSelect.options].some(o => o.value === wantedType)) {
+                const extra = document.createElement('option');
+                extra.value = wantedType;
+                extra.textContent = wantedType;
+                typeSelect.appendChild(extra);
+            }
+            typeSelect.value = wantedType;
+        }
         if (customInput) customInput.value = slot.customRule || '';
         if (label) label.textContent = `Edit Rule — ${slot.label || slot.id}`;
 
@@ -10949,6 +11228,9 @@ function smartSimilarity(a, b) {
                 : ['Isme Lealem', 'እስመ ለዓለም'];
         }
 
+        if (sectionName === smartNormalize('Mezmur')) return MEZMUR_FOLDER_NAMES;
+        if (['Wazema', 'Yitbarek Selam'].some(t => sectionName === smartNormalize(t))) return WAZEMA_FOLDER_NAMES;
+
         return null; // unrecognized section — show everything, unrestricted
     }
 
@@ -10973,6 +11255,14 @@ function smartAllowedFolders(section, slot) {
     const sectionName = smartNormalize(section.title);
     const slotType = smartNormalize(slot.type);
     const slotName = smartNormalize(slot.id);
+
+    if (['Wazema', 'Yitbarek Selam'].some(t => sectionName === smartNormalize(t))) {
+        return WAZEMA_FOLDER_NAMES;
+    }
+
+    if (sectionName === smartNormalize('Mezmur')) {
+        return MEZMUR_FOLDER_NAMES;
+    }
 
     if (slotType === 'melk' || slotName.startsWith('melk')) {
         return ['Melk', 'መልክዕ', 'መልክ'];
@@ -11061,6 +11351,40 @@ function smartFindPieceForSlot(section, slot, options) {
     if (['melk', 'ziq', 'wereb'].includes(folderOrderType) && folderOrderNumber) {
         const folderOrderPick = candidatesInFolder[Number(folderOrderNumber[0]) - 1];
         return folderOrderPick || null;
+    }
+
+        // A slot that mirrors another slot (the third ዜማ) picks the same piece as its sibling.
+    if (slot.sameAs) {
+        const sibling = (section.slots || []).find(s => s.id === slot.sameAs);
+        if (sibling) return smartFindPieceForSlot(section, sibling, options);
+    }
+
+    // Slots with their own `aliases` (Mezmur) match by piece name. The closest whole-word
+    // match wins, so the ማንሻ card picks a piece named "ማንሻ" over "ማንሻ ጽፋት".
+    if (Array.isArray(slot.aliases) && slot.aliases.length) {
+        let bestOption = null;
+        let bestScore = 0;
+
+        candidatesInFolder.forEach(option => {
+            const piece = getPieceById(option.value);
+            const namesToCheck = [option.label, piece ? piece.name : ''].filter(Boolean);
+
+            namesToCheck.forEach(name => {
+                const nameWords = smartTokenizeWords(name);
+                if (!nameWords.length) return;
+
+                slot.aliases.forEach(alias => {
+                    if (!smartContainsWholeWordAlias(name, alias)) return;
+                    const score = smartTokenizeWords(alias).length / nameWords.length;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestOption = option;
+                    }
+                });
+            });
+        });
+
+        return bestOption;
     }
 
     const candidates = candidatesInFolder
@@ -11243,14 +11567,53 @@ function smartSelectPresetPieces(showStatus = true) {
         return text ? text.split(/(?<=[።፤፡፠፨፣])|\\s+/).filter(Boolean) : [];
     }
 
-function presetChunkSegments(segments, ruleType, customRule) {
-    if (!Array.isArray(segments) || !segments.length) {
-        return [];
+    const HALLELUYA_WORDS = new Set(['ሃሌ', 'ሀሌ', 'ሉያ', 'ሃሌሉያ', 'ሀሌሉያ']);
+
+    function presetSegmentPlainText(segmentHtml) {
+        const temp = document.createElement('div');
+        temp.innerHTML = segmentHtml;
+        let out = '';
+
+        temp.querySelectorAll('.baseletter').forEach(el => {
+            const t = el.textContent || '';
+            if (el.classList.contains('whitespace') || t.trim() === '0') {
+                out += ' ';
+            } else {
+                out += t.replace(/[\u200A\u200B\u200C\u200D\uFEFF]/g, '');
+            }
+        });
+
+        return out.replace(/[።፤፡፠፨፣]/g, ' ').replace(/\s+/g, ' ').trim();
     }
 
-    const custom = String(customRule || '').toLowerCase();
+    function presetIsHalleluyaSegment(segmentHtml) {
+        const words = presetSegmentPlainText(segmentHtml).split(' ').filter(Boolean);
+        return words.length > 0 && words.every(w => HALLELUYA_WORDS.has(w));
+    }
 
-    if (custom.includes('all')) {
+    // Keeps every line up to the end of the ሃሌ ሉያ run, plus the one line right after it.
+    // If no ሃሌ ሉያ line is found, the piece is left untouched.
+    function presetHalleluyaCut(segments) {
+        let i = 0;
+        while (i < segments.length && !presetIsHalleluyaSegment(segments[i])) i++;
+        if (i >= segments.length) return segments;
+
+        while (i < segments.length && presetIsHalleluyaSegment(segments[i])) i++;
+        return segments.slice(0, Math.min(segments.length, i + 1));
+    }
+
+    function presetChunkSegments(segments, ruleType, customRule) {
+        if (ruleType === 'Zema Halleluya' && Array.isArray(segments)) {
+            segments = presetHalleluyaCut(segments);
+        }
+
+        if (!Array.isArray(segments) || !segments.length) {
+            return [];
+        }
+
+        const custom = String(customRule || '').toLowerCase();
+
+        if (custom.includes('all')) {
         return [segments];
     }
 
@@ -11283,6 +11646,12 @@ function presetChunkSegments(segments, ruleType, customRule) {
 
         case 'Ziq':
         case 'Isme Lealem Zema':
+        case 'Mezmur Zema':
+        case 'Zema Halleluya':
+        case 'Ararat':
+        case 'Ararai Miltan':
+        case 'Ezel':
+        case 'Selam':
         case 'Leqeqa':
         case 'Mulu Mereged': {
             const chunks = [];
@@ -11427,74 +11796,63 @@ function appendPresetSlotToDeck(deck, slot) {
     });
 }
 
-function buildPresetSlideDeck() {
-    const deck = [];
+    // Loop = several slots played round by round (Nish / Mil Zimame ×3, the Mezmur loops).
+    function presetLoopKey(slot) {
+        if (slot.loop) return slot.loop;
+        if (slot.id === 'Nish ×3' || slot.id === 'Mil Zimame ×3') return 'NishMilZimame';
+        return '';
+    }
 
-    (presetState.sections || []).forEach(section => {
-        const slots = section.slots || [];
-        const processedLoopSlots = new Set();
+    function presetRepeatOf(slot) {
+        const n = parseInt(slot.repeat, 10);
+        if (n > 0) return n;
+        return (slot.id === 'Nish ×3' || slot.id === 'Mil Zimame ×3') ? 3 : 1;
+    }
 
-        slots.forEach(slot => {
-            if (!slot || !slot.selectedId) {
-                return;
-            }
+    function buildPresetSlideDeck() {
+        const deck = [];
 
-            const isNishLoop = slot.id === 'Nish ×3';
-            const isMilZimameLoop = slot.id === 'Mil Zimame ×3';
+        (presetState.sections || []).forEach(section => {
+            const slots = section.slots || [];
+            const doneLoops = new Set();
 
-            if (isNishLoop || isMilZimameLoop) {
-                if (processedLoopSlots.has('Nish ×3')) {
+            slots.forEach(slot => {
+                if (!slot || !slot.selectedId) {
                     return;
                 }
 
-                if (processedLoopSlots.has('Mil Zimame ×3')) {
+                const loopKey = presetLoopKey(slot);
+
+                if (loopKey) {
+                    if (doneLoops.has(loopKey)) return;
+                    doneLoops.add(loopKey);
+
+                    const members = slots.filter(s =>
+                        s && s.selectedId && presetLoopKey(s) === loopKey
+                    );
+                    const rounds = Math.max(...members.map(presetRepeatOf));
+
+                    // Round by round, in card order. A slot with fewer repeats drops out
+                    // of the later rounds, so the loop can end on a different slot.
+                    for (let round = 0; round < rounds; round++) {
+                        members.forEach(member => {
+                            if (round < presetRepeatOf(member)) {
+                                appendPresetSlotToDeck(deck, member);
+                            }
+                        });
+                    }
                     return;
                 }
 
-                const nishSlot = slots.find(item =>
-                    item.id === 'Nish ×3'
-                );
-
-                const milZimameSlot = slots.find(item =>
-                    item.id === 'Mil Zimame ×3'
-                );
-
-                if (nishSlot && nishSlot.selectedId) {
-                    processedLoopSlots.add('Nish ×3');
+                const times = presetRepeatOf(slot);
+                for (let r = 0; r < times; r++) {
+                    appendPresetSlotToDeck(deck, slot);
                 }
-
-                if (milZimameSlot && milZimameSlot.selectedId) {
-                    processedLoopSlots.add('Mil Zimame ×3');
-                }
-
-                for (let repeat = 0; repeat < 3; repeat++) {
-                    if (nishSlot && nishSlot.selectedId) {
-                        appendPresetSlotToDeck(
-                            deck,
-                            nishSlot
-                        );
-                    }
-
-                    if (
-                        milZimameSlot &&
-                        milZimameSlot.selectedId
-                    ) {
-                        appendPresetSlotToDeck(
-                            deck,
-                            milZimameSlot
-                        );
-                    }
-                }
-
-                return;
-            }
-
-            appendPresetSlotToDeck(deck, slot);
+            });
         });
-    });
 
-    return deck;
-}
+        return deck;
+    }
 
 function generatePresetDeck() {
     const generated = buildPresetSlideDeck();
@@ -11552,7 +11910,11 @@ function generatePresetDeck() {
     // Expose to global scope so inline onclick="" handlers and
     // goToSlides() (outside this IIFE) can reach these.
     window.presetSelectMode = presetSelectMode;
+    window.presetChangePreset = presetLoadPreset;
     window.presetBackToMode = presetBackToMode;
+    window.presetChoosePreset = presetChoosePreset;
+    window.presetBackToChoose = presetBackToChoose;
+    window.presetBackFromChoose = presetBackFromChoose;
     window.openPresetCreator = openPresetCreator;
     window.closePresetCreator = closePresetCreator;
     window.reopenPresetCreatorPreservingState = reopenPresetCreatorPreservingState;
