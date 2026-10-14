@@ -2030,6 +2030,146 @@
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================================
+   STUDIO DIALOGS (replace browser prompt / confirm / alert)
+============================================================ */
+.sd-gold   { --sd-accent: #b8860b; --sd-accent-soft: rgba(184,134,11,0.13); }
+.sd-red    { --sd-accent: #c0392b; --sd-accent-soft: rgba(192,57,43,0.12); }
+.sd-orange { --sd-accent: #e67e22; --sd-accent-soft: rgba(230,126,34,0.14); }
+.sd-green  { --sd-accent: #27ae60; --sd-accent-soft: rgba(39,174,96,0.13); }
+.sd-blue   { --sd-accent: #3a5a82; --sd-accent-soft: rgba(58,90,130,0.14); }
+body.dark-mode .sd-blue { --sd-accent: #6a9fe0; --sd-accent-soft: rgba(106,159,224,0.16); }
+body.dark-mode .sd-red  { --sd-accent: #e8584a; --sd-accent-soft: rgba(232,88,74,0.16); }
+
+.sd-overlay {
+    position: fixed; inset: 0; z-index: 300000;
+    display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+    background: rgba(15, 21, 32, 0.68);
+    backdrop-filter: blur(3px);
+    opacity: 0; transition: opacity 0.16s ease;
+}
+.sd-overlay.show { opacity: 1; }
+
+.sd-box {
+    width: min(440px, 94vw);
+    max-height: 88vh;
+    display: flex; flex-direction: column;
+    background: var(--card-bg);
+    color: var(--text);
+    border: 1px solid var(--card-border);
+    border-top: 5px solid var(--sd-accent);
+    border-radius: 14px;
+    box-shadow: 0 18px 60px rgba(0,0,0,0.4);
+    font-family: 'Abyssinica SIL', serif;
+    transform: translateY(8px) scale(0.98);
+    transition: transform 0.16s ease;
+    overflow: hidden;
+}
+.sd-overlay.show .sd-box { transform: none; }
+
+.sd-head { display: flex; align-items: center; gap: 12px; padding: 18px 20px 4px; }
+.sd-icon {
+    flex-shrink: 0; width: 38px; height: 38px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--sd-accent-soft); color: var(--sd-accent);
+    font-size: 1.2rem; font-weight: bold; font-family: sans-serif;
+}
+.sd-title { margin: 0; font-size: 1.05rem; font-weight: bold; color: var(--sd-accent); }
+.sd-body { padding: 6px 20px 4px; overflow-y: auto; }
+.sd-message {
+    margin: 8px 0 0; font-size: 0.92rem; line-height: 1.55;
+    color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+
+.sd-field { position: relative; margin-top: 14px; }
+.sd-input {
+    width: 100%; padding: 11px 12px;
+    border: 2px solid var(--card-border); border-radius: 8px;
+    background: var(--page-bg); color: var(--text);
+    font-size: 1.05rem; font-family: 'Abyssinica SIL', serif; outline: none;
+}
+.sd-input:focus { border-color: var(--sd-accent); box-shadow: 0 0 0 3px var(--sd-accent-soft); }
+.sd-input.err { border-color: #c0392b; box-shadow: 0 0 0 3px rgba(192,57,43,0.16); }
+.sd-field.has-eye .sd-input { padding-right: 64px; }
+.sd-eye {
+    position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
+    background: transparent; border: none; padding: 4px 8px; cursor: pointer;
+    color: var(--text-muted); font-size: 0.72rem; font-weight: bold; font-family: sans-serif;
+}
+.sd-eye:hover { color: var(--sd-accent); }
+.sd-error {
+    display: none; margin-top: 8px; padding: 7px 10px;
+    border-left: 3px solid #c0392b; border-radius: 0 6px 6px 0;
+    background: rgba(192,57,43,0.09); color: #c0392b;
+    font-size: 0.8rem; font-family: sans-serif;
+}
+.sd-error.show { display: block; }
+body.dark-mode .sd-error { color: #ff8577; }
+
+.sd-list {
+    margin-top: 10px; max-height: min(300px, 40vh); overflow-y: auto;
+    border: 1px solid var(--card-border); border-radius: 8px;
+    background: var(--page-bg); outline: none;
+}
+.sd-option {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 9px 12px; cursor: pointer; font-size: 0.92rem;
+    border-bottom: 1px solid var(--card-border);
+}
+.sd-option:last-child { border-bottom: none; }
+.sd-option:hover { background: var(--sd-accent-soft); }
+.sd-option.selected { background: var(--sd-accent-soft); box-shadow: inset 3px 0 0 var(--sd-accent); font-weight: bold; }
+.sd-option-sub {
+    font-size: 0.72rem; color: var(--text-muted); font-family: sans-serif; font-weight: normal;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%;
+}
+.sd-list-empty { padding: 18px; text-align: center; color: var(--text-muted); font-size: 0.85rem; font-family: sans-serif; }
+
+.sd-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 20px 18px; }
+.sd-btn {
+    border: none; border-radius: 8px; padding: 9px 20px;
+    font-size: 0.85rem; font-weight: bold; font-family: sans-serif;
+    cursor: pointer; transition: opacity 0.15s, transform 0.1s;
+}
+.sd-btn:hover { opacity: 0.88; transform: translateY(-1px); }
+.sd-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.sd-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--sd-accent-soft), 0 0 0 5px var(--sd-accent); }
+.sd-btn-cancel { background: #e6e9ee; color: #333; }
+body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
+.sd-btn-ok { background: var(--sd-accent); color: #ffffff; }
+
+#sd-toast-stack {
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+    z-index: 300100; width: min(460px, 94vw);
+    display: flex; flex-direction: column; gap: 10px; align-items: center;
+    pointer-events: none;
+}
+.sd-toast {
+    pointer-events: auto; width: 100%;
+    display: flex; gap: 11px; align-items: flex-start;
+    padding: 12px 14px; cursor: pointer;
+    background: var(--card-bg); color: var(--text);
+    border: 1px solid var(--card-border); border-left: 5px solid var(--sd-accent);
+    border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+    font-family: 'Abyssinica SIL', serif; font-size: 0.88rem; line-height: 1.5;
+    opacity: 0; transform: translateY(10px);
+    transition: opacity 0.2s, transform 0.2s;
+}
+.sd-toast.show { opacity: 1; transform: none; }
+.sd-toast .sd-icon { width: 28px; height: 28px; font-size: 0.95rem; }
+.sd-toast-title {
+    font-weight: bold; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.6px; color: var(--sd-accent); font-family: sans-serif;
+}
+.sd-toast-msg { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+@media (max-width: 480px) {
+    .sd-foot { flex-direction: column-reverse; }
+    .sd-btn { width: 100%; }
+}
+
         
     </style>
 </head>
@@ -2887,6 +3027,404 @@
 // ============================================================
 // ORIGINAL IDEFISSEHA JS — NOT TOUCHED
 // ============================================================
+
+
+// ============================================================
+// STUDIO DIALOGS — designed replacements for the browser's
+// prompt() / confirm() / alert() boxes.
+//   studioPrompt()  text / email / password box
+//   studioChoose()  searchable pick-one list
+//   studioConfirm() yes / no
+//   studioNotify()  errors + warnings (dialog), success + info (toast)
+// window.alert is redirected to studioNotify, so every existing
+// alert(...) call gets the new look without being edited.
+// ============================================================
+const SD_TYPES = {
+    error:   { cls: 'sd-red',    icon: '✕', title: 'Something Went Wrong' },
+    warning: { cls: 'sd-orange', icon: '!', title: 'Attention Needed' },
+    success: { cls: 'sd-green',  icon: '✓', title: 'Success' },
+    info:    { cls: 'sd-blue',   icon: 'i', title: 'Notice' }
+};
+
+// Picks a colour from the wording of a plain alert() message.
+function sdClassify(message) {
+    const m = String(message == null ? '' : message).toLowerCase();
+    if (/\b(failed|fails|failure|could not|couldn't|cannot|can't|invalid|denied|error|incorrect|not enabled|too large|unavailable|missing)\b/.test(m)) return 'error';
+    if (/\b(success|successfully|imported|restored|saved|copied|sent|signed out|applied|completed|pushed|updated)\b/.test(m)) return 'success';
+    if (/\b(select|first|no|need|paste|type|assign|nothing|enter|choose|open|print|empty|already|please|at least|before)\b/.test(m)) return 'warning';
+    return 'info';
+}
+
+// Dialogs wait their turn, so two alerts in a row never stack on top of each other.
+let _sdQueue = Promise.resolve();
+function sdEnqueue(openFn) {
+    const run = _sdQueue.then(openFn);
+    _sdQueue = run.catch(function () {});
+    return run;
+}
+
+function sdOpen(o) {
+    return new Promise(function (resolve) {
+        const openedAt = Date.now();
+        const prevFocus = document.activeElement;
+        let closed = false;
+        let selectedValue = null;
+        let inputEl = null, errEl = null, filterEl = null, listEl = null;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'sd-overlay';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+
+        const box = document.createElement('div');
+        box.className = 'sd-box ' + (o.cls || 'sd-gold');
+        overlay.appendChild(box);
+
+        const head = document.createElement('div');
+        head.className = 'sd-head';
+        const icon = document.createElement('div');
+        icon.className = 'sd-icon';
+        icon.textContent = o.icon || '☦';
+        const title = document.createElement('h3');
+        title.className = 'sd-title';
+        title.textContent = o.title || '';
+        head.appendChild(icon);
+        head.appendChild(title);
+        box.appendChild(head);
+
+        const body = document.createElement('div');
+        body.className = 'sd-body';
+        box.appendChild(body);
+
+        if (o.message) {
+            const msg = document.createElement('p');
+            msg.className = 'sd-message';
+            msg.textContent = o.message;
+            body.appendChild(msg);
+        }
+
+        // ---- footer buttons (created first so the list code can reach okBtn) ----
+        const foot = document.createElement('div');
+        foot.className = 'sd-foot';
+        let cancelBtn = null;
+        if (o.cancelLabel !== null) {
+            cancelBtn = document.createElement('button');
+            cancelBtn.type = 'button';
+            cancelBtn.className = 'sd-btn sd-btn-cancel';
+            cancelBtn.textContent = o.cancelLabel || 'Cancel';
+            cancelBtn.onclick = function () { finish(false); };
+            foot.appendChild(cancelBtn);
+        }
+        const okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'sd-btn sd-btn-ok';
+        okBtn.textContent = o.okLabel || 'OK';
+        // Ignore a click in the first instant, so the key press that opened the dialog can't close it.
+        okBtn.onclick = function () { if (Date.now() - openedAt < 250) return; finish(true); };
+        foot.appendChild(okBtn);
+
+        // ---- text / email / password input ----
+        if (o.input) {
+            const field = document.createElement('div');
+            field.className = 'sd-field';
+            inputEl = document.createElement('input');
+            inputEl.className = 'sd-input';
+            inputEl.type = o.input.type || 'text';
+            inputEl.value = o.input.value || '';
+            inputEl.placeholder = o.input.placeholder || '';
+            inputEl.autocomplete = 'off';
+            inputEl.spellcheck = false;
+            field.appendChild(inputEl);
+
+            if (o.input.type === 'password') {
+                field.classList.add('has-eye');
+                const eye = document.createElement('button');
+                eye.type = 'button';
+                eye.className = 'sd-eye';
+                eye.textContent = 'Show';
+                eye.onclick = function () {
+                    const show = inputEl.type === 'password';
+                    inputEl.type = show ? 'text' : 'password';
+                    eye.textContent = show ? 'Hide' : 'Show';
+                    inputEl.focus();
+                };
+                field.appendChild(eye);
+            }
+
+            errEl = document.createElement('div');
+            errEl.className = 'sd-error';
+            body.appendChild(field);
+            body.appendChild(errEl);
+            inputEl.addEventListener('input', function () {
+                errEl.classList.remove('show');
+                inputEl.classList.remove('err');
+            });
+        }
+
+        // ---- searchable pick-one list ----
+        if (o.list) {
+            const options = o.list.options || [];
+            selectedValue = (o.list.selected !== undefined && o.list.selected !== null && o.list.selected !== '') ? o.list.selected : null;
+
+            if (options.length > 7) {
+                const field = document.createElement('div');
+                field.className = 'sd-field';
+                filterEl = document.createElement('input');
+                filterEl.className = 'sd-input';
+                filterEl.placeholder = 'Search…';
+                filterEl.autocomplete = 'off';
+                filterEl.spellcheck = false;
+                filterEl.addEventListener('input', paint);
+                field.appendChild(filterEl);
+                body.appendChild(field);
+            }
+
+            listEl = document.createElement('div');
+            listEl.className = 'sd-list';
+            listEl.tabIndex = -1;
+            body.appendChild(listEl);
+
+            function paint() {
+                const q = filterEl ? filterEl.value.trim().toLowerCase() : '';
+                listEl.innerHTML = '';
+                const shown = options.filter(function (opt) {
+                    return !q || (String(opt.label) + ' ' + String(opt.sub || '')).toLowerCase().indexOf(q) !== -1;
+                });
+                if (!shown.length) {
+                    const empty = document.createElement('div');
+                    empty.className = 'sd-list-empty';
+                    empty.textContent = options.length ? 'Nothing matches your search.' : 'Nothing to choose from.';
+                    listEl.appendChild(empty);
+                    return;
+                }
+                shown.forEach(function (opt) {
+                    const row = document.createElement('div');
+                    row.className = 'sd-option' + (opt.value === selectedValue ? ' selected' : '');
+                    const name = document.createElement('span');
+                    name.textContent = opt.label;
+                    row.appendChild(name);
+                    if (opt.sub) {
+                        const sub = document.createElement('span');
+                        sub.className = 'sd-option-sub';
+                        sub.textContent = opt.sub;
+                        row.appendChild(sub);
+                    }
+                    row.onclick = function () {
+                        selectedValue = opt.value;
+                        listEl.querySelectorAll('.sd-option.selected').forEach(function (r) { r.classList.remove('selected'); });
+                        row.classList.add('selected');
+                        okBtn.disabled = false;
+                    };
+                    row.ondblclick = function () { finish(true); };
+                    listEl.appendChild(row);
+                });
+            }
+            paint();
+            okBtn.disabled = selectedValue === null;
+            setTimeout(function () {
+                const sel = listEl.querySelector('.sd-option.selected');
+                if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: 'nearest' });
+            }, 40);
+        }
+
+        box.appendChild(foot);
+
+        function finish(ok) {
+            if (closed) return;
+            if (ok && inputEl && o.input && o.input.validate) {
+                const problem = o.input.validate(inputEl.value);
+                if (problem) {
+                    errEl.textContent = problem;
+                    errEl.classList.add('show');
+                    inputEl.classList.add('err');
+                    inputEl.focus();
+                    return;
+                }
+            }
+            if (ok && o.list && selectedValue === null) return;
+            closed = true;
+            overlay.classList.add('closing');
+            overlay.classList.remove('show');
+            setTimeout(function () { overlay.remove(); }, 180);
+            try { if (prevFocus && prevFocus.focus) prevFocus.focus(); } catch (e) {}
+            if (o.input) resolve(ok ? inputEl.value : null);
+            else if (o.list) resolve(ok ? selectedValue : null);
+            else resolve(!!ok);
+        }
+
+        overlay.addEventListener('mousedown', function (e) {
+            if (e.target === overlay && o.backdropClose) finish(false);
+        });
+
+        overlay._sd = { finish: finish };
+        document.body.appendChild(overlay);
+        requestAnimationFrame(function () { overlay.classList.add('show'); });
+
+        setTimeout(function () {
+            let target = okBtn;
+            if (o.focus === 'cancel' && cancelBtn) target = cancelBtn;
+            else if (inputEl) target = inputEl;
+            else if (filterEl) target = filterEl;
+            else if (listEl) target = listEl;
+            target.focus();
+            if (target === inputEl && inputEl.select) inputEl.select();
+        }, 30);
+    });
+}
+
+function sdToast(message, type) {
+    const spec = SD_TYPES[type] || SD_TYPES.info;
+    let stack = document.getElementById('sd-toast-stack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'sd-toast-stack';
+        document.body.appendChild(stack);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'sd-toast ' + spec.cls;
+
+    const icon = document.createElement('div');
+    icon.className = 'sd-icon';
+    icon.textContent = spec.icon;
+
+    const text = document.createElement('div');
+    const title = document.createElement('div');
+    title.className = 'sd-toast-title';
+    title.textContent = spec.title;
+    const msg = document.createElement('div');
+    msg.className = 'sd-toast-msg';
+    msg.textContent = message;
+    text.appendChild(title);
+    text.appendChild(msg);
+
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    stack.appendChild(toast);
+    while (stack.children.length > 4) stack.removeChild(stack.firstChild);
+    requestAnimationFrame(function () { toast.classList.add('show'); });
+
+    let timer = null;
+    function close() {
+        clearTimeout(timer);
+        toast.classList.remove('show');
+        setTimeout(function () { toast.remove(); }, 220);
+    }
+    function arm(ms) { clearTimeout(timer); timer = setTimeout(close, ms); }
+    toast.addEventListener('click', close);
+    toast.addEventListener('mouseenter', function () { clearTimeout(timer); });
+    toast.addEventListener('mouseleave', function () { arm(1500); });
+    arm(Math.min(9000, 3200 + message.length * 35));
+}
+
+// Errors and warnings always need an "OK". Success / info become toasts unless they're long.
+function studioNotify(message, type) {
+    const text = String(message == null ? '' : message);
+    const t = SD_TYPES[type] ? type : sdClassify(text);
+    const spec = SD_TYPES[t];
+    if (t === 'error' || t === 'warning' || text.length > 140) {
+        return sdEnqueue(function () {
+            return sdOpen({
+                cls: spec.cls, icon: spec.icon, title: spec.title, message: text,
+                okLabel: 'OK', cancelLabel: null, focus: 'ok', backdropClose: true
+            });
+        });
+    }
+    sdToast(text, t);
+    return Promise.resolve();
+}
+
+// Resolves to the typed text, or null if cancelled.
+function studioPrompt(o) {
+    o = o || {};
+    return sdEnqueue(function () {
+        return sdOpen({
+            cls: 'sd-gold',
+            icon: o.icon || '✎',
+            title: o.title || 'Enter a Value',
+            message: o.message,
+            okLabel: o.confirmLabel || 'Save',
+            input: {
+                type: o.type || 'text',
+                value: o.defaultValue || '',
+                placeholder: o.placeholder || '',
+                validate: function (v) {
+                    if (!String(v).trim()) return 'Please enter a value.';
+                    return o.validate ? o.validate(v) : '';
+                }
+            }
+        });
+    });
+}
+
+// Resolves to the chosen option's value, or null if cancelled.
+function studioChoose(o) {
+    o = o || {};
+    return sdEnqueue(function () {
+        return sdOpen({
+            cls: 'sd-gold',
+            icon: o.icon || '☰',
+            title: o.title || 'Choose One',
+            message: o.message,
+            okLabel: o.confirmLabel || 'Select',
+            list: { options: o.options || [], selected: o.selected }
+        });
+    });
+}
+
+// Resolves to true / false. tone: 'default' (gold), 'warning' (orange), 'danger' (red).
+function studioConfirm(o) {
+    o = o || {};
+    const tone = o.tone || 'default';
+    const cls = tone === 'danger' ? 'sd-red' : tone === 'warning' ? 'sd-orange' : 'sd-gold';
+    return sdEnqueue(function () {
+        return sdOpen({
+            cls: cls,
+            icon: o.icon || (tone === 'default' ? '?' : '!'),
+            title: o.title || 'Are You Sure?',
+            message: o.message,
+            okLabel: o.confirmLabel || 'Confirm',
+            cancelLabel: o.cancelLabel || 'Cancel',
+            focus: tone === 'danger' ? 'cancel' : 'ok',
+            backdropClose: true
+        });
+    });
+}
+
+window.alert = function (message) { studioNotify(message); };
+window.showToast = function (message, type) {
+    sdToast(String(message == null ? '' : message), type || 'info');
+};
+
+// While a dialog is open: Esc cancels, Enter confirms, Tab stays inside it,
+// and the app's own shortcuts (Space on the slide builder, Ctrl+F…) are paused.
+document.addEventListener('keydown', function (e) {
+    const overlay = document.querySelector('.sd-overlay:not(.closing)');
+    if (!overlay || !overlay._sd) return;
+    e.stopImmediatePropagation();
+
+    if (e.key === 'Escape') { e.preventDefault(); overlay._sd.finish(false); return; }
+
+    if (e.key === 'Tab') {
+        const items = Array.prototype.filter.call(
+            overlay.querySelectorAll('button:not([disabled]), input'),
+            function (el) { return el.offsetParent !== null; }
+        );
+        if (!items.length) { e.preventDefault(); return; }
+        const first = items[0], last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+        return;
+    }
+
+    if (e.key === 'Enter') {
+        const t = e.target;
+        if (t && t.tagName === 'BUTTON') return; // the focused button acts on its own
+        e.preventDefault();
+        overlay._sd.finish(true);
+    }
+}, true);
+
 let idcount = 0, mcount = 0, cusstaid = 0, loadednotelength = 0;
 let highlightedspan = "", selectedSpanId = "";
 let redtext = false, numOfRows = 1;
@@ -4224,8 +4762,15 @@ function openProject(name) {
     renderFolders();
 }
 
-function createProject() {
-    const name = prompt('Enter project name:');
+async function createProject() {
+    const name = await studioPrompt({
+        title: 'New Project',
+        message: 'Give your project a name.',
+        icon: '☦',
+        placeholder: 'Project name',
+        confirmLabel: 'Create',
+        validate: v => appData[v.trim()] ? 'A project with that name already exists.' : ''
+    });
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
     if (appData[trimmed]) { alert('A project with that name already exists.'); return; }
@@ -4237,8 +4782,14 @@ function createProject() {
     renderProjects();
 }
 
-function renameProject(oldName) {
-    const newName = prompt('Rename project to:', oldName);
+async function renameProject(oldName) {
+    const newName = await studioPrompt({
+        title: 'Rename Project',
+        icon: '✎',
+        defaultValue: oldName,
+        confirmLabel: 'Rename',
+        validate: v => (v.trim() !== oldName && appData[v.trim()]) ? 'A project with that name already exists.' : ''
+    });
     if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
     if (trimmed === oldName) return;
@@ -4319,8 +4870,17 @@ function openFolder(index) {
     renderPieces();
 }
 
-function createFolder() {
-    const name = prompt('Enter folder name:');
+async function createFolder() {
+    const name = await studioPrompt({
+        title: 'New Folder',
+        message: 'Give your folder a name.',
+        icon: '📁',
+        placeholder: 'Folder name',
+        confirmLabel: 'Create',
+        validate: v => (appData[currentUser].folders || []).some(f =>
+            _folderDeleteKey(currentUser, f.name) === _folderDeleteKey(currentUser, v)
+        ) ? 'A folder with that name already exists.' : ''
+    });
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
     if (!appData[currentUser].folders) appData[currentUser].folders = [];
@@ -4336,10 +4896,21 @@ function createFolder() {
     renderFolders();
 }
 
-function renameFolder(index) {
+async function renameFolder(index) {
     const folders = appData[currentUser].folders;
     const oldName = folders[index].name;
-    const newName = prompt('Rename folder to:', oldName);
+    const newName = await studioPrompt({
+        title: 'Rename Folder',
+        icon: '📁',
+        defaultValue: oldName,
+        confirmLabel: 'Rename',
+        validate: v => {
+            const k = _folderDeleteKey(currentUser, v);
+            return (k !== _folderDeleteKey(currentUser, oldName) &&
+                folders.some((f, i) => i !== index && _folderDeleteKey(currentUser, f.name) === k))
+                ? 'A folder with that name already exists.' : '';
+        }
+    });
     if (!newName || !newName.trim()) return;
     const trimmed = newName.trim();
     if (trimmed === oldName) return;
@@ -4517,8 +5088,14 @@ function renderPieces() {
     });
 }
 
-function createPiece() {
-    const name = prompt('Enter piece name:');
+async function createPiece() {
+    const name = await studioPrompt({
+        title: 'New Piece',
+        message: 'Give your piece a name.',
+        icon: '📜',
+        placeholder: 'Piece name',
+        confirmLabel: 'Create'
+    });
     if (!name || !name.trim()) return;
     if (!appData[currentUser].folders[currentFolder].pieces) appData[currentUser].folders[currentFolder].pieces = [];
     appData[currentUser].folders[currentFolder].pieces.push({
@@ -4742,7 +5319,13 @@ function closeRecoveryModal() {
 
 async function confirmRecoveryUseLocal() {
     if (!_recoveryLocalSnapshot) { closeRecoveryModal(); return; }
-    if (!confirm('This will push the locally saved copy on this computer to the cloud, making it the version everyone sees. Anything that exists only in the cloud, and not on this computer, is left untouched. Continue?')) return;
+        if (!(await studioConfirm({
+        title: 'Push Local Data to the Cloud?',
+        message: 'This will push the locally saved copy on this computer to the cloud, making it the version everyone sees. Anything that exists only in the cloud, and not on this computer, is left untouched.',
+        icon: '☁',
+        confirmLabel: 'Push to Cloud',
+        tone: 'warning'
+    }))) return;
 
     appData = _recoveryLocalSnapshot;
     markOrderDirty();
@@ -5547,9 +6130,14 @@ function applyManualBatchTranslations() {
     }
 }
 
-function renamePiece(index) {
+async function renamePiece(index) {
     const oldName = appData[currentUser].folders[currentFolder].pieces[index].name;
-    const newName = prompt('Rename piece to:', oldName);
+    const newName = await studioPrompt({
+        title: 'Rename Piece',
+        icon: '📜',
+        defaultValue: oldName,
+        confirmLabel: 'Rename'
+    });
     if (!newName || !newName.trim() || newName === oldName) return;
     appData[currentUser].folders[currentFolder].pieces[index].name = newName.trim();
     saveAndSync();
@@ -5569,11 +6157,22 @@ function duplicatePiece(index) {
     renderPieces();
 }
 
-function movePiece(index) {
+async function movePiece(index) {
     const folders = appData[currentUser].folders;
     if (folders.length < 2) { alert('You need at least 2 folders to move a piece.'); return; }
-    const options = folders.map((f, i) => i === currentFolder ? null : `${i}: ${f.name}`).filter(Boolean).join('\n');
-    const input = prompt(`Move to which folder?\n\n${options}\n\nType the number:`);
+    const pickedFolder = await studioChoose({
+        title: 'Move Piece',
+        message: 'Choose the folder to move this piece into.',
+        icon: '↪',
+        confirmLabel: 'Move',
+        options: folders.map((f, i) => i === currentFolder ? null : {
+            value: String(i),
+            label: f.name,
+            sub: (f.pieces || []).length + ' piece' + ((f.pieces || []).length === 1 ? '' : 's')
+        }).filter(Boolean)
+    });
+    if (pickedFolder === null) return;
+    const input = pickedFolder;
     if (input === null) return;
     const targetIndex = parseInt(input);
     if (isNaN(targetIndex) || targetIndex === currentFolder || !folders[targetIndex]) { alert('Invalid folder number.'); return; }
@@ -8987,13 +9586,19 @@ function showLoginError(msg) {
     el.style.display = 'block';
 }
 
-function logOut() {
+async function logOut() {
     const user = firebase.auth().currentUser;
     const isGuest = !!(user && user.isAnonymous);
     const msg = isGuest
         ? 'This guest session has no email or password. Ending it means there is no way to sign back into this exact data later — it will be gone from this browser for good. End the guest session anyway?'
         : 'Log out of this account?';
-    if (!confirm(msg)) return;
+    if (!(await studioConfirm({
+        title: isGuest ? 'End Guest Session?' : 'Log Out?',
+        message: msg,
+        icon: '⏻',
+        confirmLabel: isGuest ? 'End Session' : 'Log Out',
+        tone: isGuest ? 'danger' : 'default'
+    }))) return;
     (async () => {
         try {
             await firebase.auth().signOut();
@@ -9027,9 +9632,24 @@ async function openChangeEmail() {
         alert('No email account is signed in.');
         return;
     }
-    const newEmail = prompt('Enter your new email address:');
+    const newEmail = await studioPrompt({
+        title: 'Change Email',
+        message: 'Step 1 of 2: enter the new email address for this account.',
+        icon: '✉',
+        type: 'email',
+        placeholder: 'name@example.com',
+        confirmLabel: 'Next',
+        validate: v => /^\S+@\S+\.\S+$/.test(v.trim()) ? '' : 'Please enter a valid email address.'
+    });
     if (!newEmail || !newEmail.trim()) return;
-    const password = prompt('Re-enter your current password to confirm:');
+    const password = await studioPrompt({
+        title: 'Confirm Your Password',
+        message: 'Step 2 of 2: re-enter your current password to confirm the change.',
+        icon: '🔒',
+        type: 'password',
+        placeholder: 'Current password',
+        confirmLabel: 'Confirm'
+    });
     if (!password) return;
     try {
         const credential = firebase.auth.EmailAuthProvider.credential(user.email, password);
@@ -10886,7 +11506,35 @@ function updateChronoDisplay() {
         renderPresetCreator();
     }
 
-    function presetChoosePieceForSlot(sectionIndex, slotIndex) {
+    async function presetChoosePieceForSlot(sectionIndex, slotIndex) {
+        const section = presetState.sections[sectionIndex];
+        const slot = section?.slots?.[slotIndex];
+        if (!slot) return;
+
+        const options = presetOptionsForSlot(section, slot, getProjectPieceOptions());
+
+        if (!options.length) {
+            alert('No pieces are available in this project.');
+            return;
+        }
+
+        const picked = await studioChoose({
+            title: 'Choose a Piece',
+            message: 'Pick the piece for "' + (slot.label || slot.id) + '".',
+            icon: '📜',
+            confirmLabel: 'Select',
+            selected: slot.selectedId,
+            options: options.map(opt => ({ value: opt.value, label: opt.label, sub: opt.folderName }))
+        });
+
+        if (picked === null) return;
+
+        slot.selectedId = picked;
+        renderPresetCreator();
+    }
+
+    // Old typed-number version, no longer used. You can delete this whole function.
+    function presetChoosePieceForSlotOld(sectionIndex, slotIndex) {
         const section = presetState.sections[sectionIndex];
         const slot = section?.slots?.[slotIndex];
         if (!slot) return;
@@ -11073,8 +11721,14 @@ function updateChronoDisplay() {
         overlay.addEventListener('wheel', ssWheelHandler, { passive: false });
     }
 
-    function savePresetConfig() {
-        const name = prompt('Save this preset as:', presetState.presetName || 'My Custom Preset');
+    async function savePresetConfig() {
+        const name = await studioPrompt({
+            title: 'Save Preset',
+            message: 'Name this preset so you can find it again.',
+            icon: '💾',
+            defaultValue: presetState.presetName || 'My Custom Preset',
+            confirmLabel: 'Save'
+        });
         if (!name || !name.trim()) return;
 
         const safeName = name.trim();
