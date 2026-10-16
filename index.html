@@ -3478,7 +3478,7 @@ const milikitcate = { basics:'ምልክቶች', ihita:'ጉረሮ መጠበቂያ
 function showPage(name) {
     $('.page').removeClass('active');
     $('#page-' + name).addClass('active');
-    if (name === 'editor') setupEditor();
+    if (name === 'editor') { setupEditor(); ensureLockForCurrentPiece(); }
     if (name === 'present') loadNotesList();
 }
 
@@ -4024,12 +4024,13 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
                 var when = check.remotePiece.lastModified ? new Date(check.remotePiece.lastModified).toLocaleString() : 'recently';
                 var proceed = await showConflictWarningModal(when);
                 if (!proceed) return;
+                _editorPieceLoadedModified = check.remotePiece.lastModified;   // you chose to overwrite: that version is now acknowledged
             }
         }
 
-        savePieceNow();
-        saveAndSync();
-        _editorPieceLoadedModified = new Date().toISOString();
+        _conflictHold = false;           // an explicit, confirmed Save releases any paused sync
+        savePieceNow(true);
+        await saveAndSync();
         $b.text('Saved!'); setTimeout(()=>$b.text(restLabel),1200);
     });
 
@@ -4291,6 +4292,15 @@ let _deviceId = (function() {
 })();
 
 let _indexListenerUnsub = null;
+
+// _deviceId = one per BROWSER (tabs share it). _sessionId = one per PAGE LOAD, so it tells tabs apart.
+const _sessionId = 'tab_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+// Every lastModified stamp THIS page load wrote. If the cloud copy carries one, it was you.
+const _ownStamps = new Set();
+// Editor content as loaded / last saved, used to tell real edits from "nothing changed".
+let _editorBaselineHtml = null;
+// True while cloud pushes are paused because a real conflict is waiting for your decision.
+let _conflictHold = false;
 let _lastKnownCloudSaved = 0;
 
 const DB_NAME = 'MiliketStudio';
@@ -4606,6 +4616,7 @@ function showSyncStatus(state) {
         if (state === 'saved')        { el.style.background = '#27ae60'; el.textContent = '✓ Synced'; }
         else if (state === 'pending') { el.style.background = '#e6a817'; el.textContent = '⟳ Saving...'; }
         else if (state === 'failed')  { el.style.background = '#e74c3c'; el.textContent = '✕ Sync failed'; }
+        else if (state === 'held')    { el.style.background = '#e67e22'; el.textContent = '⚠ Sync paused'; }
     });
 }
 
@@ -4705,6 +4716,15 @@ function goToPresent() {
 }
 
 function exitToStudio() {
+    clearTimeout(autoSaveTimer);                    // exit does its own final save + push
+    const saved = savePieceNow();                   // stamps only if something really changed
+    releaseLock();
+    if (saved || _dirtyPieceIds.size) { saveData(); guardedPush(); }  // must run BEFORE _editorPieceId is cleared
+    _editorPieceId = null;                          // close the editor session: nothing can re-save this piece later
+    _editorBaselineHtml = null;
+    _exitToStudioRest();
+}
+function _exitToStudioRest() {
     savePieceNow();
     releaseLock();
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -5152,67 +5172,166 @@ function hideRemoteChangeBanner() {
     if (el) el.style.display = 'none';
 }
 
-// --- Edit Lock: warn before opening a piece someone else has open ---
-const LOCK_STALE_MS = 5 * 60 * 1000; // a lock older than this is treated as abandoned, not active
+// --- Edit Lock ---------------------------------------------------------------
+const LOCK_STALE_MS = 2 * 60 * 1000;      // a lock not refreshed for 2 min is abandoned
+const LOCK_HEARTBEAT_MS = 30 * 1000;      // refreshed every 30 s while a piece is open
+let _lockHeartbeatTimer = null;
+let _lockLostNotified = false;
 
-async function acquireLock(pieceId) {
+// Same-browser tabs ask each other "are you still alive?" so a refreshed/closed page
+// never looks like a second editor.
+const lockChannel = new BroadcastChannel('miliket_locks');
+lockChannel.onmessage = (e) => {
+    const m = e.data || {};
+    if (m.type === 'lock_ping' && m.sessionId === _sessionId && _lockedPieceId) {
+        lockChannel.postMessage({ type: 'lock_pong', nonce: m.nonce });
+    }
+};
+function _pingSessionAlive(sessionId) {
+    return new Promise(resolve => {
+        const nonce = Math.random().toString(36).slice(2);
+        let done = false;
+        const timer = setTimeout(() => finish(false), 600);
+        function onMsg(e) {
+            const m = e.data || {};
+            if (m.type === 'lock_pong' && m.nonce === nonce) finish(true);
+        }
+        function finish(v) {
+            if (done) return;
+            done = true;
+            clearTimeout(timer);
+            lockChannel.removeEventListener('message', onMsg);
+            resolve(v);
+        }
+        lockChannel.addEventListener('message', onMsg);
+        lockChannel.postMessage({ type: 'lock_ping', sessionId, nonce });
+    });
+}
+
+function _lockRef(uid, pieceId) {
+    return fsdb.collection('users').doc(uid).collection('locks').doc(pieceId);
+}
+function _lockPayload() {
+    return { deviceId: _deviceId, sessionId: _sessionId, lockedAt: firebase.firestore.FieldValue.serverTimestamp() };
+}
+function _lockFreshMs(data) {
+    const ms = data && data.lockedAt && data.lockedAt.toMillis ? data.lockedAt.toMillis() : 0;
+    return (ms && (Date.now() - ms) <= LOCK_STALE_MS) ? ms : 0;
+}
+// Returns a Date if someone ELSE really holds this lock right now, otherwise null.
+async function _lockHeldByOther(data) {
+    const ms = _lockFreshMs(data);
+    if (!data || data.sessionId === _sessionId || !ms) return null;
+    if (data.deviceId === _deviceId && !(await _pingSessionAlive(data.sessionId))) return null; // leftover of a closed/refreshed page of this browser
+    return new Date(ms);
+}
+
+// Atomic: check + take in one transaction. force=true is "Open Anyway".
+async function acquireLock(pieceId, force) {
     const user = firebase.auth().currentUser;
-    if (!user || !pieceId) return;
+    if (!user || !pieceId || !navigator.onLine) return { ok: true };   // fail open: never block offline work
+    const ref = _lockRef(user.uid, pieceId);
     try {
-        await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).set({
-            deviceId: _deviceId,
-            lockedAt: firebase.firestore.FieldValue.serverTimestamp()
+        const result = await fsdb.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            const data = snap.exists ? snap.data() : null;
+            if (!force && data && data.sessionId !== _sessionId && _lockFreshMs(data)) {
+                return { contested: true, data };
+            }
+            tx.set(ref, _lockPayload());
+            return { contested: false };
         });
+        if (result.contested) {
+            const heldSince = await _lockHeldByOther(result.data);
+            if (heldSince) return { ok: false, lockedAt: heldSince };
+            await ref.set(_lockPayload());                              // ghost lock from our own old page: take over
+        }
         _lockedPieceId = pieceId;
+        _lockLostNotified = false;
+        _startLockHeartbeat();
+        return { ok: true };
     } catch (e) {
         console.warn('Could not acquire edit lock:', e);
+        return { ok: true };
     }
 }
 
-async function releaseLock() {
-    const user = firebase.auth().currentUser;
-    if (!user || !_lockedPieceId) return;
+function _startLockHeartbeat() {
+    _stopLockHeartbeat();
+    _lockHeartbeatTimer = setInterval(refreshLock, LOCK_HEARTBEAT_MS);
+}
+function _stopLockHeartbeat() {
+    if (_lockHeartbeatTimer) { clearInterval(_lockHeartbeatTimer); _lockHeartbeatTimer = null; }
+}
+
+// Keeps our lock alive, and tells us if someone else took it over.
+async function refreshLock() {
     const pieceId = _lockedPieceId;
-    _lockedPieceId = null;
+    const user = firebase.auth().currentUser;
+    if (!pieceId || !user || !navigator.onLine) return;
+    const ref = _lockRef(user.uid, pieceId);
     try {
-        await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).delete();
+        const outcome = await fsdb.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            const data = snap.exists ? snap.data() : null;
+            if (data && data.sessionId !== _sessionId && _lockFreshMs(data)) return 'taken';
+            tx.set(ref, _lockPayload());
+            return 'ok';
+        });
+        if (outcome === 'taken') {
+            if (!_lockLostNotified) {
+                _lockLostNotified = true;
+                showToast('Another device or tab opened this piece with "Open Anyway". Your edits are still saved here, but finish up soon so you do not overwrite each other.', 'warning');
+            }
+        } else {
+            _lockLostNotified = false;
+        }
+    } catch (e) { /* offline blip, next heartbeat retries */ }
+}
+
+// fast=true is for page unload: skips the ownership check so the delete has a chance to finish.
+async function releaseLock(fast) {
+    _stopLockHeartbeat();
+    const pieceId = _lockedPieceId;
+    if (!pieceId) return;
+    _lockedPieceId = null;
+    const user = firebase.auth().currentUser;
+    if (!user) return;
+    const ref = _lockRef(user.uid, pieceId);
+    try {
+        if (fast) { await ref.delete(); return; }
+        await fsdb.runTransaction(async (tx) => {
+            const snap = await tx.get(ref);
+            if (snap.exists && snap.data().sessionId === _sessionId) tx.delete(ref);   // never wipe a lock someone else took over
+        });
     } catch (e) {
         console.warn('Could not release edit lock:', e);
     }
 }
 
-function refreshLock() {
-    if (!_lockedPieceId) return;
-    const user = firebase.auth().currentUser;
-    if (!user) return;
-    fsdb.collection('users').doc(user.uid).collection('locks').doc(_lockedPieceId).set({
-        deviceId: _deviceId,
-        lockedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(() => {});
+// For pieces that reach the editor without going through loadPieceIntoEditor (Edit text -> Submit).
+async function ensureLockForCurrentPiece() {
+    if (!_editorPieceId || _lockedPieceId === _editorPieceId) return;
+    const res = await acquireLock(_editorPieceId);
+    if (res.ok) return;
+    const choice = await showLockWarningModal(res.lockedAt);
+    if (choice === 'back') { exitToStudio(); return; }
+    await acquireLock(_editorPieceId, true);
 }
 
-async function checkLock(pieceId) {
-    const user = firebase.auth().currentUser;
-    if (!user || !pieceId || !navigator.onLine) return { lockedByOther: false };
-    try {
-        const doc = await fsdb.collection('users').doc(user.uid).collection('locks').doc(pieceId).get({ source: 'server' });
-        if (!doc.exists) return { lockedByOther: false };
-        const data = doc.data() || {};
-        if (data.deviceId === _deviceId) return { lockedByOther: false };
-        const lockedAtMs = data.lockedAt?.toMillis?.() || 0;
-        if (!lockedAtMs || (Date.now() - lockedAtMs) > LOCK_STALE_MS) return { lockedByOther: false };
-        return { lockedByOther: true, lockedAt: new Date(lockedAtMs) };
-    } catch (e) {
-        console.warn('Lock check failed:', e);
-        return { lockedByOther: false };
-    }
-}
+window.addEventListener('pagehide', () => { releaseLock(true); });
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshLock();   // came back to the tab: refresh immediately
+});
 
+// --- Conflict warning modal (shared: if two callers ask at once, they get the same answer) ---
+let _conflictModalPromise = null;
 function showConflictWarningModal(when) {
-    return new Promise(resolve => {
+    if (_conflictModalPromise) return _conflictModalPromise;
+    _conflictModalPromise = new Promise(resolve => {
         const modal = document.getElementById('conflict-warning-modal');
         const text = document.getElementById('conflict-warning-text');
-        text.textContent = 'This piece was changed by someone else on ' + when + ', since you opened it here. Saving now will overwrite their changes with yours.';
+        text.textContent = 'This piece was saved by another device or browser tab on ' + when + ', after you opened it here. Saving now will overwrite their changes with yours.';
         modal.style.display = 'flex';
         const cancelBtn = document.getElementById('conflict-warning-cancel');
         const overwriteBtn = document.getElementById('conflict-warning-overwrite');
@@ -5220,11 +5339,13 @@ function showConflictWarningModal(when) {
             modal.style.display = 'none';
             cancelBtn.onclick = null;
             overwriteBtn.onclick = null;
+            _conflictModalPromise = null;
             resolve(result);
         }
         cancelBtn.onclick = () => cleanup(false);
         overwriteBtn.onclick = () => cleanup(true);
     });
+    return _conflictModalPromise;
 }
 
 function showLockWarningModal(lockedAt) {
@@ -5232,7 +5353,7 @@ function showLockWarningModal(lockedAt) {
         const modal = document.getElementById('lock-warning-modal');
         const text = document.getElementById('lock-warning-text');
         const whenStr = lockedAt ? lockedAt.toLocaleString() : 'a moment ago';
-        text.textContent = 'Someone else opened this piece for editing ' + whenStr + ' and may still be working on it. Opening it here now could overwrite their changes.';
+        text.textContent = 'Another device or browser tab has this piece open (last active ' + whenStr + ') and may still be working on it. Opening it here could overwrite their changes.';
         modal.style.display = 'flex';
         const backBtn = document.getElementById('lock-warning-back');
         const overwriteBtn = document.getElementById('lock-warning-overwrite');
@@ -6228,13 +6349,13 @@ function continueEditingCurrentPiece() {
 async function loadPieceIntoEditor(index) {
     const piece = appData[currentUser].folders[currentFolder].pieces[index];
 
-    const lockCheck = await checkLock(piece.id);
-    if (lockCheck.lockedByOther) {
-        const choice = await showLockWarningModal(lockCheck.lockedAt);
-        if (choice === 'back') return;
-    }
     if (_lockedPieceId && _lockedPieceId !== piece.id) await releaseLock();
-    await acquireLock(piece.id);
+    const lockRes = await acquireLock(piece.id);
+    if (!lockRes.ok) {
+        const choice = await showLockWarningModal(lockRes.lockedAt);
+        if (choice === 'back') return;
+        await acquireLock(piece.id, true);
+    }
 
     currentPiece = index;
     enterEditorMode();
@@ -6251,6 +6372,7 @@ async function loadPieceIntoEditor(index) {
         $('#page-editor').addClass('active');
         $('#container').html(piece.visualData);
         loadednotelength = $('#container').children('.letter-container').length;
+        _editorBaselineHtml = _editorSnapshot();
         var max = 0;
         $('#container span[id^="cussta"]').each(function(){
             var n = parseInt($(this).attr('id').replace('cussta',''), 10);
@@ -6297,22 +6419,42 @@ function pullFromLocal() {
     }
 }
 
-function savePieceNow() {
-    if (currentUser === null || currentFolder === null || currentPiece === null) return;
+// Editor content with selection glow removed, so clicking a cell doesn't count as an edit.
+function _editorSnapshot() {
+    const $clone = $('#container').clone();
+    $clone.find('.highlight, .row-selected').removeClass('highlight row-selected');
+    return $clone.html();
+}
+
+// Returns true if it actually stamped a new version. force=true is for explicit Save clicks.
+function savePieceNow(force) {
+    if (currentUser === null || currentFolder === null || currentPiece === null) return false;
     const folder = appData[currentUser] && appData[currentUser].folders[currentFolder];
     const piece = folder && folder.pieces[currentPiece];
-    if (!piece) return;
-    if (!_editorPieceId || piece.id !== _editorPieceId) return;
+    if (!piece) return false;
+    if (!_editorPieceId || piece.id !== _editorPieceId) return false;
+
+    const snap = _editorSnapshot();
+    if (!force && _editorBaselineHtml !== null && snap === _editorBaselineHtml) {
+        unsavedChanges = false;
+        return false;                               // nothing changed, so don't re-stamp
+    }
+    const stamp = new Date().toISOString();
     piece.visualData = $('#container').html();
-    piece.lastModified = new Date().toISOString();
+    piece.lastModified = stamp;
+    _ownStamps.add(stamp);                          // remember: this stamp is ours
+    _editorBaselineHtml = snap;
     markPieceDirty(piece.id);
     unsavedChanges = false;
     saveData();
+    return true;
 }
 
 // Checks whether this piece was changed in the cloud after this device loaded it.
 // Fails open (returns no conflict) if offline or the check itself errors — a
 // network hiccup here should never block a normal save.
+// Real conflict = the cloud copy was written by someone ELSE (not one of our own stamps)
+// and is newer than the version we opened.
 async function checkRemoteConflict(pieceId, loadedModified) {
     if (!pieceId) return { conflict: false };
     const user = firebase.auth().currentUser;
@@ -6320,7 +6462,7 @@ async function checkRemoteConflict(pieceId, loadedModified) {
     try {
         const doc = await fsdb.collection('users').doc(user.uid).get({ source: 'server' });
         if (!doc.exists) return { conflict: false };
-        const index = doc.data().index || {};
+        const index = (doc.data() || {}).index || {};
         let remotePiece = null;
         Object.keys(index).filter(k => k !== '_lastSaved').forEach(projName => {
             (index[projName].folders || []).forEach(folder => {
@@ -6329,13 +6471,16 @@ async function checkRemoteConflict(pieceId, loadedModified) {
                 });
             });
         });
-        if (!remotePiece) return { conflict: false };
-        const remoteModified = new Date(remotePiece.lastModified || 0).getTime();
-        const localLoadedModified = new Date(loadedModified || 0).getTime();
-        return { conflict: remoteModified > localLoadedModified, remotePiece };
+        if (!remotePiece || !remotePiece.lastModified) return { conflict: false };
+        if (_ownStamps.has(remotePiece.lastModified)) return { conflict: false };   // it was us
+
+        const remoteMs = new Date(remotePiece.lastModified).getTime();
+        const baseMs = new Date(loadedModified || 0).getTime();
+        if (!(remoteMs > baseMs)) return { conflict: false };                        // nothing newer than what we opened
+        return { conflict: true, remotePiece };
     } catch (e) {
         console.warn('Remote conflict check failed:', e);
-        return { conflict: false };
+        return { conflict: false };                                                  // never block a save on a network hiccup
     }
 }
 
@@ -6620,17 +6765,39 @@ let unsavedChanges = false;
 function triggerAutoSave() {
     unsavedChanges = true;
     clearTimeout(autoSaveTimer);
-    autoSaveTimer = setTimeout(async () => {
-        savePieceNow();
-        saveData();
-        refreshLock();
-        await pushToFirestore();
-        // Autosave just pushed this piece's own lastModified to the cloud —
-        // update our "loaded at" bookmark so the next manual Save doesn't
-        // mistake our own autosave for a change from another device.
-        if (_editorPieceId) _editorPieceLoadedModified = new Date().toISOString();
-    }, 10000);
+    autoSaveTimer = setTimeout(runAutoSave, 10000);
     showSyncStatus('pending');
+}
+
+async function runAutoSave() {
+    savePieceNow();          // stamps only if the content really changed
+    saveData();
+    await guardedPush();     // lock heartbeat runs on its own timer
+}
+
+// Pushes to the cloud, but first checks we are not about to overwrite a newer copy
+// of the piece being edited. On a real conflict it pauses ALL pushes until you decide.
+async function guardedPush() {
+    const pieceId = _editorPieceId;
+    const loaded = _editorPieceLoadedModified;
+
+    if (!_conflictHold && pieceId && _dirtyPieceIds.has(pieceId)) {
+        const check = await checkRemoteConflict(pieceId, loaded);
+        if (check.conflict && !_conflictHold) {
+            _conflictHold = true;
+            unsavedChanges = true;
+            showSyncStatus('held');
+            const when = check.remotePiece.lastModified ? new Date(check.remotePiece.lastModified).toLocaleString() : 'recently';
+            const proceed = await showConflictWarningModal(when);
+            if (proceed) {
+                _conflictHold = false;
+                if (_editorPieceId === pieceId) _editorPieceLoadedModified = check.remotePiece.lastModified;
+            }
+        }
+    }
+
+    if (_conflictHold) { unsavedChanges = true; showSyncStatus('held'); return; }
+    await pushToFirestore();
 }
 
 // ============================================================
@@ -9448,6 +9615,7 @@ async function pushToFirestore() {
         showSyncStatus('failed');
         return;
     }
+    if (_conflictHold) { showSyncStatus('held'); return; }
     if (_pushInFlight) { try { await _pushInFlight; } catch(e) {} }
     _pushInFlight = (async () => {
         const pushingIds = Array.from(_dirtyPieceIds);
@@ -9601,6 +9769,7 @@ async function logOut() {
     }))) return;
     (async () => {
         try {
+            await releaseLock();
             await firebase.auth().signOut();
         } catch(e) {
             console.error('Sign out failed:', e);
@@ -9830,6 +9999,7 @@ function checkSyncReminder() {
 }
 
 window.addEventListener('beforeunload', (e) => {
+    releaseLock(true);
     releaseLock();
     if (unsavedChanges) {
         e.preventDefault();
@@ -9841,7 +10011,7 @@ document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'hidden') {
         savePieceNow();
         saveData();
-        if (navigator.onLine) pushToFirestore();
+        if (navigator.onLine) guardedPush();
     }
 });
 
