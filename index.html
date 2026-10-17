@@ -5090,6 +5090,7 @@ function renderPieces() {
             <div class="card-actions">
                 <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renamePiece(${index})">✎ Rename</button>
                 <button class="card-action-btn dup" onclick="event.stopPropagation(); closeCardMenus(); duplicatePiece(${index})">⧉ Duplicate</button>
+                <button class="card-action-btn" onclick="event.stopPropagation(); closeCardMenus(); copyPieceForIdefisseha(${index})">📋 Copy HTML (idefisseha)</button>
                 <button class="card-action-btn mov" onclick="event.stopPropagation(); closeCardMenus(); movePiece(${index})">↪ Move</button>
                 <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deletePiece(${index})">× Delete</button>
             </div>
@@ -6248,6 +6249,36 @@ function applyManualBatchTranslations() {
             'Could not apply the pasted response:\n\n' +
             error.message
         );
+    }
+}
+
+// Converts our piece HTML to the form idefisseha uses.
+// Known difference: its empty cells hold a real non-breaking space, ours hold two hair spaces.
+function convertPieceHtmlForIdefisseha(html) {
+    const IDF_CELL = '\u00A0';
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    temp.querySelectorAll('.highlight, .row-selected').forEach(el => el.classList.remove('highlight', 'row-selected'));
+    temp.querySelectorAll('.letter').forEach(cell => {
+        const first = cell.firstChild;
+        if (first && first.nodeType === 3) {
+            first.nodeValue = first.nodeValue.replace(/^[\u200A\u00A0 ]{1,2}/, IDF_CELL);
+        }
+    });
+    return temp.innerHTML;
+}
+
+async function copyPieceForIdefisseha(index) {
+    const piece = appData[currentUser].folders[currentFolder].pieces[index];
+    if (!piece || !piece.visualData || !piece.visualData.trim()) {
+        alert('This piece has no saved visual yet. Open it in the editor and save it first.');
+        return;
+    }
+    try {
+        await navigator.clipboard.writeText(convertPieceHtmlForIdefisseha(piece.visualData));
+        showToast('Copied for idefisseha. Paste it there with Paste HTML.', 'success');
+    } catch (e) {
+        alert('Clipboard access denied.');
     }
 }
 
