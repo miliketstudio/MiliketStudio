@@ -9328,7 +9328,7 @@ function renderMulticopyFallbackScreen(items) {
         grid.appendChild(card);
     });
 
-    ggrid.querySelectorAll('.mc-copy-translit').forEach(btn => {
+    grid.querySelectorAll('.mc-copy-translit').forEach(btn => {
         btn.addEventListener('click', () => copyMulticopyTranslit(parseInt(btn.dataset.idx), btn));
     });
     grid.querySelectorAll('.mc-copy-img').forEach(btn => {
