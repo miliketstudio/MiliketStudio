@@ -9722,6 +9722,8 @@ const GS_INSET_Y = 45720;
 // true  = oversize + shift the box by the insets so the TEXT AREA equals the intended rect (effective 0 padding)
 // false = keep the box exactly as captured; text fits inside box minus the default insets
 const GS_COMPENSATE_INSETS = true;
+const GS_INTERLEAVE_MATCH_SCREEN = true;   // true = interleaved Slides text boxes use the exact on-screen text size and line spacing. false = old fit-to-box behaviour
+const GS_INTERLEAVE_LINE_SPACING_PCT = Math.round(SS_INTERLEAVE_TEXT_LINE_HEIGHT / 1.25 * 100);   // on-screen line height ÷ Lexend's natural line height (about 1.25)
 // Line spacing as a % of the font's natural line height (100 = Google's default, which leaves a lot of air above/below text)
 const GS_LINE_SPACING_PCT = 85;
 
@@ -9782,6 +9784,7 @@ function _gslidesCollectInterleaveBoxes() {
         g.r = Math.max(g.r, r.right); g.b = Math.max(g.b, r.bottom);
         g.parts.push(text);
         g.pad = Math.max(g.pad || 0, parseFloat(el.dataset.ssPad) || 0);
+        g.fontPx = Math.max(g.fontPx || 0, parseFloat(getComputedStyle(el).fontSize) || 0);
         if (el.classList.contains('ss-inter-translit')) g.tlLen = text.length;   // DOM order: transliteration first, then translation
     });
     return Array.from(groups.values()).map(function (g) {
@@ -9790,7 +9793,8 @@ function _gslidesCollectInterleaveBoxes() {
             y: (g.t - o.top) / o.height - (g.pad || 0) / overlay.offsetHeight,
             w: (g.r - g.l) / o.width,
             h: (g.b - g.t) / o.height + 2 * (g.pad || 0) / overlay.offsetHeight,
-            text: g.parts.join('\n'), translitLen: g.tlLen || 0
+            text: g.parts.join('\n'), translitLen: g.tlLen || 0,
+            fontPt: (g.fontPx || 0) * 720 / overlay.offsetWidth
         };
     });
 }
@@ -9800,7 +9804,9 @@ function _gslidesCollectInterleaveBoxes() {
 function _gslidesInterleaveRequests(boxes, slideObjectId, i, PW_EMU, PH_EMU) {
     const padX = GS_COMPENSATE_INSETS ? GS_INSET_X : 0;
     const padY = GS_COMPENSATE_INSETS ? GS_INSET_Y : 0;
-    const rects = boxes.map(function (b) {
+    // Same line spacing as Finish & Present. This local name shadows the global one inside this function only.
+        const GS_LINE_SPACING_PCT = GS_INTERLEAVE_MATCH_SCREEN ? GS_INTERLEAVE_LINE_SPACING_PCT : 85;
+        const rects = boxes.map(function (b) {
         const w = Math.round(b.w * PW_EMU), h = Math.round(b.h * PH_EMU);
         const boxW = w + 2 * padX, boxH = h + 2 * padY;
         return {
@@ -9813,11 +9819,13 @@ function _gslidesInterleaveRequests(boxes, slideObjectId, i, PW_EMU, PH_EMU) {
             textHpt: (boxH - 2 * GS_INSET_Y) / 12700
         };
     });
-    const fontPt = Math.min.apply(null, rects.map(function (r) {
+    const _fitPt = Math.min.apply(null, rects.map(function (r) {
         return _gslidesFitFontPt(r.b.text, r.textWpt, r.textHpt);
     }));
     const out = [];
     const stamp = Date.now();
+    const _screenPt = Math.min.apply(null, boxes.map(function (b) { return b.fontPt || 0; }));
+    const fontPt = (GS_INTERLEAVE_MATCH_SCREEN && _screenPt > 0) ? Math.round(_screenPt * 10) / 10 : _fitPt;
     rects.forEach(function (r, k) {
         const boxId = 'ilv_' + i + '_' + k + '_' + stamp;
         out.push({
