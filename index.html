@@ -7351,7 +7351,7 @@ async function exportToPptx() {
             if (translation || exportTranslit) {
                 const fitted = fitTranslationFontSize((exportTranslit ? exportTranslit + '\n' : '') + translation, PW - 0.6, transH - 0.2);
                 slide.addText(exportTranslit ? [
-                    { text: exportTranslit, options: { fontSize: fitted, color: '000000', breakLine: !!translation } }
+                    { text: exportTranslit, options: { fontSize: fitted, color: ssTranslitHex(), breakLine: !!translation } }
                 ].concat(translation ? [{ text: translation, options: { fontSize: fitted } }] : []) : translation, {
                     x: 0.3, y: transY + 0.1,
                     w: PW - 0.6, h: transH - 0.2,
@@ -7439,7 +7439,7 @@ async function exportToPptxExact() {
         const total = _ssSlides.length;
 
         for (let si = 0; si < total; si++) {
-            setMsg(`Exporting slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
+            await ssEnsureFonts(); setMsg(`Exporting slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
 
             _ssIndex = si;
             renderSlideshowSlide();
@@ -7454,6 +7454,7 @@ async function exportToPptxExact() {
             const transTextEl = transEl?.querySelector('p');
 
             // Hide translation panel text during Ge'ez capture
+            _gslidesHideInterleaveText(true);
             if (transTextEl) transTextEl.style.visibility = 'hidden';
 
             // Underline → overline conversion
@@ -7505,6 +7506,8 @@ async function exportToPptxExact() {
 
             const imgData = canvas.toDataURL('image/png');
 
+            _gslidesHideInterleaveText(false);
+            const _ilBoxes = _gslidesCollectInterleaveBoxes();
             // Calculate translation band position based on actual overlay dimensions
             const overlayH = overlay.offsetHeight;
             const transElH = document.getElementById('ss-translation').offsetHeight;
@@ -7515,7 +7518,22 @@ async function exportToPptxExact() {
             const slide = pptx.addSlide();
             slide.background = { color: 'FFFDF8' };
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: PH });
-            if (ssSlideHasBand(_ssSlides[si]) && nativeTransH > 0.05) {
+            if (_ilBoxes.length) {
+                const _ilSize = Math.min.apply(null, _ilBoxes.map(function (b) {
+                    return fitTranslationFontSize(b.text, b.w * PW, b.h * PH);
+                }));
+                _ilBoxes.forEach(function (b) {
+                    slide.addText(b.translitLen ? [
+                        { text: b.text.slice(0, b.translitLen), options: { color: ssTranslitHex(), breakLine: true } },
+                        { text: b.text.slice(b.translitLen + 1), options: { color: '000000' } }
+                    ] : b.text, {
+                        x: b.x * PW, y: b.y * PH, w: b.w * PW, h: b.h * PH,
+                        fontSize: _ilSize, bold: true, color: '000000', fontFace: 'Lexend',
+                        align: 'center', valign: 'middle', wrap: true, margin: 0,
+                        lineSpacingMultiple: 1.2
+                    });
+                });
+            } else if (ssSlideHasBand(_ssSlides[si]) && nativeTransH > 0.05) {
                 slide.addShape(pptx.ShapeType.rect, {
                     x: 0, y: nativeTransY, w: PW, h: nativeTransH,
                     fill: { color: 'EEF3FF' },
@@ -7525,7 +7543,7 @@ async function exportToPptxExact() {
                 const _tr = (_ssSlides[si].translation || '').trim();
                 const fitted = fitTranslationFontSize((_tl ? _tl + '\n' : '') + _tr, PW - 0.6, nativeTransH - 0.1);
                 slide.addText(_tl ? [
-                    { text: _tl, options: { fontSize: fitted, color: '000000', breakLine: !!_tr } }
+                    { text: _tl, options: { fontSize: fitted, color: ssTranslitHex(), breakLine: !!_tr } }
                 ].concat(_tr ? [{ text: _tr, options: { fontSize: fitted } }] : []) : _tr, {
                     x: 0.3, y: nativeTransY + 0.05,
                     w: PW - 0.6, h: nativeTransH - 0.1,
@@ -8192,6 +8210,124 @@ function ssUpdateInterleaveButtons(plan) {
 // Draws the slide as interleaved rows. Returns false when this slide should use the classic layout instead.
 const SS_INTERLEAVE_LINE_BOOST = 3;   // short lines may grow up to this many times the shared size (1 = no growth)
 
+// ===== Fonts: always measure slides with the REAL fonts, never the fallback =====
+let _ssFontsPromise = null;
+function ssEnsureFonts() {
+    if (_ssFontsPromise) return _ssFontsPromise;
+    if (!document.fonts || !document.fonts.load) { _ssFontsPromise = Promise.resolve(); return _ssFontsPromise; }
+    _ssFontsPromise = Promise.all([
+        document.fonts.load('700 24px Lexend', 'Aa'),
+        document.fonts.load('40px "Abyssinica SIL"', '\u1200\u1230')
+    ]).then(function () {}, function (e) { console.warn('Slide fonts did not load:', e); });
+    return _ssFontsPromise;
+}
+
+function ssRerenderIfVisible() {
+    const o = document.getElementById('slideshow-overlay');
+    if (!o || o.style.display === 'none' || !_ssSlides.length) return;
+    const g = document.getElementById('gslides-export-overlay');
+    if ((g && g.style.display === 'flex') || document.getElementById('pptx-export-loader')) return; // never mid-export
+    renderSlideshowSlide();
+}
+if (document.fonts && document.fonts.addEventListener) {
+    document.fonts.addEventListener('loadingdone', function () {
+        clearTimeout(window._ssFontTimer);
+        window._ssFontTimer = setTimeout(ssRerenderIfVisible, 80);
+    });
+}
+
+const SS_INTERLEAVE_TEXT_MAX_RATIO = 0.9;       // spare height may grow the text, but never beyond this fraction of the Ge'ez letter size
+const SS_INTERLEAVE_TEXT_LINE_HEIGHT = 0.8;    // line height of translit/translation on screen (was 1.3)
+const SS_INTERLEAVE_TEXT_MAX_PX = 200;          // hard cap on text size in px
+
+// ===== Transliteration colour (one place to change it) =====
+let SS_TRANSLIT_COLOR = '#8b1e2d';   // transliteration colour. The translation stays #1a2a3a.
+function ssTranslitHex() { return String(SS_TRANSLIT_COLOR).replace('#', '').toUpperCase(); }   // PPTX wants hex without the #
+function _gsRgb(hex) {   // Google Slides wants 0..1 values
+    const h = String(hex).replace('#', '');
+    return { red: parseInt(h.slice(0, 2), 16) / 255, green: parseInt(h.slice(2, 4), 16) / 255, blue: parseInt(h.slice(4, 6), 16) / 255 };
+}
+
+// ===== Ink-based interleave layout =====
+let SS_INTERLEAVE_INK_PAD_PX = 0;     // safety margin kept around the measured ink (px at 100% size). Raise if a glyph ever looks clipped or touches the text.
+let SS_INTERLEAVE_INK_GAP_EM = 0;   // breathing room between ink and text, as a fraction of the text size (half above, half below)
+let ssInkCtx = null;
+
+// For every letter-container of one Ge'ez line: where its real ink starts and ends, in px relative to the container's top.
+function ssMeasureInkCells(inner) {
+    const z = (typeof ssGetZoom === 'function' ? ssGetZoom() : 1) || 1;
+    const ctx = ssInkCtx || (ssInkCtx = document.createElement('canvas').getContext('2d'));
+    const junk = /[\s\u200A-\u200D\u2060\uFEFF\u00A0]/g;
+    const cells = [];
+
+    Array.from(inner.children).forEach(function (lc) {
+        if (!lc.classList || !lc.classList.contains('letter-container')) return;
+        const cTop = lc.getBoundingClientRect().top;
+        let top = Infinity, bot = -Infinity;
+        const walker = document.createTreeWalker(lc, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+            const txt = node.nodeValue.replace(junk, '');
+            if (!txt) continue;
+            const el = node.parentElement;
+            if (!el || el.closest('.whitespace')) continue;
+            const cs = getComputedStyle(el);
+            if (cs.visibility === 'hidden') continue;
+            const fs = parseFloat(cs.fontSize);
+            if (!fs) continue;
+
+            const range = document.createRange();
+            range.selectNodeContents(node);
+            const r = range.getBoundingClientRect();
+            if (!r.height) continue;
+
+            ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fs + 'px ' + cs.fontFamily;
+            const m = ctx.measureText(txt);
+            const fA = m.fontBoundingBoxAscent != null ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent;
+            const fD = m.fontBoundingBoxDescent != null ? m.fontBoundingBoxDescent : m.actualBoundingBoxDescent;
+            const boxTop = (r.top - cTop) / z;
+            const boxH = r.height / z;
+            const baseline = boxTop + (boxH - (fA + fD)) / 2 + fA;
+
+            let t = baseline - m.actualBoundingBoxAscent;
+            let b = baseline + m.actualBoundingBoxDescent;
+
+            // overline / underline decorations count as ink too
+            let d = el;
+            while (d && d !== lc.parentElement) {
+                const dcs = getComputedStyle(d);
+                if ((dcs.textDecorationLine || '').indexOf('underline') !== -1) {
+                    const dfs = parseFloat(dcs.fontSize) || fs;
+                    const off = parseFloat(dcs.textUnderlineOffset);
+                    const uy = baseline + (isNaN(off) ? 0.12 * dfs : off);
+                    const th = 0.08 * dfs;
+                    t = Math.min(t, uy - th);
+                    b = Math.max(b, uy + th);
+                    break;
+                }
+                d = d.parentElement;
+            }
+
+            if (t < top) top = t;
+            if (b > bot) bot = b;
+        }
+        if (isFinite(top)) cells.push({ el: lc, top: top, bot: bot });
+    });
+    return cells;
+}
+
+// Highest and lowest ink of one Ge'ez line, in unscaled px from the top of its box, at the CURRENT wrapping.
+function ssInkBounds(p) {
+    let top = Infinity, bot = -Infinity;
+    p.cells.forEach(function (c) {
+        const t = c.el.offsetTop;
+        if (t + c.top < top) top = t + c.top;
+        if (t + c.bot > bot) bot = t + c.bot;
+    });
+    if (!isFinite(top)) return { top: 0, bot: p.inner.scrollHeight };
+    return { top: top - SS_INTERLEAVE_INK_PAD_PX, bot: bot + SS_INTERLEAVE_INK_PAD_PX };
+}
+
 function ssTryRenderInterleaved(slide, counter) {
     const plan = ssInterleaveRows(slide);
     ssUpdateInterleaveButtons(plan);
@@ -8221,9 +8357,9 @@ function ssTryRenderInterleaved(slide, counter) {
         geezEl.appendChild(host);
 
         // Transliteration and translation share one colour and one size.
-        const textStyle = 'width:100%;box-sizing:border-box;padding:2px 16px 0;font-family:Lexend,sans-serif;font-weight:700;font-style:normal;text-align:center;line-height:1.3;word-break:break-word;background:none;border:0;color:#1a2a3a;';
+        const textStyle = 'width:100%;box-sizing:border-box;padding:2px 16px 0;font-family:Lexend,sans-serif;font-weight:700;font-style:normal;text-align:center;line-height:' + SS_INTERLEAVE_TEXT_LINE_HEIGHT + ';word-break:break-word;background:none;border:0;color:#1a2a3a;';
 
-        const pairs = plan.rows.map(r => {
+        const pairs = plan.rows.map((r, idx) => {
             const group = document.createElement('div');
             const wrap = document.createElement('div');
             wrap.style.cssText = 'position:relative;width:100%;';
@@ -8238,6 +8374,7 @@ function ssTryRenderInterleaved(slide, counter) {
             if (_ssTranslit && r.translit) {
                 tl = document.createElement('div');
                 tl.className = 'ss-inter-translit';
+                tl.dataset.ssGroup = String(idx);
                 tl.style.cssText = textStyle;
                 tl.textContent = r.translit;
                 group.appendChild(tl);
@@ -8245,12 +8382,14 @@ function ssTryRenderInterleaved(slide, counter) {
             if (r.translation) {
                 trans = document.createElement('div');
                 trans.className = 'ss-inter-trans';
+                trans.dataset.ssGroup = String(idx);
                 trans.style.cssText = textStyle;
                 trans.textContent = r.translation;
                 group.appendChild(trans);
             }
             host.appendChild(group);
-            return { inner, wrap, tl, trans, fit: 0 };
+            if (tl) tl.style.color = SS_TRANSLIT_COLOR;
+            return { inner, wrap, tl, trans, fit: 0, cells: [] };
         });
 
         pairs.forEach(p => {
@@ -8264,6 +8403,7 @@ function ssTryRenderInterleaved(slide, counter) {
             // Natural one-line width = the biggest scale at which this line still fits the slide width.
             p.inner.style.width = 'max-content';
             p.inner.style.transform = 'none';
+            p.cells = ssMeasureInkCells(p.inner);   // real ink position of every letter-container (scale-independent, measured once)
             const nat = p.inner.scrollWidth;
             p.fit = nat > 0 ? 0.995 * availW / nat : 0;
         });
@@ -8273,130 +8413,43 @@ function ssTryRenderInterleaved(slide, counter) {
         function rowScale(p, s) {
             return Math.max(s, Math.min(p.fit, s * SS_INTERLEAVE_LINE_BOOST));
         }
-        function layoutAt(s) {
-            let total = 0;   // no gaps between line groups
-            const tPx = Math.max(14, Math.min(160, SS_INTERLEAVE_TRANS_RATIO * baseLetterPx * s));
+        // s = shared Ge'ez scale, m = extra text multiplier (1 = the plain ratio)
+        function layoutAt(s, m) {
+            let total = 0;
+            const tPx = Math.max(14, Math.min(SS_INTERLEAVE_TEXT_MAX_PX, SS_INTERLEAVE_TRANS_RATIO * baseLetterPx * s * m));
+            const gap = Math.round(tPx * SS_INTERLEAVE_INK_GAP_EM);
             pairs.forEach(p => {
                 const si = rowScale(p, s);
                 p.inner.style.width = Math.max(60, Math.round(availW / si)) + 'px';
                 p.inner.style.transform = 'none';
-                const h = Math.ceil(p.inner.scrollHeight * si);
-                p.wrap.style.height = h + 'px';
+                const b = ssInkBounds(p);                       // highest / lowest ink at this wrapping
+                const h = Math.ceil((b.bot - b.top) * si);      // visible height of the line = ink only
+                p.wrap.style.height = (h + gap) + 'px';
+                p.inner.style.top = (gap / 2 - b.top * si) + 'px';   // slide the line up so its highest ink sits at the top of the box
                 p.inner.style.transform = 'scale(' + si + ')';
-                total += h;
-                if (p.tl)    { p.tl.style.fontSize = tPx + 'px'; total += p.tl.offsetHeight; }
-                if (p.trans) { p.trans.style.fontSize = tPx + 'px'; total += p.trans.offsetHeight; }
+                p.wrap.style.outline = window.ssInkDebug ? '1px dashed #e0245e' : '';
+                total += h + gap;
+                if (p.tl)    { p.tl.style.fontSize = tPx + 'px'; p.tl.dataset.ssPad = String(gap / 2); total += p.tl.offsetHeight; }
+                if (p.trans) { p.trans.style.fontSize = tPx + 'px'; p.trans.dataset.ssPad = String(gap / 2); total += p.trans.offsetHeight; }
             });
             return total;
         }
+
+        // Pass 1: biggest shared Ge'ez scale that fits.
         let lo = 0.05, hi = 8;
         for (let i = 0; i < 22; i++) {
             const mid = (lo + hi) / 2;
-            (layoutAt(mid) <= availH) ? (lo = mid) : (hi = mid);
+            (layoutAt(mid, 1) <= availH) ? (lo = mid) : (hi = mid);
         }
-        layoutAt(lo * 0.995);
-    }
+        const sFinal = lo * 0.995;
 
-    document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
-    document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
-    applySlideZoom();
-    return true;
-}
-
-// Old version, no longer used. You can delete this whole function later.
-function ssTryRenderInterleavedOld(slide, counter) {
-    const plan = ssInterleaveRows(slide);
-    ssUpdateInterleaveButtons(plan);
-    if (!plan.rows) return false;
-
-    ssEnsureInterleaveStyles();
-    const geezEl = document.getElementById('ss-geez');
-    const transEl = document.getElementById('ss-translation');
-    showSsHud();
-    ssRenderFramesForCurrentSlide();
-    const gf = document.getElementById('ss-geez-frame');
-    gf.style.left = '0%'; gf.style.top = '0%'; gf.style.width = '100%'; gf.style.height = '100%';
-    document.getElementById('ss-translation-frame').style.display = 'none';
-    transEl.innerHTML = '';
-    counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
-
-    geezEl.style.padding = '10px';
-    geezEl.style.justifyContent = 'flex-start';
-    geezEl.style.alignItems = 'flex-start';
-    geezEl.innerHTML = '';
-
-    const availW = geezEl.clientWidth - 24;
-    const availH = geezEl.clientHeight - 20;
-    if (availW > 0 && availH > 0) {
-        const host = document.createElement('div');
-        host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:space-between;height:' + availH + 'px;';
-        geezEl.appendChild(host);
-
-        const textStyle = 'width:100%;box-sizing:border-box;padding:2px 16px 0;font-family:Lexend,sans-serif;font-weight:700;font-style:normal;text-align:center;line-height:1.3;word-break:break-word;background:none;border:0;';
-
-        const pairs = plan.rows.map(r => {
-            const group = document.createElement('div');
-            const wrap = document.createElement('div');
-            wrap.style.cssText = 'position:relative;width:100%;';
-            const inner = document.createElement('div');
-            inner.className = 'ss-inter-geez';
-            inner.style.cssText = 'position:absolute;left:0;top:0;display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;font-size:0;transform-origin:top left;box-sizing:border-box;margin:0;';
-            inner.innerHTML = r.geezHtml;
-            wrap.appendChild(inner);
-            group.appendChild(wrap);
-
-            let tl = null, trans = null;
-            if (_ssTranslit && r.translit) {
-                tl = document.createElement('div');
-                tl.className = 'ss-inter-translit';
-                tl.style.cssText = textStyle + 'color:#3a5a82;';
-                tl.textContent = r.translit;
-                group.appendChild(tl);
-            }
-            if (r.translation) {
-                trans = document.createElement('div');
-                trans.className = 'ss-inter-trans';
-                trans.style.cssText = textStyle + 'color:#1a2a3a;';
-                trans.textContent = r.translation;
-                group.appendChild(trans);
-            }
-            host.appendChild(group);
-            return { inner, wrap, tl, trans };
-        });
-
-        pairs.forEach(p => {
-            p.inner.querySelectorAll('.baseletter').forEach(bl => {
-                if (!bl.textContent.trim()) { bl.textContent = '0'; bl.classList.add('whitespace'); }
-            });
-            p.inner.querySelectorAll('.letter-container').forEach(lc => {
-                lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
-            });
-            ssTightenGaps(p.inner);
-        });
-
-        const baseLetterPx = 5 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
-        function layoutAt(s) {
-            let total = SS_INTERLEAVE_GAP * (pairs.length - 1);
-            const tPx  = Math.max(14, Math.min(140, SS_INTERLEAVE_TRANS_RATIO * baseLetterPx * s));
-            const tlPx = Math.max(12, Math.min(110, SS_INTERLEAVE_TRANSLIT_RATIO * baseLetterPx * s));
-            pairs.forEach(p => {
-                p.inner.style.width = Math.max(60, Math.round(availW / s)) + 'px';
-                p.inner.style.transform = 'none';
-                const h = Math.ceil(p.inner.scrollHeight * s);
-                p.wrap.style.height = h + 'px';
-                p.inner.style.transform = 'scale(' + s + ')';
-                total += h;
-                if (p.tl)    { p.tl.style.fontSize = tlPx + 'px'; total += p.tl.offsetHeight; }
-                if (p.trans) { p.trans.style.fontSize = tPx + 'px'; total += p.trans.offsetHeight; }
-            });
-            return total;
+        // Pass 2: spare height goes to the text.
+        let mLo = 1, mHi = Math.max(1, SS_INTERLEAVE_TEXT_MAX_RATIO / SS_INTERLEAVE_TRANS_RATIO);
+        for (let i = 0; i < 14 && mHi > 1; i++) {
+            const mid = (mLo + mHi) / 2;
+            (layoutAt(sFinal, mid) <= availH) ? (mLo = mid) : (mHi = mid);
         }
-        let lo = 0.05, hi = 8;
-        for (let i = 0; i < 22; i++) {
-            const mid = (lo + hi) / 2;
-            (layoutAt(mid) <= availH) ? (lo = mid) : (hi = mid);
-        }
-        layoutAt(lo * 0.995);
+        layoutAt(sFinal, mLo);
     }
 
     document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
@@ -8496,7 +8549,7 @@ function ssFillBandP(p, slide) {
     if (tl) {
         const s = document.createElement('span');
         s.className = 'ss-band-translit';
-        s.style.cssText = 'display:block;font-weight:700;margin-bottom:0.25em;';
+        s.style.cssText = 'display:block;font-weight:700;margin-bottom:0.25em;color:' + SS_TRANSLIT_COLOR + ';';
         s.textContent = tl;
         p.appendChild(s);
     }
@@ -8598,6 +8651,8 @@ function renderSlideshowSlide() {
     ssRenderFramesForCurrentSlide();
     counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
 
+    ssEnsureFonts();
+    applySlideZoom();
     if (ssTryRenderInterleaved(slide, counter)) return;
     if (isImagePieceHtml(slide.geezHtml)) {
         const _imgSrc = (slide.geezHtml.match(/<img[^>]*\ssrc="([^"]+)"/) || [])[1] || '';
@@ -9572,6 +9627,7 @@ async function _gslidesCaptureCurrentSlideBlob() {
     const zoomOutBtn = document.getElementById('ss-zoom-out');
     const zoomInBtn = document.getElementById('ss-zoom-in');
     const zoomLabel = document.getElementById('ss-zoom-label');
+    _gslidesHideInterleaveText(true);
     if (zoomOutBtn) zoomOutBtn.style.visibility = 'hidden';
     if (zoomInBtn) zoomInBtn.style.visibility = 'hidden';
     if (zoomLabel) zoomLabel.style.visibility = 'hidden';
@@ -9628,6 +9684,7 @@ async function _gslidesCaptureCurrentSlideBlob() {
         if (zoomOutBtn) zoomOutBtn.style.visibility = '';
         if (zoomInBtn) zoomInBtn.style.visibility = '';
         if (zoomLabel) zoomLabel.style.visibility = '';
+        _gslidesHideInterleaveText(false);
     }
     return blob;
 }
@@ -9698,6 +9755,121 @@ function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 120) {
     return best;
 }
 
+// Hides/shows the interleaved translit+translation while the slide is captured as an image.
+function _gslidesHideInterleaveText(hide) {
+    document.querySelectorAll('#slideshow-overlay .ss-inter-translit, #slideshow-overlay .ss-inter-trans').forEach(function (el) {
+        el.style.visibility = hide ? 'hidden' : '';
+    });
+}
+
+// Where each translit+translation group sits on the CURRENT slide, as fractions (0..1) of the slide. One entry per Ge'ez line.
+function _gslidesCollectInterleaveBoxes() {
+    const overlay = document.getElementById('slideshow-overlay');
+    if (!overlay) return [];
+    const els = overlay.querySelectorAll('.ss-inter-translit, .ss-inter-trans');
+    if (!els.length) return [];
+    const o = overlay.getBoundingClientRect();
+    if (!o.width || !o.height) return [];
+    const groups = new Map();
+    els.forEach(function (el) {
+        const text = (el.textContent || '').trim();
+        const r = el.getBoundingClientRect();
+        if (!text || !r.width || !r.height) return;
+        const key = el.dataset.ssGroup || String(groups.size);
+        let g = groups.get(key);
+        if (!g) { g = { l: r.left, t: r.top, r: r.right, b: r.bottom, parts: [] }; groups.set(key, g); }
+        g.l = Math.min(g.l, r.left);  g.t = Math.min(g.t, r.top);
+        g.r = Math.max(g.r, r.right); g.b = Math.max(g.b, r.bottom);
+        g.parts.push(text);
+        g.pad = Math.max(g.pad || 0, parseFloat(el.dataset.ssPad) || 0);
+        if (el.classList.contains('ss-inter-translit')) g.tlLen = text.length;   // DOM order: transliteration first, then translation
+    });
+    return Array.from(groups.values()).map(function (g) {
+        return {
+            x: (g.l - o.left) / o.width,
+            y: (g.t - o.top) / o.height - (g.pad || 0) / overlay.offsetHeight,
+            w: (g.r - g.l) / o.width,
+            h: (g.b - g.t) / o.height + 2 * (g.pad || 0) / overlay.offsetHeight,
+            text: g.parts.join('\n'), translitLen: g.tlLen || 0
+        };
+    });
+}
+
+// Builds the Google Slides requests for one interleaved slide: one real text box per Ge'ez line's translit+translation.
+// One font size for the whole slide: the largest that fits every box.
+function _gslidesInterleaveRequests(boxes, slideObjectId, i, PW_EMU, PH_EMU) {
+    const padX = GS_COMPENSATE_INSETS ? GS_INSET_X : 0;
+    const padY = GS_COMPENSATE_INSETS ? GS_INSET_Y : 0;
+    const rects = boxes.map(function (b) {
+        const w = Math.round(b.w * PW_EMU), h = Math.round(b.h * PH_EMU);
+        const boxW = w + 2 * padX, boxH = h + 2 * padY;
+        return {
+            b: b,
+            boxX: Math.round(b.x * PW_EMU) - padX,
+            boxY: Math.round(b.y * PH_EMU) - padY,
+            boxW: boxW,
+            boxH: boxH,
+            textWpt: (boxW - 2 * GS_INSET_X) / 12700,
+            textHpt: (boxH - 2 * GS_INSET_Y) / 12700
+        };
+    });
+    const fontPt = Math.min.apply(null, rects.map(function (r) {
+        return _gslidesFitFontPt(r.b.text, r.textWpt, r.textHpt);
+    }));
+    const out = [];
+    const stamp = Date.now();
+    rects.forEach(function (r, k) {
+        const boxId = 'ilv_' + i + '_' + k + '_' + stamp;
+        out.push({
+            createShape: {
+                objectId: boxId,
+                shapeType: 'TEXT_BOX',
+                elementProperties: {
+                    pageObjectId: slideObjectId,
+                    size: { height: { magnitude: r.boxH, unit: 'EMU' }, width: { magnitude: r.boxW, unit: 'EMU' } },
+                    transform: { scaleX: 1, scaleY: 1, translateX: r.boxX, translateY: r.boxY, unit: 'EMU' }
+                }
+            }
+        });
+        out.push({ insertText: { objectId: boxId, text: r.b.text } });
+        if (r.b.translitLen) (out.tl = out.tl || []).push({ id: boxId, len: r.b.translitLen });
+        out.push({
+            updateTextStyle: {
+                objectId: boxId,
+                style: {
+                    bold: true,
+                    fontSize: { magnitude: fontPt, unit: 'PT' },
+                    fontFamily: 'Lexend',
+                    foregroundColor: { opaqueColor: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+                },
+                textRange: { type: 'ALL' },
+                fields: 'bold,fontSize,fontFamily,foregroundColor'
+            }
+        });
+        out.push({
+            updateParagraphStyle: {
+                objectId: boxId,
+                style: {
+                    alignment: 'CENTER',
+                    lineSpacing: GS_LINE_SPACING_PCT,
+                    spaceAbove: { magnitude: 0, unit: 'PT' },
+                    spaceBelow: { magnitude: 0, unit: 'PT' }
+                },
+                textRange: { type: 'ALL' },
+                fields: 'alignment,lineSpacing,spaceAbove,spaceBelow'
+            }
+        });
+        out.push({
+            updateShapeProperties: {
+                objectId: boxId,
+                shapeProperties: { contentAlignment: 'MIDDLE' },
+                fields: 'contentAlignment'
+            }
+        });
+    });
+    return out;
+}
+
 async function exportToGoogleSlides() {
     if (!_ssSlides.length) { alert('No slides to export.'); return; }
 
@@ -9713,6 +9885,7 @@ async function exportToGoogleSlides() {
 
     try {
         await _gslidesRequestToken();
+        await ssEnsureFonts();
 
         const total = _ssSlides.length;
         const imageRequests = [];
@@ -9740,7 +9913,7 @@ async function exportToGoogleSlides() {
             const transFrac = transElH / overlayH;
             geezHeights.push(1 - transFrac);
 
-            imageRequests.push({ url: uploaded.url, translation: _ssSlides[si].translation || '', translit: ssSlideTranslitText(_ssSlides[si]) });
+            imageRequests.push({ url: uploaded.url, translation: _ssSlides[si].translation || '', translit: ssSlideTranslitText(_ssSlides[si]), boxes: _gslidesCollectInterleaveBoxes() });
         }
 
         // ── Phase 2: build one batchUpdate for the whole deck ───────────
@@ -9792,6 +9965,14 @@ async function exportToGoogleSlides() {
                 }
             });
 
+                        if (item.boxes && item.boxes.length) {
+                        const _ilReqs = _gslidesInterleaveRequests(item.boxes, slideObjectId, i, PW_EMU, PH_EMU);
+                        _ilReqs.forEach(function (rq) { requests.push(rq); });
+                        (_ilReqs.tl || []).forEach(function (t) {
+                            requests.push({ updateTextStyle: { objectId: t.id, style: { foregroundColor: { opaqueColor: { rgbColor: _gsRgb(SS_TRANSLIT_COLOR) } } }, textRange: { type: 'FIXED_RANGE', startIndex: 0, endIndex: t.len }, fields: 'foregroundColor' } });
+                        });
+                        return;
+                        }
                         if ((item.translation || item.translit) && transH > 0) {
                 const boxId = 'txt_' + i + '_' + Date.now();
 
@@ -9859,6 +10040,9 @@ async function exportToGoogleSlides() {
                             fields: 'fontSize,foregroundColor'
                         }
                     });
+                }
+                if (item.translit) {
+                    requests.push({ updateTextStyle: { objectId: boxId, style: { foregroundColor: { opaqueColor: { rgbColor: _gsRgb(SS_TRANSLIT_COLOR) } } }, textRange: { type: 'FIXED_RANGE', startIndex: 0, endIndex: item.translit.length }, fields: 'foregroundColor' } });
                 }
                 // Vertically centre the text in the box, like the in-app translation panel
                 requests.push({
