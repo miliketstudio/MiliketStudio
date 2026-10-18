@@ -2524,6 +2524,8 @@ body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
         <button onclick="ssZoomIn()" id="ss-zoom-in" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 10px;font-size:15px;cursor:pointer;font-family:sans-serif;line-height:1;">+</button>
         <input id="ss-zoom-input" type="text" maxlength="5" placeholder="100" style="display:none;width:56px;padding:4px 6px;font-size:13px;border:1px solid #b8860b;border-radius:6px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;" />
         <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
+        <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave</button>
+        <button onclick="toggleSsTranslit()" id="ss-translit-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Aa Translit: Off</button>
         <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
         <button onclick="copyCurrentSlide(this)" style="background:rgba(58,90,130,0.85);border:1px solid #7eb8f7;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">📋 Copy</button>
@@ -2592,6 +2594,8 @@ body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
         <p style="margin:0 0 6px;font-size:12px;color:#3a5a82;">Processing your prompt now! If the automatic translation doesn't appear in a few moments, a Gemini tab will open—just paste your prompt there (Ctrl+V) and bring the response back here.</p>
         <p style="margin:0 0 12px;font-size:11px;color:#aaa;">Keep all ። ፣ ፤ ፡ ፠ ፨ punctuation exactly as Gemini returned it.</p>
         <textarea id="tm-input" rows="7" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:1.1rem;font-family:'Abyssinica SIL',serif;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Paste translation here..."></textarea>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin:14px 0 4px;"><label for="tm-translit-input" style="font-size:11px;font-weight:bold;color:#1a2a3a;">Transliteration <span style="font-weight:normal;color:#888;">(one line per ። ፤ ፡ phrase)</span></label><button type="button" onclick="regenerateTranslit()" style="background:#eef3ff;border:1px solid #3a5a82;color:#3a5a82;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:bold;cursor:pointer;">↻ Regenerate</button></div>
+        <textarea id="tm-translit-input" rows="4" style="width:100%;padding:10px;border:2px solid #ddd;border-radius:6px;font-size:0.95rem;outline:none;resize:vertical;box-sizing:border-box;" placeholder="Transliteration..."></textarea>
     </div>
 </div>
 
@@ -4452,6 +4456,7 @@ function buildIndexData() {
                     name: piece.name,
                     content: piece.content || '',
                     translation: piece.translation || '',
+                    transliteration: piece.transliteration || '',
                     lastModified: piece.lastModified || ''
                 }))
             }))
@@ -6596,6 +6601,8 @@ function openTranslationModal(index) {
     }
 
     _translatingRawText = rawText;
+    const _tlBox = document.getElementById('tm-translit-input');
+    if (_tlBox) _tlBox.value = (piece.transliteration && piece.transliteration.trim()) ? piece.transliteration : ssTranslitForPiece(piece);
     modal.style.display = 'flex';
 
     if (piece.translation && piece.translation.trim()) {
@@ -6738,6 +6745,18 @@ function closeTranslationModal() {
     const val = input.value;
     const safeVal = (input.disabled && !val.trim()) ? _lastKnownGoodTranslation : val;
     appData[currentUser].folders[currentFolder].pieces[_translatingIndex].translation = safeVal;
+    (function () {
+        const p = appData[currentUser].folders[currentFolder].pieces[_translatingIndex];
+        const tl = document.getElementById('tm-translit-input');
+        if (!tl) return;
+        const val = tl.value.replace(/\s+$/, '');
+        const newT = (val.trim() && val !== ssTranslitForPiece(p).replace(/\s+$/, '')) ? val : '';
+        if (newT !== (p.transliteration || '')) {
+            p.transliteration = newT;
+            p.lastModified = new Date().toISOString();
+            if (p.id) markPieceDirty(p.id);
+        }
+    })();
     saveData();
     saveAndSync();
     document.getElementById('translation-modal').style.display = 'none';
@@ -6959,6 +6978,7 @@ function goToSlidesManual() {
                 pieceName: piece.name,
                 segments: splitByPunctuation(piece.visualData),
                 transSegs: splitTranslation(piece.translation || ''),
+                translitSegs: ssPieceTranslitLines(piece),
                 isImage: false
             });
         }
@@ -6975,6 +6995,7 @@ function goToSlidesManual() {
             _allLines.push({
                 pieceName: pc.pieceName,
                 segIndex: segIdx,
+                translitLines: pc.translitSegs ? [pc.translitSegs[segIdx] || ''] : [],
                 segmentHtml: segHtml,
                 translation: pc.isImage ? (pc.transSegs[0] || '') : getTranslationForSegment(pc.transSegs, segIdx, pc.segments.length),
                 isImage: !!pc.isImage
@@ -7123,7 +7144,7 @@ function fitTranslationFontSize(text, widthInches, heightInches, minPt = 1, maxP
     probe.style.top = '0';
     probe.style.left = '-9999px';
     probe.style.visibility = 'hidden';
-    probe.style.whiteSpace = 'normal';
+    probe.style.whiteSpace = 'pre-line';
     probe.style.wordBreak = 'break-word';
     probe.style.boxSizing = 'border-box';
     probe.style.padding = '0px';
@@ -7190,7 +7211,8 @@ async function exportToPptx() {
                 }
             }
 
-            const slideHasTranslation = chunks.some(c => c.translation && c.translation.trim());
+            const exportTranslit = ssChunksTranslitText(chunks);
+            const slideHasTranslation = chunks.some(c => c.translation && c.translation.trim()) || !!exportTranslit;
             const layoutIsUsable = (_ssSlides.length === _builtSlides.length) && !!_ssLayoutOverrides[si];
             const layoutForThisSlide = slideHasTranslation
                 ? (layoutIsUsable ? _ssLayoutOverrides[si] : ssDefaultLayout())
@@ -7326,9 +7348,11 @@ async function exportToPptx() {
                     line: { color: 'B8D4EE', width: 1 }
                 });
             }
-            if (translation) {
-                const fitted = fitTranslationFontSize(translation, PW - 0.6, transH - 0.2);
-                slide.addText(translation, {
+            if (translation || exportTranslit) {
+                const fitted = fitTranslationFontSize((exportTranslit ? exportTranslit + '\n' : '') + translation, PW - 0.6, transH - 0.2);
+                slide.addText(exportTranslit ? [
+                    { text: exportTranslit, options: { fontSize: fitted, color: '000000', breakLine: !!translation } }
+                ].concat(translation ? [{ text: translation, options: { fontSize: fitted } }] : []) : translation, {
                     x: 0.3, y: transY + 0.1,
                     w: PW - 0.6, h: transH - 0.2,
                     fontSize: fitted,
@@ -7391,7 +7415,7 @@ async function exportToPptxExact() {
             .replace(/style="([^"]*)"/g, (m, s) =>
                 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
         const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
-        return { geezHtml, translation };
+        return { geezHtml, translation, translitLines: chunks.reduce(function (a, c) { return a.concat(c.translitLines || []); }, []) };
     });
 
     // ── 3. Open overlay visibly, hide HUD/nav ───────────────────────────────
@@ -7491,14 +7515,18 @@ async function exportToPptxExact() {
             const slide = pptx.addSlide();
             slide.background = { color: 'FFFDF8' };
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: PH });
-            if (_ssSlides[si].translation && _ssSlides[si].translation.trim()) {
+            if (ssSlideHasBand(_ssSlides[si]) && nativeTransH > 0.05) {
                 slide.addShape(pptx.ShapeType.rect, {
                     x: 0, y: nativeTransY, w: PW, h: nativeTransH,
                     fill: { color: 'EEF3FF' },
                     line: { color: 'B8D4EE', width: 1 }
                 });
-                const fitted = fitTranslationFontSize(_ssSlides[si].translation, PW - 0.6, nativeTransH - 0.1);
-                slide.addText(_ssSlides[si].translation, {
+                const _tl = ssSlideTranslitText(_ssSlides[si]);
+                const _tr = (_ssSlides[si].translation || '').trim();
+                const fitted = fitTranslationFontSize((_tl ? _tl + '\n' : '') + _tr, PW - 0.6, nativeTransH - 0.1);
+                slide.addText(_tl ? [
+                    { text: _tl, options: { fontSize: fitted, color: '000000', breakLine: !!_tr } }
+                ].concat(_tr ? [{ text: _tr, options: { fontSize: fitted } }] : []) : _tr, {
                     x: 0.3, y: nativeTransY + 0.05,
                     w: PW - 0.6, h: nativeTransH - 0.1,
                     fontSize: fitted, bold: true,
@@ -7556,7 +7584,7 @@ function finishAndPresent() {
         const geezHtml = stripStrayFormatting(chunks.map(c => c.segmentHtml).join(''))
             .replace(/style="([^"]*)"/g, (m, s) => 'style="' + s.replace(/(?:min-|max-)?width\s*:\s*[^;]+;?/gi, '') + '"');
         const translation = chunks.map(c => c.translation).filter(Boolean).join(' ');
-        return { geezHtml, translation };
+        return { geezHtml, translation, translitLines: chunks.reduce(function (a, c) { return a.concat(c.translitLines || []); }, []) };
     });
 
     _ssIndex = 0;
@@ -7672,7 +7700,7 @@ function ssFullLayout() {
 
 function ssSlideHasTranslation(slideIndex) {
     const slide = _ssSlides[slideIndex];
-    return !!(slide && slide.translation && slide.translation.trim());
+    return ssSlideHasBand(slide);
 }
 
 function ssGetLayoutForSlide(idx) {
@@ -7961,6 +7989,591 @@ function applySlideZoom() {
     if (zLabel) zLabel.textContent = Math.round(zoom * 100) + '%';
 }
 
+// ============================================================
+// INTERLEAVED SLIDE LAYOUT
+// Ge'ez line, [transliteration], translation, then the next Ge'ez line...
+// Buttons in the slideshow bar:  "⇅ Interleave"  and  "Aa Translit".
+// ============================================================
+const SS_INTERLEAVE_MAX_LINES = 4;        // slides with more Ge'ez lines than this keep the classic layout (use 99 to always interleave)
+const SS_INTERLEAVE_TRANS_RATIO = 0.6;    // translation text size relative to the Ge'ez letter size
+const SS_INTERLEAVE_TRANSLIT_RATIO = 0.38; // transliteration text size relative to the Ge'ez letter size (smaller than the translation)
+const SS_INTERLEAVE_GAP = 14;             // minimum space between one line group and the next (px)
+let _ssInterleave = false;
+let _ssTranslit = false;                  // transliteration is OFF by default
+try { _ssInterleave = localStorage.getItem('miliket_ss_interleave') === '1'; } catch (e) {}
+try { _ssTranslit = localStorage.getItem('miliket_ss_translit') === '1'; } catch (e) {}
+
+// ------------------------------------------------------------
+// Ge'ez -> Latin transliteration (simple readable scheme)
+//   orders:  1 e   2 u   3 i   4 a   5 e   6 (silent / i)   7 o
+//   glottal series (አ ዐ): 1 a   6 i
+// The sixth order is dropped when it closes a syllable (ምልክት -> milkit, ሰላም -> selam)
+// and gets an "i" when it starts a word or would otherwise make a cluster.
+// ------------------------------------------------------------
+const SS_TL_MAP = (function () {
+    const rows = [
+        [0x1200, 'h'], [0x1208, 'l'], [0x1210, 'h'], [0x1218, 'm'], [0x1220, 's'], [0x1228, 'r'], [0x1230, 's'], [0x1238, 'sh'],
+        [0x1240, 'q'], [0x1250, 'q'], [0x1260, 'b'], [0x1268, 'v'], [0x1270, 't'], [0x1278, 'ch'], [0x1280, 'h'], [0x1290, 'n'],
+        [0x1298, 'ny'], [0x12A0, ''], [0x12A8, 'k'], [0x12B8, 'kh'], [0x12C8, 'w'], [0x12D0, ''], [0x12D8, 'z'], [0x12E0, 'zh'],
+        [0x12E8, 'y'], [0x12F0, 'd'], [0x12F8, 'd'], [0x1300, 'j'], [0x1308, 'g'], [0x1318, 'ng'], [0x1320, 't'], [0x1328, 'ch'],
+        [0x1330, 'p'], [0x1338, 'ts'], [0x1340, 'ts'], [0x1348, 'f'], [0x1350, 'p']
+    ];
+    const map = {};
+    rows.forEach(function (r) {
+        const base = r[0], c = r[1], glottal = (c === '');
+        for (let i = 0; i < 7; i++) map[base + i] = { c: c, o: i + 1, g: glottal };
+        // 8th slot of a row is the "-wa" form (ሏ ሟ ሷ ...)
+        map[base + 7] = { c: (glottal || c === 'w') ? c : c + 'w', o: 4, g: glottal };
+    });
+    map[0x12A7] = { c: '', o: 5, g: true };            // ኧ
+    // labialized groups: ቈ ቊ ቋ ቌ ቍ  (offsets 0,2,3,4,5 = orders 1,3,4,5,6)
+    [[0x1248, 'qw'], [0x1258, 'qw'], [0x1288, 'hw'], [0x12B0, 'kw'], [0x12C0, 'kw'], [0x1310, 'gw']].forEach(function (g) {
+        [[0, 1], [2, 3], [3, 4], [4, 5], [5, 6]].forEach(function (p) {
+            map[g[0] + p[0]] = { c: g[1], o: p[1], g: false };
+        });
+    });
+    return map;
+})();
+
+const SS_TL_PUNCT = { '፠': '', '፡': ' ', '።': '.', '፣': ',', '፤': ',', '፥': ',', '፦': ':', '፧': '?', '፨': '' };
+
+function ssTlVowel(o, glottal) {
+    if (glottal && o === 1) return 'a';
+    return ({ 1: 'e', 2: 'u', 3: 'i', 4: 'a', 5: 'e', 7: 'o' })[o] || '';
+}
+
+function ssTlWord(run) {
+    let out = '', lastBare = false;
+    for (let i = 0; i < run.length; i++) {
+        const s = run[i];
+        if (s.o !== 6) { out += s.c + ssTlVowel(s.o, s.g); lastBare = false; continue; }
+        if (s.g) { out += 'i'; lastBare = false; continue; }                  // እ ዕ: the sixth order IS the vowel
+        if (i === 0) { out += s.c + 'i'; lastBare = false; }                  // word start: ንሥረ -> nisre
+        else if (i === run.length - 1) { out += s.c; lastBare = true; }       // word end: ሰላም -> selam
+        else if (lastBare) { out += s.c + 'i'; lastBare = false; }            // break a cluster: ምልክት -> milkit
+        else { out += s.c; lastBare = true; }                                 // closes a syllable: ንሥረ -> nisre
+    }
+    return out;
+}
+
+function ssEthiopicNumbers(text) {
+    return text.replace(/[፩-፼]+/g, function (run) {
+        let total = 0, cur = 0;
+        for (const ch of run) {
+            const cp = ch.codePointAt(0);
+            if (cp >= 0x1369 && cp <= 0x1371) cur += cp - 0x1368;                       // 1..9
+            else if (cp >= 0x1372 && cp <= 0x137A) cur += (cp - 0x1371) * 10;           // 10..90
+            else if (cp === 0x137B) cur = (cur || 1) * 100;                              // 100
+            else if (cp === 0x137C) { total += (cur || 1) * 10000; cur = 0; }            // 10000
+        }
+        return String(total + cur);
+    });
+}
+
+function ssTransliterate(text) {
+    text = ssEthiopicNumbers(String(text || '').normalize('NFC'));
+    let out = '', run = [];
+    const flush = function () { if (run.length) { out += ssTlWord(run); run = []; } };
+    for (const ch of text) {
+        const syl = SS_TL_MAP[ch.codePointAt(0)];
+        if (syl) { run.push(syl); continue; }
+        flush();
+        out += Object.prototype.hasOwnProperty.call(SS_TL_PUNCT, ch) ? SS_TL_PUNCT[ch] : ch;
+    }
+    flush();
+    out = out.replace(/\s+/g, ' ').replace(/\s+([.,:?])/g, '$1').trim();
+    return out.charAt(0).toUpperCase() + out.slice(1);
+}
+
+// Plain Ge'ez text of one rendered line (reads the base letters in order).
+function ssLinePlainText(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html;
+    let raw = '';
+    t.querySelectorAll('.baseletter').forEach(function (el) {
+        const s = el.textContent || '';
+        if (el.classList.contains('whitespace') || s.trim() === '0') raw += ' ';
+        else raw += s.replace(/[ ​‌‍﻿]/g, '');
+    });
+    return raw.replace(/\s+/g, ' ').trim();
+}
+
+// ------------------------------------------------------------
+// Layout
+// ------------------------------------------------------------
+function ssEnsureInterleaveStyles() {
+    if (document.getElementById('ss-inter-style')) return;
+    const st = document.createElement('style');
+    st.id = 'ss-inter-style';
+    st.textContent =
+        '.ss-inter-geez .letter-container{display:inline-flex !important;flex-direction:column !important;align-items:flex-start !important;vertical-align:top !important;white-space:normal !important;width:auto !important;max-width:none !important;min-width:0 !important;}' +
+        '.ss-inter-geez .letter{display:flex !important;width:auto !important;max-width:none !important;min-width:0 !important;white-space:normal !important;}' +
+        '.ss-inter-geez .baseletter{display:inline !important;white-space:nowrap !important;line-height:normal !important;}';
+    document.head.appendChild(st);
+}
+
+// A container is a "blank space" only if it has no letter AND nothing in its cells (no miliket, no stack, no text).
+function ssIsBlankSpace(el) {
+    if (!el || !el.classList || !el.classList.contains('letter-container')) return false;
+    if (!el.querySelector('.baseletter.whitespace')) return false;
+    const cells = el.querySelectorAll('.letter');
+    for (let i = 0; i < cells.length; i++) {
+        if (cells[i].children.length) return false;
+        if (cells[i].textContent.replace(/[\s -‍ ﻿]/g, '')) return false;
+    }
+    return true;
+}
+
+// Removes blank word-space containers at the start and end of one line. A first container that carries milikets is kept.
+function ssTrimEdgeSpaces(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html;
+    while (ssIsBlankSpace(t.firstElementChild)) t.firstElementChild.remove();
+    while (ssIsBlankSpace(t.lastElementChild)) t.lastElementChild.remove();
+    return t.innerHTML;
+}
+
+// Same per-letter gap tightening the classic layout uses.
+function ssTightenGaps(root) {
+    root.querySelectorAll('.baseletter').forEach(bl => {
+        const cs = getComputedStyle(bl);
+        const fontSize = parseFloat(cs.fontSize);
+        if (!fontSize) return;
+        const lineHeight = cs.lineHeight === 'normal' ? fontSize * 1.15 : parseFloat(cs.lineHeight);
+        const ch = [...bl.textContent].find(c => !/[\s ​ ]/.test(c)) || bl.textContent[0];
+        if (!ch) return;
+        const ctx = ssGapCtx || (ssGapCtx = document.createElement('canvas').getContext('2d'));
+        ctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + fontSize + 'px ' + cs.fontFamily;
+        const m = ctx.measureText(ch);
+        const fontAscent  = m.fontBoundingBoxAscent  ?? m.actualBoundingBoxAscent;
+        const inkAscent   = m.actualBoundingBoxAscent;
+        const fontDescent = m.fontBoundingBoxDescent ?? m.actualBoundingBoxDescent;
+        const halfLeading = (lineHeight - (fontAscent + fontDescent)) / 2;
+        const gapAboveInk = halfLeading + (fontAscent - inkAscent);
+        if (gapAboveInk > 0) bl.style.marginTop = '-' + gapAboveInk.toFixed(1) + 'px';
+    });
+}
+
+// Splits a slide into rows of { geezHtml, translit, translation }. Returns { rows } or { reason } when the classic layout should be used.
+function ssInterleaveRows(slide) {
+    if (!_ssInterleave) return { reason: 'off' };
+    if (!slide) return { reason: 'no slide' };
+    if (isImagePieceHtml(slide.geezHtml)) return { reason: 'image' };
+    const hasTrans = !!(slide.translation && slide.translation.trim());
+    if (!hasTrans && !_ssTranslit) return { reason: 'no translation' };
+    const geezLines = splitByPunctuation(slide.geezHtml).map(ssTrimEdgeSpaces);
+    if (!geezLines.length) return { reason: 'no lines' };
+    if (geezLines.length > SS_INTERLEAVE_MAX_LINES) return { reason: geezLines.length + ' lines' };
+    const transLines = hasTrans ? splitTranslation(slide.translation) : [];
+    if (hasTrans && geezLines.length !== transLines.length) return { reason: 'translation does not match lines' };
+    return {
+        rows: geezLines.map((g, i) => ({
+            geezHtml: g,
+            translit: _ssTranslit ? ssSlideTranslitLine(slide, geezLines.length, i, g) : '',
+            translation: hasTrans ? transLines[i] : ''
+        }))
+    };
+}
+
+function ssUpdateInterleaveButtons(plan) {
+    const btn = document.getElementById('ss-interleave-btn');
+    if (btn) {
+        btn.style.background = _ssInterleave ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+        btn.textContent = !_ssInterleave ? '⇅ Interleave'
+            : (plan.rows ? '⇅ Interleaved' : '⇅ Classic here (' + plan.reason + ')');
+    }
+    const tbtn = document.getElementById('ss-translit-btn');
+    if (tbtn) {
+        tbtn.style.background = _ssTranslit ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+        tbtn.textContent = 'Aa Translit: ' + (_ssTranslit ? 'On' : 'Off');
+    }
+}
+
+// Draws the slide as interleaved rows. Returns false when this slide should use the classic layout instead.
+const SS_INTERLEAVE_LINE_BOOST = 3;   // short lines may grow up to this many times the shared size (1 = no growth)
+
+function ssTryRenderInterleaved(slide, counter) {
+    const plan = ssInterleaveRows(slide);
+    ssUpdateInterleaveButtons(plan);
+    if (!plan.rows) return false;
+
+    ssEnsureInterleaveStyles();
+    const geezEl = document.getElementById('ss-geez');
+    const transEl = document.getElementById('ss-translation');
+    showSsHud();
+    ssRenderFramesForCurrentSlide();
+    const gf = document.getElementById('ss-geez-frame');
+    gf.style.left = '0%'; gf.style.top = '0%'; gf.style.width = '100%'; gf.style.height = '100%';
+    document.getElementById('ss-translation-frame').style.display = 'none';
+    transEl.innerHTML = '';
+    counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
+
+    geezEl.style.padding = '10px';
+    geezEl.style.justifyContent = 'flex-start';
+    geezEl.style.alignItems = 'flex-start';
+    geezEl.innerHTML = '';
+
+    const availW = geezEl.clientWidth - 24;
+    const availH = geezEl.clientHeight - 20;
+    if (availW > 0 && availH > 0) {
+        const host = document.createElement('div');
+        host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:flex-start;height:' + availH + 'px;';
+        geezEl.appendChild(host);
+
+        // Transliteration and translation share one colour and one size.
+        const textStyle = 'width:100%;box-sizing:border-box;padding:2px 16px 0;font-family:Lexend,sans-serif;font-weight:700;font-style:normal;text-align:center;line-height:1.3;word-break:break-word;background:none;border:0;color:#1a2a3a;';
+
+        const pairs = plan.rows.map(r => {
+            const group = document.createElement('div');
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:relative;width:100%;';
+            const inner = document.createElement('div');
+            inner.className = 'ss-inter-geez';
+            inner.style.cssText = 'position:absolute;left:0;top:0;display:flex;flex-wrap:wrap;justify-content:center;align-content:flex-start;align-items:flex-end;white-space:normal;font-size:0;transform-origin:top left;box-sizing:border-box;margin:0;';
+            inner.innerHTML = r.geezHtml;
+            wrap.appendChild(inner);
+            group.appendChild(wrap);
+
+            let tl = null, trans = null;
+            if (_ssTranslit && r.translit) {
+                tl = document.createElement('div');
+                tl.className = 'ss-inter-translit';
+                tl.style.cssText = textStyle;
+                tl.textContent = r.translit;
+                group.appendChild(tl);
+            }
+            if (r.translation) {
+                trans = document.createElement('div');
+                trans.className = 'ss-inter-trans';
+                trans.style.cssText = textStyle;
+                trans.textContent = r.translation;
+                group.appendChild(trans);
+            }
+            host.appendChild(group);
+            return { inner, wrap, tl, trans, fit: 0 };
+        });
+
+        pairs.forEach(p => {
+            p.inner.querySelectorAll('.baseletter').forEach(bl => {
+                if (!bl.textContent.trim()) { bl.textContent = '0'; bl.classList.add('whitespace'); }
+            });
+            p.inner.querySelectorAll('.letter-container').forEach(lc => {
+                lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
+            });
+            ssTightenGaps(p.inner);
+            // Natural one-line width = the biggest scale at which this line still fits the slide width.
+            p.inner.style.width = 'max-content';
+            p.inner.style.transform = 'none';
+            const nat = p.inner.scrollWidth;
+            p.fit = nat > 0 ? 0.995 * availW / nat : 0;
+        });
+
+        const baseLetterPx = 5 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+        // Long lines use the shared size and wrap. Short lines grow (up to the boost) to fill the width on one line.
+        function rowScale(p, s) {
+            return Math.max(s, Math.min(p.fit, s * SS_INTERLEAVE_LINE_BOOST));
+        }
+        function layoutAt(s) {
+            let total = 0;   // no gaps between line groups
+            const tPx = Math.max(14, Math.min(160, SS_INTERLEAVE_TRANS_RATIO * baseLetterPx * s));
+            pairs.forEach(p => {
+                const si = rowScale(p, s);
+                p.inner.style.width = Math.max(60, Math.round(availW / si)) + 'px';
+                p.inner.style.transform = 'none';
+                const h = Math.ceil(p.inner.scrollHeight * si);
+                p.wrap.style.height = h + 'px';
+                p.inner.style.transform = 'scale(' + si + ')';
+                total += h;
+                if (p.tl)    { p.tl.style.fontSize = tPx + 'px'; total += p.tl.offsetHeight; }
+                if (p.trans) { p.trans.style.fontSize = tPx + 'px'; total += p.trans.offsetHeight; }
+            });
+            return total;
+        }
+        let lo = 0.05, hi = 8;
+        for (let i = 0; i < 22; i++) {
+            const mid = (lo + hi) / 2;
+            (layoutAt(mid) <= availH) ? (lo = mid) : (hi = mid);
+        }
+        layoutAt(lo * 0.995);
+    }
+
+    document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
+    document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+    applySlideZoom();
+    return true;
+}
+
+// Old version, no longer used. You can delete this whole function later.
+function ssTryRenderInterleavedOld(slide, counter) {
+    const plan = ssInterleaveRows(slide);
+    ssUpdateInterleaveButtons(plan);
+    if (!plan.rows) return false;
+
+    ssEnsureInterleaveStyles();
+    const geezEl = document.getElementById('ss-geez');
+    const transEl = document.getElementById('ss-translation');
+    showSsHud();
+    ssRenderFramesForCurrentSlide();
+    const gf = document.getElementById('ss-geez-frame');
+    gf.style.left = '0%'; gf.style.top = '0%'; gf.style.width = '100%'; gf.style.height = '100%';
+    document.getElementById('ss-translation-frame').style.display = 'none';
+    transEl.innerHTML = '';
+    counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
+
+    geezEl.style.padding = '10px';
+    geezEl.style.justifyContent = 'flex-start';
+    geezEl.style.alignItems = 'flex-start';
+    geezEl.innerHTML = '';
+
+    const availW = geezEl.clientWidth - 24;
+    const availH = geezEl.clientHeight - 20;
+    if (availW > 0 && availH > 0) {
+        const host = document.createElement('div');
+        host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:space-between;height:' + availH + 'px;';
+        geezEl.appendChild(host);
+
+        const textStyle = 'width:100%;box-sizing:border-box;padding:2px 16px 0;font-family:Lexend,sans-serif;font-weight:700;font-style:normal;text-align:center;line-height:1.3;word-break:break-word;background:none;border:0;';
+
+        const pairs = plan.rows.map(r => {
+            const group = document.createElement('div');
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'position:relative;width:100%;';
+            const inner = document.createElement('div');
+            inner.className = 'ss-inter-geez';
+            inner.style.cssText = 'position:absolute;left:0;top:0;display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;font-size:0;transform-origin:top left;box-sizing:border-box;margin:0;';
+            inner.innerHTML = r.geezHtml;
+            wrap.appendChild(inner);
+            group.appendChild(wrap);
+
+            let tl = null, trans = null;
+            if (_ssTranslit && r.translit) {
+                tl = document.createElement('div');
+                tl.className = 'ss-inter-translit';
+                tl.style.cssText = textStyle + 'color:#3a5a82;';
+                tl.textContent = r.translit;
+                group.appendChild(tl);
+            }
+            if (r.translation) {
+                trans = document.createElement('div');
+                trans.className = 'ss-inter-trans';
+                trans.style.cssText = textStyle + 'color:#1a2a3a;';
+                trans.textContent = r.translation;
+                group.appendChild(trans);
+            }
+            host.appendChild(group);
+            return { inner, wrap, tl, trans };
+        });
+
+        pairs.forEach(p => {
+            p.inner.querySelectorAll('.baseletter').forEach(bl => {
+                if (!bl.textContent.trim()) { bl.textContent = '0'; bl.classList.add('whitespace'); }
+            });
+            p.inner.querySelectorAll('.letter-container').forEach(lc => {
+                lc.style.cssText = 'flex-shrink:0;width:auto;max-width:none;min-width:0;float:none;position:static;box-sizing:content-box;';
+            });
+            ssTightenGaps(p.inner);
+        });
+
+        const baseLetterPx = 5 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+        function layoutAt(s) {
+            let total = SS_INTERLEAVE_GAP * (pairs.length - 1);
+            const tPx  = Math.max(14, Math.min(140, SS_INTERLEAVE_TRANS_RATIO * baseLetterPx * s));
+            const tlPx = Math.max(12, Math.min(110, SS_INTERLEAVE_TRANSLIT_RATIO * baseLetterPx * s));
+            pairs.forEach(p => {
+                p.inner.style.width = Math.max(60, Math.round(availW / s)) + 'px';
+                p.inner.style.transform = 'none';
+                const h = Math.ceil(p.inner.scrollHeight * s);
+                p.wrap.style.height = h + 'px';
+                p.inner.style.transform = 'scale(' + s + ')';
+                total += h;
+                if (p.tl)    { p.tl.style.fontSize = tlPx + 'px'; total += p.tl.offsetHeight; }
+                if (p.trans) { p.trans.style.fontSize = tPx + 'px'; total += p.trans.offsetHeight; }
+            });
+            return total;
+        }
+        let lo = 0.05, hi = 8;
+        for (let i = 0; i < 22; i++) {
+            const mid = (lo + hi) / 2;
+            (layoutAt(mid) <= availH) ? (lo = mid) : (hi = mid);
+        }
+        layoutAt(lo * 0.995);
+    }
+
+    document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
+    document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+    applySlideZoom();
+    return true;
+}
+
+function toggleSsInterleave() {
+    _ssInterleave = !_ssInterleave;
+    try { localStorage.setItem('miliket_ss_interleave', _ssInterleave ? '1' : '0'); } catch (e) {}
+    renderSlideshowSlide();
+}
+
+function toggleSsTranslit() {
+    _ssTranslit = !_ssTranslit;
+    try { localStorage.setItem('miliket_ss_translit', _ssTranslit ? '1' : '0'); } catch (e) {}
+    Object.keys(_ssLayoutOverrides).forEach(function (k) { if (!_ssLayoutOverrides[k].manual) delete _ssLayoutOverrides[k]; });
+    renderSlideshowSlide();
+}
+
+// ===== Transliteration data helpers =====
+function ssIsBlankSpace(el) {
+    if (!el || !el.classList || !el.classList.contains('letter-container')) return false;
+    if (!el.querySelector('.baseletter.whitespace')) return false;
+    const cells = el.querySelectorAll('.letter');
+    for (let i = 0; i < cells.length; i++) {
+        if (cells[i].children.length) return false;
+        if (cells[i].textContent.replace(/[\s\u200B-\u200D\u2060\uFEFF]/g, '')) return false;
+    }
+    return true;
+}
+
+function ssLinePlainText(html) {
+    const t = document.createElement('div');
+    t.innerHTML = html;
+    let raw = '';
+    t.querySelectorAll('.baseletter').forEach(function (el) {
+        const s = el.textContent || '';
+        if (el.classList.contains('whitespace') || s.trim() === '0') raw += ' ';
+        else raw += s.replace(/[\u200A-\u200D\u2060\uFEFF\u00A0]/g, '');
+    });
+    return raw.replace(/\s+/g, ' ').trim();
+}
+
+function ssTranslitForHtml(html) {
+    if (!html || isImagePieceHtml(html)) return '';
+    return splitByPunctuation(html).map(function (l) {
+        return ssTransliterate(ssLinePlainText(ssTrimEdgeSpaces(l)));
+    }).join('\n');
+}
+
+function ssTranslitForPiece(piece) {
+    if (!piece) return '';
+    return ssTranslitForHtml(piece.visualData) || ssTransliterate(piece.content || '');
+}
+
+function ssPieceTranslitLines(piece) {
+    const auto = ssTranslitForHtml(piece && piece.visualData).split('\n');
+    const saved = String((piece && piece.transliteration) || '').replace(/\s+$/, '').split(/\r?\n/);
+    return (saved.length === auto.length && saved.some(function (x) { return x.trim(); }))
+        ? saved.map(function (x, i) { return x.trim() || auto[i]; })
+        : auto;
+}
+
+function ssSlideTranslitLine(slide, count, i, geezHtml) {
+    const saved = Array.isArray(slide.translitLines) ? slide.translitLines : [];
+    if (saved.length === count && String(saved[i] || '').trim()) return saved[i];
+    return ssTransliterate(ssLinePlainText(geezHtml));
+}
+
+function regenerateTranslit() {
+    if (_translatingIndex === null) return;
+    const p = appData[currentUser].folders[currentFolder].pieces[_translatingIndex];
+    const tl = document.getElementById('tm-translit-input');
+    if (tl) tl.value = ssTranslitForPiece(p);
+}
+
+// ===== Transliteration in the classic (translation band) layout =====
+function ssSlideTranslitText(slide) {
+    if (!_ssTranslit || !slide || isImagePieceHtml(slide.geezHtml)) return '';
+    const geezLines = splitByPunctuation(slide.geezHtml).map(ssTrimEdgeSpaces);
+    return geezLines
+        .map(function (g, i) { return ssSlideTranslitLine(slide, geezLines.length, i, g); })
+        .filter(function (x) { return x && x.trim(); })
+        .join(' ');
+}
+
+function ssSlideHasBand(slide) {
+    if (!slide) return false;
+    return !!((slide.translation && slide.translation.trim()) || ssSlideTranslitText(slide));
+}
+
+function ssFillBandP(p, slide) {
+    const tl = ssSlideTranslitText(slide);
+    p.textContent = '';
+    if (tl) {
+        const s = document.createElement('span');
+        s.className = 'ss-band-translit';
+        s.style.cssText = 'display:block;font-weight:700;margin-bottom:0.25em;';
+        s.textContent = tl;
+        p.appendChild(s);
+    }
+    if (slide.translation && slide.translation.trim()) p.appendChild(document.createTextNode(slide.translation));
+}
+
+function ssSetBandFont(p, px) {
+    p.style.fontSize = px + 'px';
+    const s = p.querySelector('.ss-band-translit');
+    // transliteration inherits the same size as the translation
+}
+
+// Runs after the normal classic render; only does anything when transliteration text exists.
+function ssPaintClassicBand(slide) {
+    if (_ssSlides[_ssIndex] !== slide) return;
+    if (!ssSlideTranslitText(slide)) return;
+    const transEl = document.getElementById('ss-translation');
+    if (!transEl || transEl.clientHeight <= 0) return;
+    const p = document.createElement('p');
+    p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+    ssFillBandP(p, slide);
+    transEl.innerHTML = '';
+    transEl.appendChild(p);
+    const availH = transEl.clientHeight - 16;
+    const availW = transEl.clientWidth;
+    let lo = 12, hi = 140;
+    for (let i = 0; i < 24; i++) {
+        const mid = Math.round((lo + hi) / 2);
+        ssSetBandFont(p, mid);
+        void p.offsetHeight;
+        (p.scrollHeight <= availH && p.scrollWidth <= availW) ? (lo = mid) : (hi = mid - 1);
+        if (lo >= hi) break;
+    }
+    ssSetBandFont(p, lo);
+}
+
+// ===== Transliteration engine v2 (this copy replaces the earlier ssTlVowel / ssTlWord / ssTransliterate) =====
+SS_TL_MAP[0x12A7] = { c: '', o: 1, g: true, v: 'e' };   // ኧ
+const SS_TL_CAPITALIZE_LINES = true;                     // false = every line starts lowercase
+const SS_TL_PUNCT2 = {
+    '\u1360': '', '\u1361': ' ',
+    '\u1362': '\u1362', '\u1363': '\u1363', '\u1364': '\u1364', '\u1365': '\u1365',
+    '\u1366': '\u1366', '\u1367': '\u1367', '\u1368': ''
+};
+
+function ssTlVowel(o, glottal) {
+    if (glottal && o === 1) return 'a';
+    return ({ 1: 'e', 2: 'u', 3: 'i', 4: 'a', 5: '\u00E9', 7: 'o' })[o] || '';
+}
+
+function ssTlWord(run) {
+    let out = '';
+    for (let i = 0; i < run.length; i++) {
+        const s = run[i];
+        if (s.g && i > 0) out += '\u2019';                      // ’ before አ / ዐ letters inside a word
+        if (s.v) { out += s.c + s.v; continue; }
+        if (s.o === 6) out += s.g ? 'i' : s.c + (i === run.length - 1 ? '' : 'i');
+        else out += s.c + ssTlVowel(s.o, s.g);
+    }
+    return out;
+}
+
+function ssTransliterate(text) {
+    text = ssEthiopicNumbers(String(text || '').normalize('NFC'));
+    let out = '', run = [];
+    const flush = function () { if (run.length) { out += ssTlWord(run); run = []; } };
+    for (const ch of text) {
+        const syl = SS_TL_MAP[ch.codePointAt(0)];
+        if (syl) { run.push(syl); continue; }
+        flush();
+        out += Object.prototype.hasOwnProperty.call(SS_TL_PUNCT2, ch) ? SS_TL_PUNCT2[ch] : ch;
+    }
+    flush();
+    out = out.replace(/\s+/g, ' ').replace(/\s+([\u1362-\u1367.,:?])/g, '$1').trim();
+    return SS_TL_CAPITALIZE_LINES ? out.charAt(0).toUpperCase() + out.slice(1) : out;
+}
+
 function renderSlideshowSlide() {
     if (
         !Array.isArray(_ssSlides) ||
@@ -7985,6 +8598,7 @@ function renderSlideshowSlide() {
     ssRenderFramesForCurrentSlide();
     counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
 
+    if (ssTryRenderInterleaved(slide, counter)) return;
     if (isImagePieceHtml(slide.geezHtml)) {
         const _imgSrc = (slide.geezHtml.match(/<img[^>]*\ssrc="([^"]+)"/) || [])[1] || '';
         geezEl.innerHTML =
@@ -8178,6 +8792,8 @@ function renderSlideshowSlide() {
             transEl.innerHTML = '<p style="margin:0;font-size:1rem;color:#b8d4ee;font-family:sans-serif;text-align:center;">—</p>';
         }
     });
+
+    requestAnimationFrame(() => requestAnimationFrame(() => ssPaintClassicBand(slide)));
 
     // Update prev/next button visibility
     document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
@@ -8413,8 +9029,9 @@ async function copyCurrentSlide(btn) {
 
         // Show translation toast so user can copy it as text
         const slide = _ssSlides[_ssIndex];
-        if (slide && slide.translation && slide.translation.trim()) {
-            _showTranslationToast(slide.translation);
+        const _tlText = ssSlideTranslitText(slide);
+        if (slide && ((slide.translation && slide.translation.trim()) || _tlText)) {
+            _showTranslationToast(slide.translation || '', _tlText);
         }
 
     } catch(e) {
@@ -8588,7 +9205,7 @@ async function openMulticopyModal() {
         });
         if (transTextEl) transTextEl.style.visibility = '';
 
-        _multicopyData.push({ idx: i, imgSrc, translation: (_ssSlides[i].translation || '').trim() });
+        _multicopyData.push({ idx: i, imgSrc, translation: (_ssSlides[i].translation || '').trim(), translit: ssSlideTranslitText(_ssSlides[i]) });
     }
 
     _ssIndex = prevIndex;
@@ -8704,12 +9321,16 @@ function renderMulticopyFallbackScreen(items) {
             <div style="font-size:11px;color:#666;padding:6px 8px;max-height:40px;overflow:hidden;">${item.translation || '—'}</div>
             <div style="display:flex;gap:6px;padding:8px;border-top:1px solid #eee;">
                 <button class="mc-copy-img" data-idx="${item.idx}" style="flex:1;background:#3a5a82;color:white;border:none;border-radius:5px;padding:6px 4px;font-size:11px;font-weight:bold;cursor:pointer;">🖼 Copy Image</button>
+                ${item.translit ? `<button class="mc-copy-translit" data-idx="${item.idx}" style="flex:1;background:#3a5a82;color:white;border:none;border-radius:5px;padding:6px 4px;font-size:11px;font-weight:bold;cursor:pointer;">Aa Copy Translit</button>` : ''}
                 <button class="mc-copy-trans" data-idx="${item.idx}" ${!item.translation ? 'disabled' : ''} style="flex:1;background:${item.translation ? '#b8860b' : '#ccc'};color:white;border:none;border-radius:5px;padding:6px 4px;font-size:11px;font-weight:bold;cursor:${item.translation ? 'pointer' : 'not-allowed'};">📋 Copy Text</button>
             </div>
         `;
         grid.appendChild(card);
     });
 
+    ggrid.querySelectorAll('.mc-copy-translit').forEach(btn => {
+        btn.addEventListener('click', () => copyMulticopyTranslit(parseInt(btn.dataset.idx), btn));
+    });
     grid.querySelectorAll('.mc-copy-img').forEach(btn => {
         btn.addEventListener('click', () => copyMulticopyImage(parseInt(btn.dataset.idx), btn));
     });
@@ -9056,7 +9677,7 @@ function _gslidesFitFontPt(text, widthPt, heightPt, minPt = 8, maxPt = 120) {
     const probe = document.createElement('div');
     probe.style.cssText =
         'position:fixed;top:0;left:-99999px;visibility:hidden;margin:0;padding:0;border:0;' +
-        'box-sizing:border-box;text-align:center;white-space:normal;overflow-wrap:break-word;' +
+        'box-sizing:border-box;text-align:center;white-space:pre-line;overflow-wrap:break-word;' +
         'font-family:Lexend,sans-serif;font-weight:700;line-height:' + lineHeight + ';';
     probe.style.width = (widthPt * SAFETY_W) + 'pt';
     const maxHeightPx = heightPt * SAFETY_H * (96 / 72);
@@ -9119,7 +9740,7 @@ async function exportToGoogleSlides() {
             const transFrac = transElH / overlayH;
             geezHeights.push(1 - transFrac);
 
-            imageRequests.push({ url: uploaded.url, translation: _ssSlides[si].translation || '' });
+            imageRequests.push({ url: uploaded.url, translation: _ssSlides[si].translation || '', translit: ssSlideTranslitText(_ssSlides[si]) });
         }
 
         // ── Phase 2: build one batchUpdate for the whole deck ───────────
@@ -9171,7 +9792,7 @@ async function exportToGoogleSlides() {
                 }
             });
 
-                        if (item.translation) {
+                        if ((item.translation || item.translit) && transH > 0) {
                 const boxId = 'txt_' + i + '_' + Date.now();
 
                 // Box = intended rect, grown by the default insets so the usable text area equals the intended rect
@@ -9185,7 +9806,7 @@ async function exportToGoogleSlides() {
                 // Real text area inside the box (box minus Google's fixed insets), in points (12700 EMU = 1pt)
                 const textWpt = (boxW - 2 * GS_INSET_X) / 12700;
                 const textHpt = (boxH - 2 * GS_INSET_Y) / 12700;
-                const fontPt  = _gslidesFitFontPt(item.translation, textWpt, textHpt);
+                const fontPt  = _gslidesFitFontPt(((item.translit ? item.translit + '\n' : '') + (item.translation || '')), textWpt, textHpt)
 
                 requests.push({
                     createShape: {
@@ -9198,7 +9819,8 @@ async function exportToGoogleSlides() {
                         }
                     }
                 });
-                requests.push({ insertText: { objectId: boxId, text: item.translation } });
+                const _gsFull = (item.translit ? item.translit + '\n' : '') + (item.translation || '');
+                requests.push({ insertText: { objectId: boxId, text: _gsFull } });
                 requests.push({
                     updateTextStyle: {
                         objectId: boxId,
@@ -9225,6 +9847,19 @@ async function exportToGoogleSlides() {
                         fields: 'alignment,lineSpacing,spaceAbove,spaceBelow'
                     }
                 });
+                if (item.translit) {
+                    requests.push({
+                        updateTextStyle: {
+                            objectId: boxId,
+                            style: {
+                                fontSize: { magnitude: fontPt, unit: 'PT' },
+                                foregroundColor: { opaqueColor: { rgbColor: { red: 0, green: 0, blue: 0 } } }
+                            },
+                            textRange: { type: 'FIXED_RANGE', startIndex: 0, endIndex: item.translit.length },
+                            fields: 'fontSize,foregroundColor'
+                        }
+                    });
+                }
                 // Vertically centre the text in the box, like the in-app translation panel
                 requests.push({
                     updateShapeProperties: {
@@ -9260,6 +9895,119 @@ async function exportToGoogleSlides() {
         _ssHudHidden = prevHudHidden;
         renderSlideshowSlide();
     }
+}
+
+// ===== Transliteration: copy toast, Copy Slides button, PPTX export helper =====
+function ssChunksTranslitText(chunks) {
+    if (!_ssTranslit) return '';
+    return chunks.filter(function (c) { return !c.isImage; }).map(function (c) {
+        const saved = (c.translitLines || []).filter(function (x) { return x && x.trim(); });
+        if (saved.length) return saved.join(' ');
+        return ssTransliterate(ssLinePlainText(ssTrimEdgeSpaces(c.segmentHtml || '')));
+    }).filter(Boolean).join(' ');
+}
+
+function _showTranslationToast(translation, translit) {
+    _removeTransToast();
+
+    translation = String(translation || '').trim();
+    translit = String(translit || '').trim();
+    if (!translation && !translit) return;
+
+    const toast = document.createElement('div');
+    toast.id = 'ss-trans-toast';
+    toast.style.cssText = 'position:absolute;bottom:22%;left:50%;transform:translateX(-50%);background:#1a2a3a;border:2px solid #b8860b;border-radius:10px;padding:14px 18px;z-index:99999;max-width:70%;max-height:60%;overflow-y:auto;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+
+    function escapeHtml(t) {
+        return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function copyText(text, btn) {
+        const label = btn.dataset.label;
+        const htmlPayload = '<p style="font-style:normal;font-weight:700;font-size:25px;font-family:Lexend,sans-serif;color:#000000;">' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
+        const done = function () {
+            btn.textContent = '✓ Copied!';
+            setTimeout(function () { btn.textContent = label; }, 1200);
+        };
+        const plainOnly = function () {
+            navigator.clipboard.writeText(text).then(done).catch(function () {
+                btn.textContent = '✕ Failed';
+                setTimeout(function () { btn.textContent = label; }, 1200);
+            });
+        };
+        try {
+            navigator.clipboard.write([new ClipboardItem({
+                'text/plain': new Blob([text], { type: 'text/plain' }),
+                'text/html':  new Blob([htmlPayload], { type: 'text/html' })
+            })]).then(done).catch(plainOnly);
+        } catch (e) {
+            plainOnly();
+        }
+    }
+
+    function makeButton(label, onClick, bg) {
+        const btn = document.createElement('button');
+        btn.dataset.label = label;
+        btn.textContent = label;
+        btn.style.cssText = 'margin-top:8px;margin-right:6px;background:' + bg + ';border:none;color:white;border-radius:5px;padding:5px 16px;font-size:11px;font-weight:bold;cursor:pointer;font-family:sans-serif;';
+        btn.onclick = function () { onClick(btn); };
+        return btn;
+    }
+
+    function addSection(labelText, text, btnLabel, textColor) {
+        const box = document.createElement('div');
+        box.style.cssText = 'margin-bottom:12px;';
+        const label = document.createElement('div');
+        label.style.cssText = 'font-size:10px;font-weight:bold;text-transform:uppercase;letter-spacing:0.8px;color:#b8860b;margin-bottom:8px;font-family:sans-serif;';
+        label.textContent = labelText;
+        const body = document.createElement('div');
+        body.style.cssText = 'font-size:1rem;color:' + textColor + ';font-style:normal;font-family:Lexend,sans-serif;font-weight:700;line-height:1.5;cursor:text;user-select:text;text-align:center;';
+        body.textContent = text;
+        box.appendChild(label);
+        box.appendChild(body);
+        box.appendChild(makeButton(btnLabel, function (btn) { copyText(text, btn); }, '#b8860b'));
+        toast.appendChild(box);
+    }
+
+    if (translit)    addSection('Transliteration — select & copy as text', translit, '📋 Copy Transliteration', '#fffdf8');
+    if (translation) addSection('Translation — select & copy as text', translation, '📋 Copy Translation', '#fffdf8');
+
+    const row = document.createElement('div');
+    if (translit && translation) {
+        row.appendChild(makeButton('📋 Copy Both', function (btn) { copyText(translit + '\n' + translation, btn); }, '#3a5a82'));
+    }
+    const dismiss = document.createElement('button');
+    dismiss.style.cssText = 'margin-top:8px;background:transparent;border:1px solid rgba(255,255,255,0.2);color:#aaa;border-radius:5px;padding:5px 12px;font-size:11px;cursor:pointer;font-family:sans-serif;';
+    dismiss.textContent = 'Dismiss';
+    dismiss.onclick = function () { toast.remove(); };
+    row.appendChild(dismiss);
+    toast.appendChild(row);
+
+    document.getElementById('slideshow-overlay').appendChild(toast);
+}
+
+async function copyMulticopyTranslit(idx, btn) {
+    const item = _multicopyData.find(d => d.idx === idx);
+    if (!item || !item.translit) return;
+    const original = btn.textContent;
+    const safe = item.translit.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const htmlPayload = '<p style="font-style:normal;font-weight:700;font-size:25px;font-family:Lexend,sans-serif;color:#000000;">' + safe + '</p>';
+    try {
+        await navigator.clipboard.write([new ClipboardItem({
+            'text/plain': new Blob([item.translit], { type: 'text/plain' }),
+            'text/html': new Blob([htmlPayload], { type: 'text/html' })
+        })]);
+    } catch (e) {
+        try {
+            await navigator.clipboard.writeText(item.translit);
+        } catch (e2) {
+            btn.textContent = '✕ Failed';
+            setTimeout(() => btn.textContent = original, 1400);
+            return;
+        }
+    }
+    btn.textContent = '✓ Copied!';
+    setTimeout(() => btn.textContent = original, 1400);
 }
 
 function _downloadSlide(canvas, btn) {
@@ -9552,6 +10300,7 @@ function _buildComparableIndex(data) {
                     name: piece.name,
                     content: piece.content || '',
                     translation: piece.translation || '',
+                    transliteration: piece.transliteration || '',
                     lastModified: piece.lastModified || ''
                 }))
             }))
@@ -11873,6 +12622,7 @@ function updateChronoDisplay() {
                 translation,
                 pieceName: piece.name || slot.id,
                 presetSlot: slot.id,
+                translitLines: ssPieceTranslitLines(piece).slice(segmentOffset - chunk.length, segmentOffset),
                 isImage: isImagePieceHtml(geezHtml)
             });
         });
@@ -12646,6 +13396,7 @@ function appendPresetSlotToDeck(deck, slot) {
             translation,
             pieceName: piece.name || slot.id,
             presetSlot: slot.id,
+            translitLines: ssPieceTranslitLines(piece).slice(segmentOffset - chunk.length, segmentOffset),
             isImage
         });
     });
@@ -12729,6 +13480,7 @@ function generatePresetDeck() {
         segIndex: 0,
         segmentHtml: slide.geezHtml,
         translation: slide.translation || '',
+        translitLines: slide.translitLines || [],
         isImage: !!slide.isImage
     }));
 
