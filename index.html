@@ -2525,6 +2525,7 @@ body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
         <input id="ss-zoom-input" type="text" maxlength="5" placeholder="100" style="display:none;width:56px;padding:4px 6px;font-size:13px;border:1px solid #b8860b;border-radius:6px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;" />
         <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
         <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave</button>
+        <button onclick="toggleSsBg()" id="ss-bg-btn" style="background:var(--gold);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">☀ Bright (switched on)</button>
         <button onclick="toggleSsTranslit()" id="ss-translit-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Aa Translit: Off</button>
         <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
         <button onclick="hideHudPermanently()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Hide</button>
@@ -2540,7 +2541,7 @@ body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
             <div id="ss-geez" style="width:100%;height:100%;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:10px;box-sizing:border-box;"></div>
         </div>
         <div id="ss-translation-frame" class="ss-frame">
-            <div id="ss-translation" style="width:100%;height:100%;background:#eef3ff;border-top:2px solid #b8d4ee;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;box-sizing:border-box;"></div>
+            <div id="ss-translation" style="width:100%;height:100%;background:transparent;border-top:none;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;box-sizing:border-box;"></div>
         </div>
     </div>
     <!-- Nav buttons -->
@@ -7201,7 +7202,7 @@ async function exportToPptx() {
                 const imgSrcMatch = chunks[0].segmentHtml.match(/<img[^>]*\ssrc="([^"]+)"/);
                 if (imgSrcMatch) {
                     const slide = pptx.addSlide();
-                    slide.background = { color: 'FFFDF8' };
+                    slide.background = { color: ssBgHex() };
                     slide.addImage({
                         data: imgSrcMatch[1],
                         x: 0, y: 0, w: PW, h: PH,
@@ -7227,7 +7228,7 @@ async function exportToPptx() {
 
             // Render Ge'ez to a hidden fixed-size div
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + rW + 'px;height:' + rH + 'px;overflow:hidden;background:#fffdf8;display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;box-sizing:border-box;pointer-events:none;font-family:"Abyssinica SIL",serif;';
+            wrap.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + rW + 'px;height:' + rH + 'px;overflow:hidden;background:' + SS_SLIDE_BG + ';display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;box-sizing:border-box;pointer-events:none;font-family:"Abyssinica SIL",serif;';
             const inner = document.createElement('div');
             inner.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;box-sizing:border-box;';
             inner.innerHTML = geezHtml;
@@ -7335,7 +7336,7 @@ async function exportToPptx() {
 
             // Build the slide
             const slide = pptx.addSlide();
-            slide.background = { color: 'FFFDF8' };
+            slide.background = { color: ssBgHex() };
 
             // Ge'ez as image — top 75%
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: geezH });
@@ -7344,8 +7345,8 @@ async function exportToPptx() {
             if (slideHasTranslation) {
                 slide.addShape(pptx.ShapeType.rect, {
                     x: 0, y: transY, w: PW, h: transH,
-                    fill: { color: 'EEF3FF' },
-                    line: { color: 'B8D4EE', width: 1 }
+                    fill: { color: ssBgHex() },
+                    line: { color: ssBgHex(), width: 1 }
                 });
             }
             if (translation || exportTranslit) {
@@ -7516,7 +7517,7 @@ async function exportToPptxExact() {
             const nativeTransH = PH * transFrac;
 
             const slide = pptx.addSlide();
-            slide.background = { color: 'FFFDF8' };
+            slide.background = { color: ssBgHex() };
             slide.addImage({ data: imgData, x: 0, y: 0, w: PW, h: PH });
             if (_ilBoxes.length) {
                 const _ilSize = Math.min.apply(null, _ilBoxes.map(function (b) {
@@ -7536,7 +7537,7 @@ async function exportToPptxExact() {
             } else if (ssSlideHasBand(_ssSlides[si]) && nativeTransH > 0.05) {
                 slide.addShape(pptx.ShapeType.rect, {
                     x: 0, y: nativeTransY, w: PW, h: nativeTransH,
-                    fill: { color: 'EEF3FF' },
+                    fill: { color: ssBgHex() },
                     line: { color: 'B8D4EE', width: 1 }
                 });
                 const _tl = ssSlideTranslitText(_ssSlides[si]);
@@ -8000,6 +8001,7 @@ function applySlideZoom() {
     if (!overlay) return;
     const zoom = ssGetZoom();
     overlay.style.transform = 'scale(' + zoom + ')';
+    ssApplyBgState();
     overlay.style.transformOrigin = 'top left';
     overlay.style.width = Math.round(100 / zoom) + '%';
     overlay.style.height = Math.round(100 / zoom) + '%';
@@ -8208,6 +8210,7 @@ function ssUpdateInterleaveButtons(plan) {
 }
 
 // Draws the slide as interleaved rows. Returns false when this slide should use the classic layout instead.
+const SS_INTERLEAVE_ALLOW_WRAP = false;   // false = every Ge'ez line stays on ONE line when interleaved. true = old behaviour (long lines may wrap)
 const SS_INTERLEAVE_LINE_BOOST = 3;   // short lines may grow up to this many times the shared size (1 = no growth)
 
 // ===== Fonts: always measure slides with the REAL fonts, never the fallback =====
@@ -8239,6 +8242,33 @@ if (document.fonts && document.fonts.addEventListener) {
 const SS_INTERLEAVE_TEXT_MAX_RATIO = 0.9;       // spare height may grow the text, but never beyond this fraction of the Ge'ez letter size
 const SS_INTERLEAVE_TEXT_LINE_HEIGHT = 0.8;    // line height of translit/translation on screen (was 1.3)
 const SS_INTERLEAVE_TEXT_MAX_PX = 200;          // hard cap on text size in px
+
+// ===== Slide background (bright / dark switch) =====
+const SS_BG_BRIGHT = '#fffdf8';        // "Bright" = the original slide colour
+const SS_BG_DARK = '#efe4c8';          // "Dark" = parchment
+const SS_BG_START_BRIGHT = true;       // very first load only: true = Bright, false = Dark. After that your last choice is remembered.
+let _ssBgBright = SS_BG_START_BRIGHT;
+try { const _sv = localStorage.getItem('miliket_ss_bg'); if (_sv === 'bright') _ssBgBright = true; else if (_sv === 'dark') _ssBgBright = false; } catch (e) {}
+let SS_SLIDE_BG = _ssBgBright ? SS_BG_BRIGHT : SS_BG_DARK;
+function ssBgHex() { return String(SS_SLIDE_BG).replace('#', '').toUpperCase(); }   // PPTX wants hex without the #
+
+// ===== Letter halo (thin outline around Ge'ez letters and milikets in the slideshow) =====
+const SS_HALO_ON = true;            // false = no halo at all
+const SS_HALO_COLOUR = '#ffffff';
+const SS_HALO_EM = 0.026;           // thickness in em (scales with each letter and miliket)
+const SS_HALO_BLUR_EM = 0;          // 0 = crisp outline, about 0.01 = soft glow
+(function () {
+    if (!SS_HALO_ON || SS_HALO_EM <= 0) return;
+    const parts = [], n = 12;
+    for (let i = 0; i < n; i++) {
+        const a = 2 * Math.PI * i / n;
+        parts.push((SS_HALO_EM * Math.cos(a)).toFixed(4) + 'em ' + (SS_HALO_EM * Math.sin(a)).toFixed(4) + 'em ' + SS_HALO_BLUR_EM + 'em ' + SS_HALO_COLOUR);
+    }
+    const st = document.createElement('style');
+    st.id = 'ss-halo-style-permanent';
+    st.textContent = '#slideshow-overlay .letter-container, #slideshow-overlay .letter-container * { text-shadow: ' + parts.join(', ') + '; }';
+    document.head.appendChild(st);
+})();
 
 // ===== Transliteration colour (one place to change it) =====
 let SS_TRANSLIT_COLOR = '#8b1e2d';   // transliteration colour. The translation stays #1a2a3a.
@@ -8353,7 +8383,7 @@ function ssTryRenderInterleaved(slide, counter) {
     const availH = geezEl.clientHeight - 20;
     if (availW > 0 && availH > 0) {
         const host = document.createElement('div');
-        host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:flex-start;height:' + availH + 'px;';
+        host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:center;height:' + availH + 'px;';
         geezEl.appendChild(host);
 
         // Transliteration and translation share one colour and one size.
@@ -8441,7 +8471,8 @@ function ssTryRenderInterleaved(slide, counter) {
             const mid = (lo + hi) / 2;
             (layoutAt(mid, 1) <= availH) ? (lo = mid) : (hi = mid);
         }
-        const sFinal = lo * 0.995;
+        const _oneLineScale = Math.min.apply(null, pairs.map(function (p) { return p.fit; }).filter(function (f) { return f > 0; }));
+        const sFinal = (SS_INTERLEAVE_ALLOW_WRAP ? lo : Math.min(lo, _oneLineScale)) * 0.995;
 
         // Pass 2: spare height goes to the text.
         let mLo = 1, mHi = Math.max(1, SS_INTERLEAVE_TEXT_MAX_RATIO / SS_INTERLEAVE_TRANS_RATIO);
@@ -8461,6 +8492,24 @@ function ssTryRenderInterleaved(slide, counter) {
 function toggleSsInterleave() {
     _ssInterleave = !_ssInterleave;
     try { localStorage.setItem('miliket_ss_interleave', _ssInterleave ? '1' : '0'); } catch (e) {}
+    renderSlideshowSlide();
+}
+
+function ssApplyBgState() {
+    SS_SLIDE_BG = _ssBgBright ? SS_BG_BRIGHT : SS_BG_DARK;
+    const o = document.getElementById('slideshow-overlay');
+    if (o) o.style.background = SS_SLIDE_BG;
+    const b = document.getElementById('ss-bg-btn');
+    if (b) {
+        b.textContent = _ssBgBright ? '☀ Bright (switched on)' : '☾ Dark (switched off)';
+        b.style.background = _ssBgBright ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+    }
+}
+
+function toggleSsBg() {
+    _ssBgBright = !_ssBgBright;
+    try { localStorage.setItem('miliket_ss_bg', _ssBgBright ? 'bright' : 'dark'); } catch (e) {}
+    ssApplyBgState();
     renderSlideshowSlide();
 }
 
@@ -8663,7 +8712,7 @@ function renderSlideshowSlide() {
         geezEl.style.alignItems = 'center';
         geezEl.style.justifyContent = 'center';
         geezEl.style.padding = '0';
-        geezEl.style.background = '#fffdf8';
+        geezEl.style.background = '';
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
             p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
@@ -9061,7 +9110,7 @@ async function copyCurrentSlide(btn) {
             scale: 2,
             useCORS: true,
             allowTaint: true,
-            backgroundColor: '#fffdf8',
+            backgroundColor: SS_SLIDE_BG,
             width:        visualW,
             height:       visualH,
             windowWidth:  visualW,
