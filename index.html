@@ -12023,7 +12023,443 @@ function updateChronoDisplay() {
     };
 
     let presetEditorTarget = null;
-        let ismeLealemFolderOverride = '';
+
+    // ===== ቁም ክፍል / ጽፋት በቁም ክፍል: choose lines per slide =====
+    let kifilDraft = null;
+    let kifilPickerEl = null;
+    let kifilPickerState = null;
+    const KIFIL_SLIDES_PER_COLUMN = 6;
+
+    function presetKifilActive(slot) {
+        return !!(slot && slot.kifil && Array.isArray(slot.kifilSlides) && slot.kifilSlides.length &&
+            slot.kifilPieceId && slot.kifilPieceId === slot.selectedId);
+    }
+
+    function kifilGetSegments(piece) {
+        const v = (piece && piece.visualData) || '';
+        const isImage = isImagePieceHtml(v);
+        return { isImage: isImage, segments: isImage ? [v] : splitByPunctuation(v) };
+    }
+
+    function presetKifilBuildSlides(slot, piece, slidesOverride) {
+        const info = kifilGetSegments(piece);
+        const transSegs = info.isImage ? [piece.translation || ''] : splitTranslation(piece.translation || '');
+        const translit = info.isImage ? [] : ssPieceTranslitLines(piece);
+        const defs = Array.isArray(slidesOverride) ? slidesOverride : (slot.kifilSlides || []);
+        const out = [];
+
+        defs.forEach(function (indices) {
+            const valid = (indices || []).filter(function (i) { return i >= 0 && i < info.segments.length; });
+            if (!valid.length) return;
+
+            out.push({
+                geezHtml: valid.map(function (i) { return info.segments[i]; }).join(''),
+                translation: valid.map(function (i) {
+                    return info.isImage ? (transSegs[0] || '') : getTranslationForSegment(transSegs, i, info.segments.length);
+                }).filter(Boolean).join(' '),
+                pieceName: piece.name || slot.id,
+                presetSlot: slot.id,
+                translitLines: valid.map(function (i) { return translit[i] || ''; }),
+                isImage: info.isImage
+            });
+        });
+
+        return out;
+    }
+
+    // When a slot's piece changes, slots that mirror it (plain ጽፋት) follow if they were still on the old piece or empty.
+    function presetPropagateMirror(section, sourceSlot, oldId) {
+        let changed = false;
+        (section.slots || []).forEach(function (s) {
+            if (s.mirrorOf === sourceSlot.id &&
+                (!s.selectedId || s.selectedId === oldId) &&
+                s.selectedId !== sourceSlot.selectedId) {
+                s.selectedId = sourceSlot.selectedId;
+                changed = true;
+            }
+        });
+        return changed;
+    }
+
+    // ---------- Line picker (like manual selection, for one slot) ----------
+    function kifilEnsurePicker() {
+        if (kifilPickerEl) return kifilPickerEl;
+
+        const el = document.createElement('div');
+        el.id = 'kifil-picker-overlay';
+        el.style.cssText = 'display:none;position:fixed;inset:0;z-index:100060;flex-direction:column;background:var(--page-bg);color:var(--text);font-family:"Abyssinica SIL",serif;';
+
+        const base = 'border-radius:6px;padding:7px 14px;font-size:0.85rem;font-weight:bold;cursor:pointer;';
+        el.innerHTML =
+            '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 24px;background:var(--topbar-bg);border-bottom:3px solid var(--gold);">' +
+                '<button type="button" id="kifil-undo-btn" style="' + base + 'background:transparent;border:1px solid var(--card-border);color:var(--text);">← Undo Slide</button>' +
+                '<button type="button" id="kifil-cancel-btn" style="' + base + 'background:transparent;border:1px solid var(--card-border);color:var(--text);">✕ Cancel</button>' +
+                '<span id="kifil-title" style="color:var(--gold);font-weight:bold;font-size:1.05rem;"></span>' +
+                '<span id="kifil-count" style="margin-left:auto;color:var(--text-muted);font-size:0.8rem;font-family:sans-serif;"></span>' +
+                '<button type="button" id="kifil-next-btn" style="' + base + 'background:#3a5a82;border:none;color:#fff;">Next Slide →</button>' +
+                '<button type="button" id="kifil-finish-btn" style="' + base + 'background:#27ae60;border:none;color:#fff;">✓ Finished with this slot</button>' +
+            '</div>' +
+            '<div style="padding:10px 40px 0;font-size:0.78rem;color:var(--text-muted);font-family:sans-serif;">Click lines in the order you want them on the slide, then Next Slide. Keys: 1–9 select the next lines, Space = Next Slide.</div>' +
+            '<div id="kifil-grid" style="flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;align-content:start;padding:14px 40px 40px;"></div>';
+
+        document.body.appendChild(el);
+        el.querySelector('#kifil-next-btn').onclick = kifilNextSlide;
+        el.querySelector('#kifil-undo-btn').onclick = kifilUndoSlide;
+        el.querySelector('#kifil-finish-btn').onclick = kifilFinish;
+        el.querySelector('#kifil-cancel-btn').onclick = kifilCancel;
+
+        kifilPickerEl = el;
+        return el;
+    }
+
+    function presetOpenKifilPicker(opts) {
+        const piece = opts.piece;
+        const info = kifilGetSegments(piece);
+
+        if (!info.segments.length) {
+            alert('No lines were found in this piece.');
+            return;
+        }
+
+        const el = kifilEnsurePicker();
+        kifilPickerState = {
+            segments: info.segments,
+            isImage: info.isImage,
+            slides: [],
+            current: [],
+            onDone: opts.onDone
+        };
+
+        document.getElementById('kifil-title').textContent =
+            (opts.slot.label || opts.slot.id) + ' — ' + (piece.name || '');
+        el.style.display = 'flex';
+        kifilRenderPicker();
+    }
+
+    function kifilClosePicker() {
+        if (kifilPickerEl) kifilPickerEl.style.display = 'none';
+        kifilPickerState = null;
+    }
+
+    function kifilRenderPicker() {
+        const st = kifilPickerState;
+        if (!st) return;
+
+        const grid = document.getElementById('kifil-grid');
+        const keepScroll = grid.scrollTop;
+        grid.innerHTML = '';
+
+        const used = new Set();
+        st.slides.forEach(function (s) { s.forEach(function (i) { used.add(i); }); });
+
+        let shown = 0;
+        st.segments.forEach(function (segHtml, idx) {
+            if (used.has(idx)) return;
+            shown++;
+
+            const pos = st.current.indexOf(idx);
+            const card = document.createElement('div');
+            card.className = 'line-card' + (pos !== -1 ? ' selected' : '');
+            card.innerHTML =
+                '<div class="check-icon">' + (pos !== -1 ? (pos + 1) : '') + '</div>' +
+                '<div class="line-num">Line ' + (idx + 1) + '</div>' +
+                '<div class="line-preview">' + _escHtml(extractFirstTwoWords(segHtml, st.isImage) || '—') + '</div>';
+
+            card.onclick = function () {
+                const p = st.current.indexOf(idx);
+                if (p === -1) st.current.push(idx); else st.current.splice(p, 1);
+                kifilRenderPicker();
+            };
+            grid.appendChild(card);
+        });
+
+        if (!shown) {
+            const done = document.createElement('div');
+            done.style.cssText = 'grid-column:1/-1;text-align:center;padding:40px;color:var(--text-muted);font-family:sans-serif;';
+            done.textContent = 'Every line is assigned. Click "Finished with this slot".';
+            grid.appendChild(done);
+        }
+
+        document.getElementById('kifil-count').textContent =
+            'Slide ' + (st.slides.length + 1) + ': ' + st.current.length + ' selected  (' +
+            (used.size + st.current.length) + '/' + st.segments.length + ' assigned)';
+
+        grid.scrollTop = keepScroll;
+    }
+
+    function kifilNextSlide() {
+        const st = kifilPickerState;
+        if (!st) return;
+        if (!st.current.length) { alert('Select at least one line for this slide.'); return; }
+        st.slides.push(st.current.slice());
+        st.current = [];
+        kifilRenderPicker();
+    }
+
+    function kifilUndoSlide() {
+        const st = kifilPickerState;
+        if (!st) return;
+        if (st.current.length) st.current = [];
+        else if (st.slides.length) st.current = st.slides.pop();
+        kifilRenderPicker();
+    }
+
+    async function kifilCancel() {
+        const st = kifilPickerState;
+        if (!st) return;
+        if (st.slides.length || st.current.length) {
+            const ok = await studioConfirm({
+                title: 'Discard Selection?',
+                message: 'Your line selection for this slot will be discarded.',
+                confirmLabel: 'Discard',
+                tone: 'warning'
+            });
+            if (!ok) return;
+        }
+        kifilClosePicker();
+    }
+
+    async function kifilFinish() {
+        const st = kifilPickerState;
+        if (!st) return;
+
+        const slides = st.slides.map(function (s) { return s.slice(); });
+        if (st.current.length) slides.push(st.current.slice());
+        if (!slides.length) { alert('Select at least one line first.'); return; }
+
+        const used = new Set();
+        slides.forEach(function (s) { s.forEach(function (i) { used.add(i); }); });
+        const left = st.segments.length - used.size;
+
+        if (left > 0) {
+            const ok = await studioConfirm({
+                title: 'Leave Lines Out?',
+                message: left + ' line' + (left === 1 ? ' is' : 's are') + ' not in any slide and will be left out of this slot. Finish anyway?',
+                confirmLabel: 'Finish',
+                tone: 'warning'
+            });
+            if (!ok) return;
+        }
+
+        const done = st.onDone;
+        kifilClosePicker();
+        if (typeof done === 'function') done(slides);
+    }
+
+    document.addEventListener('keydown', function (e) {
+        const st = kifilPickerState;
+        if (!st || !kifilPickerEl || kifilPickerEl.style.display === 'none') return;
+        if (document.querySelector('.sd-overlay')) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+        if (e.key === ' ') {
+            e.preventDefault();
+            if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+            kifilNextSlide();
+            return;
+        }
+
+        if (/^[1-9]$/.test(e.key)) {
+            e.preventDefault();
+            const used = new Set();
+            st.slides.forEach(function (s) { s.forEach(function (i) { used.add(i); }); });
+            let picked = 0;
+            const wanted = parseInt(e.key, 10);
+            for (let i = 0; i < st.segments.length && picked < wanted; i++) {
+                if (used.has(i) || st.current.indexOf(i) !== -1) continue;
+                st.current.push(i);
+                picked++;
+            }
+            kifilRenderPicker();
+        }
+    });
+
+    // Called when the piece of a ክፍል slot changes: old lines are dropped, then the picker opens.
+    function presetKifilPieceChanged(sectionIndex, slotIndex) {
+        const section = presetState.sections[sectionIndex];
+        const slot = section && section.slots && section.slots[slotIndex];
+        if (!slot) return;
+
+        slot.kifilSlides = [];
+        slot.kifilPieceId = '';
+        renderPresetCreator();
+
+        if (!slot.selectedId) return;
+
+        const piece = getPieceById(slot.selectedId);
+        if (!piece || !piece.visualData || !piece.visualData.trim()) {
+            alert('This piece has no visual content yet. Open it in the editor and save it first.');
+            return;
+        }
+
+        presetOpenKifilPicker({
+            slot: slot,
+            piece: piece,
+            onDone: function (slides) {
+                slot.kifilSlides = slides;
+                slot.kifilPieceId = slot.selectedId;
+                renderPresetCreator();
+            }
+        });
+    }
+
+    // ---------- Modify window for ክፍል slots ----------
+    function presetKifilEditorPrepare(slot) {
+        const editor = document.getElementById('preset-rule-editor');
+        const box = editor ? editor.querySelector('.preset-rule-editor-box') : null;
+        if (!box) return;
+
+        box.querySelectorAll('label, #preset-rule-type-select, #preset-rule-custom-input').forEach(function (el) {
+            el.style.display = slot.kifil ? 'none' : '';
+        });
+        box.style.width = slot.kifil ? 'min(760px, 94vw)' : '';
+
+        let holder = document.getElementById('preset-rule-kifil-fields');
+        if (!holder) {
+            holder = document.createElement('div');
+            holder.id = 'preset-rule-kifil-fields';
+            box.insertBefore(holder, box.querySelector('.preset-rule-editor-actions'));
+        }
+        holder.style.display = slot.kifil ? '' : 'none';
+
+        if (!slot.kifil) { kifilDraft = null; return; }
+
+        const back = window.__presetKifilDraftReturn;
+        if (back && back.slot === slot) {
+            kifilDraft = back.draft;
+        } else {
+            kifilDraft = presetKifilActive(slot) ? JSON.parse(JSON.stringify(slot.kifilSlides)) : [];
+        }
+        window.__presetKifilDraftReturn = null;
+
+        presetKifilRenderEditor(slot);
+    }
+
+    function presetKifilRenderEditor(slot) {
+        const holder = document.getElementById('preset-rule-kifil-fields');
+        if (!holder) return;
+        holder.innerHTML = '';
+
+        const piece = slot.selectedId ? getPieceById(slot.selectedId) : null;
+        const info = piece ? kifilGetSegments(piece) : { segments: [], isImage: false };
+        const draft = Array.isArray(kifilDraft) ? kifilDraft : [];
+
+        const head = document.createElement('div');
+        head.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:14px;';
+
+        const note = document.createElement('div');
+        note.style.cssText = 'font-size:0.82rem;color:var(--text-muted);';
+        note.textContent = piece
+            ? (piece.name + ' — ' + draft.length + ' slide' + (draft.length === 1 ? '' : 's'))
+            : 'No piece is assigned to this slot yet.';
+
+        const reselect = document.createElement('button');
+        reselect.type = 'button';
+        reselect.textContent = '↻ Reselect Lines';
+        reselect.style.cssText = 'border:none;border-radius:8px;padding:8px 14px;font-size:0.8rem;font-weight:bold;cursor:pointer;background:#3a5a82;color:#fff;';
+        reselect.onclick = function () {
+            if (!piece || !piece.visualData || !piece.visualData.trim()) {
+                alert('Assign a piece with content to this slot first.');
+                return;
+            }
+            presetOpenKifilPicker({
+                slot: slot,
+                piece: piece,
+                onDone: function (slides) {
+                    kifilDraft = slides;
+                    presetKifilRenderEditor(slot);
+                }
+            });
+        };
+
+        head.appendChild(note);
+        head.appendChild(reselect);
+        holder.appendChild(head);
+
+        const wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;gap:14px;align-items:flex-start;margin-top:12px;max-height:50vh;overflow:auto;';
+
+        if (!draft.length) {
+            const empty = document.createElement('div');
+            empty.style.cssText = 'font-size:0.85rem;color:var(--text-muted);padding:14px 4px;';
+            empty.textContent = 'No lines chosen yet. Click "Reselect Lines" (until then, 3 lines per slide is used).';
+            wrap.appendChild(empty);
+        } else {
+            for (let c = 0; c < draft.length; c += KIFIL_SLIDES_PER_COLUMN) {
+                const col = document.createElement('div');
+                col.style.cssText = 'flex:1 1 0;min-width:220px;display:flex;flex-direction:column;gap:8px;';
+
+                draft.slice(c, c + KIFIL_SLIDES_PER_COLUMN).forEach(function (indices, k) {
+                    const item = document.createElement('div');
+                    item.style.cssText = 'border:1px solid var(--card-border);border-left:4px solid var(--gold);border-radius:8px;padding:8px 10px;background:var(--page-bg);';
+
+                    const title = document.createElement('div');
+                    title.style.cssText = 'font-size:0.78rem;font-weight:bold;color:var(--gold);margin-bottom:4px;font-family:sans-serif;';
+                    title.textContent = 'Slide ' + (c + k + 1) + ':';
+                    item.appendChild(title);
+
+                    indices.forEach(function (i) {
+                        const line = document.createElement('div');
+                        line.style.cssText = 'font-size:1rem;color:var(--text);line-height:1.5;';
+                        line.textContent = (info.segments[i] ? extractFirstTwoWords(info.segments[i], info.isImage) : '') || '—';
+                        item.appendChild(line);
+                    });
+
+                    col.appendChild(item);
+                });
+
+                wrap.appendChild(col);
+            }
+        }
+
+        holder.appendChild(wrap);
+    }
+    let ismeLealemFolderOverride = '';
+
+    // ===== ምልጣን switch =====
+    // The six ምልጣን/ማንሻ loop slots are the ones whose loop key starts with "MezmurLoop".
+    // (A slot can also be marked by hand with  miltan: true.)
+    function presetSlotIsMiltan(slot) {
+        return !!slot && (slot.miltan === true || /^MezmurLoop/.test(String(slot.loop || '')));
+    }
+
+    function presetSectionHasMiltan(section) {
+        return (section.slots || []).some(presetSlotIsMiltan);
+    }
+
+    // A ምልጣን slot is hidden unless its section's ምልጣን switch is on (default: off).
+    function presetSlotHidden(section, slot) {
+        if (slot && slot.hideWhenMiltan && section && section.miltan === true) return true;
+        if (slot && slot.onlyWhenDouble && section && section.double === false) return true;
+        if (slot && slot.kifilGroup === 'on' && !(section && section.kifilSwitch === true)) return true;
+        if (slot && slot.kifilGroup === 'off' && section && section.kifilSwitch === true) return true;
+        return presetSlotIsMiltan(slot) && !(section && section.miltan === true);
+    }
+
+    function presetSetMiltan(sectionIndex, on) {
+        const section = presetState.sections[sectionIndex];
+        if (!section) return;
+
+        section.miltan = !!on;
+
+        // Switching on: fill any empty ምልጣን slot with Smart Selection. Picks you already made are kept.
+        if (section.miltan) {
+            const options = getProjectPieceOptions();
+
+            (section.slots || []).forEach(slot => {
+                if (!presetSlotIsMiltan(slot) || slot.selectedId) return;
+
+                const found = smartFindPieceForSlot(section, slot, options);
+
+                if (found) {
+                    slot.selectedId = found.value;
+                    slot.smartSelected = true;
+                }
+            });
+        }
+
+        renderPresetCreator();
+    }
 
     function presetNormalizeText(value) {
         return String(value || '')
@@ -12169,15 +12605,19 @@ function updateChronoDisplay() {
                         { id: 'Zimame', label: 'ዝማሜ', type: 'Zimame', customRule: '3 lines', aliases: ['ዝማሜ', 'ዝም'], selectedId: '' },
                         { id: 'Miltan Zema ×3', label: 'ምልጣን ዜማ ×3', type: 'Miltan Zema', loop: 'MezmurLoop1', repeat: 3, aliases: ['ምልጣን ዜማ'], selectedId: '', customRule: '' },
                         { id: 'Mansha Zimame ×3', label: 'ማንሻ ዝማሜ ×3', type: 'Mansha Zimame', loop: 'MezmurLoop1', repeat: 3, aliases: ['ማንሻ ዝማሜ', 'ማንሻ ዝም'], selectedId: '', customRule: '' },
-                        { id: 'Mansha Tsina', label: 'ማንሻ ጽና', type: 'Mansha Tsina', aliases: ['ማንሻ ጽና'], selectedId: '' },                         { id: 'Mansha ×3', label: 'ማንሻ ጽና ×3', type: 'Mansha', loop: 'MezmurLoop2', repeat: 3, aliases: ['ማንሻ'], selectedId: '', customRule: '' },
-                        { id: 'Miltan Tsina ×2', label: 'ምልጣን ጽና ×2', type: 'Miltan Tsina', loop: 'MezmurLoop2', repeat: 2, aliases: ['ምልጣን ጽና'], selectedId: '', customRule: '' },
-                        { id: 'Qum', label: 'ቁም', type: 'Qum', customRule: '3 lines', aliases: ['ቁም'], selectedId: '' },
+                        { id: 'Mansha Tsina', label: 'ማንሻ ጸና', type: 'Mansha Tsina', hideWhenMiltan: true, aliases: ['ማንሻ ጸና', 'ማንሻ ጽና'], selectedId: '' },
+                        { id: 'Mansha ×3', label: 'ማንሻ ጸና ×3', type: 'Mansha', loop: 'MezmurLoop2', repeat: 3, aliases: ['ማንሻ'], selectedId: '', customRule: '' },
+                        { id: 'Miltan Tsina ×2', label: 'ምልጣን ጸና ×2', type: 'Miltan Tsina', loop: 'MezmurLoop2', repeat: 2, aliases: ['ምልጣን ጸና', 'ምልጣን ጽና'], selectedId: '', customRule: '' },
+                        { id: 'Qum', label: 'ቁም', type: 'Qum', customRule: '3 lines', kifilGroup: 'off', aliases: ['ቁም'], selectedId: '' },
+                        { id: 'Qum Kifil', label: 'ቁም ክፍል', type: 'Qum', customRule: '3 lines', kifil: true, kifilGroup: 'on', aliases: ['ቁም'], selectedId: '' },
                         { id: 'Mereged', label: 'መረግድ', type: 'Mulu Mereged', aliases: ['መረግድ'], selectedId: '' },
                         { id: 'Mansha Tsifat', label: 'ማንሻ ጽፋት', type: 'Tsifat', customRule: '3 lines', aliases: ['ማንሻ ጽፋት', 'ማንሻ ጽፋ'], selectedId: '' },
                         { id: 'Amelales', label: 'አመላለስ', type: 'Amelales', aliases: ['አመላለስ'], selectedId: '' },
                         { id: 'Miltan Tsifat ×2', label: 'ምልጣን ጽፋት ×2', type: 'Miltan Tsifat', loop: 'MezmurLoop3', repeat: 2, doubleSwitch: true, aliases: ['ምልጣን ጽፋት', 'ምልጣን ጽፋ'], selectedId: '' },
                         { id: 'Mansha Tsifat ×2', label: 'ማንሻ ጽፋት ×2', type: 'Tsifat', loop: 'MezmurLoop3', repeat: 2, doubleSwitch: true, aliases: ['ማንሻ ጽፋት', 'ማንሻ ጽፋ'], selectedId: '' },
-                        { id: 'Tsifat ×2', label: 'ጽፋት ×2', type: 'Tsifat', customRule: '3 lines', repeat: 2, doubleSwitch: true, aliases: ['ጽፋት'], selectedId: '' },
+                        { id: 'Tsifat ×2', label: 'ጽፋት ×2', type: 'Tsifat', customRule: '3 lines', repeat: 2, doubleSwitch: true, kifilGroup: 'off', aliases: ['ጽፋት'], selectedId: '' },
+                        { id: 'Tsifat Kifil', label: 'ጽፋት በቁም ክፍል', type: 'Tsifat', customRule: '3 lines', kifil: true, kifilGroup: 'on', aliases: ['ጽፋት'], selectedId: '' },
+                        { id: 'Tsifat Plain', label: 'ጽፋት', type: 'Tsifat', customRule: '3 lines', onlyWhenDouble: true, kifilGroup: 'on', mirrorOf: 'Tsifat Kifil', sameAs: 'Tsifat Kifil', aliases: ['ጽፋት'], selectedId: '' },
                         { id: 'Ararat', label: 'ዓራራት', type: 'Ararat', aliases: ['ዓራራት'], selectedId: '' },
                         { id: 'Ararai Miltan', label: 'ዓራራት ምልጣን', type: 'Ararai Miltan', aliases: ['ዓራራይ ምልጣን', 'ዓራራይ'], selectedId: '' },
                         { id: 'Ezel', label: 'ዕዝል', type: 'Ezel', aliases: ['ዕዝል'], selectedId: '' },
@@ -12446,6 +12886,54 @@ function updateChronoDisplay() {
                 headerLeft.appendChild(doubleSwitch);
             }
 
+            if ((section.slots || []).some(function (s) { return s.kifilGroup; })) {
+                const kifilSwitch = document.createElement('label');
+                kifilSwitch.className = 'preset-double-switch';
+                kifilSwitch.title = 'On: uses ቁም ክፍል and ጽፋት በቁም ክፍል (you choose the lines per slide). Off: the normal ቁም and ጽፋት.';
+
+                const kifilInput = document.createElement('input');
+                kifilInput.type = 'checkbox';
+                kifilInput.checked = section.kifilSwitch === true;
+                kifilInput.onchange = function () {
+                    presetSetKifilSwitch(sectionIndex, kifilInput.checked);
+                };
+
+                const kifilTrack = document.createElement('span');
+                kifilTrack.className = 'preset-double-track';
+
+                const kifilText = document.createElement('span');
+                kifilText.textContent = 'በቁም ክፍል';
+
+                kifilSwitch.appendChild(kifilInput);
+                kifilSwitch.appendChild(kifilTrack);
+                kifilSwitch.appendChild(kifilText);
+                headerLeft.appendChild(kifilSwitch);
+            }
+
+            if (presetSectionHasMiltan(section)) {
+                const miltanSwitch = document.createElement('label');
+                miltanSwitch.className = 'preset-double-switch';
+                miltanSwitch.title = 'On: shows the ምልጣን slots. Off: they are hidden and left out of the slideshow.';
+
+                const miltanInput = document.createElement('input');
+                miltanInput.type = 'checkbox';
+                miltanInput.checked = section.miltan === true;
+                miltanInput.onchange = function () {
+                    presetSetMiltan(sectionIndex, miltanInput.checked);
+                };
+
+                const miltanTrack = document.createElement('span');
+                miltanTrack.className = 'preset-double-track';
+
+                const miltanText = document.createElement('span');
+                miltanText.textContent = 'በምልጣን';
+
+                miltanSwitch.appendChild(miltanInput);
+                miltanSwitch.appendChild(miltanTrack);
+                miltanSwitch.appendChild(miltanText);
+                headerLeft.appendChild(miltanSwitch);
+            }
+
             header.appendChild(headerLeft);
             header.appendChild(addSetBtn);
 
@@ -12468,6 +12956,8 @@ function updateChronoDisplay() {
 
             (section.slots || []).forEach((slot, slotIndex) => {
                 const card = document.createElement('div');
+                if (presetSlotHidden(section, slot)) return;
+
                 card.className = 'preset-slot-card';
 
                 // ---- Drag and drop reordering (within this section) ----
@@ -12562,7 +13052,14 @@ function updateChronoDisplay() {
                 });
 
                 pieceSelect.onchange = function () {
+                    const oldSelectedId = slot.selectedId;
                     slot.selectedId = pieceSelect.value;
+                    const mirrorChanged = presetPropagateMirror(section, slot, oldSelectedId);
+                    if (slot.kifil) {
+                        presetKifilPieceChanged(sectionIndex, slotIndex);
+                    } else if (mirrorChanged) {
+                        renderPresetCreator();
+                    }
                 };
 
                 const actions = document.createElement('div');
@@ -12599,6 +13096,18 @@ function updateChronoDisplay() {
 
                 card.appendChild(headerRow);
                 card.appendChild(pieceSelect);
+
+                if (slot.kifil) {
+                    const kifilNote = document.createElement('div');
+                    kifilNote.style.cssText = 'font-size:0.72rem;color:var(--text-muted);margin-bottom:8px;';
+                    const kifilCount = presetKifilActive(slot) ? slot.kifilSlides.length : 0;
+                    kifilNote.textContent = !slot.selectedId
+                        ? 'Pick a piece first.'
+                        : (kifilCount
+                            ? kifilCount + ' slide' + (kifilCount === 1 ? '' : 's') + ' set'
+                            : 'No lines chosen yet. Click Modify to choose them.');
+                    card.appendChild(kifilNote);
+                }
                 card.appendChild(actions);
 
                 grid.appendChild(card);
@@ -12612,11 +13121,54 @@ function updateChronoDisplay() {
 
     // ድርብ switch: flips every slot flagged doubleSwitch between ×2 and ×1,
     // and swaps the "×2" / "×1" in the card name to match.
+    function presetSetKifilSwitch(sectionIndex, on) {
+        const section = presetState.sections[sectionIndex];
+        if (!section) return;
+
+        section.kifilSwitch = !!on;
+
+        // Switching on: fill any empty ክፍል slot (plain ጽፋት follows ጽፋት በቁም ክፍል). Picks you already made are kept.
+        if (section.kifilSwitch) {
+            const options = getProjectPieceOptions();
+
+            (section.slots || []).forEach(function (slot) {
+                if (slot.kifilGroup !== 'on' || slot.selectedId || presetSlotHidden(section, slot)) return;
+
+                let id = '';
+
+                if (slot.mirrorOf) {
+                    const source = (section.slots || []).find(function (x) { return x.id === slot.mirrorOf; });
+                    if (source && source.selectedId) id = source.selectedId;
+                }
+
+                if (!id) {
+                    const found = smartFindPieceForSlot(section, slot, options);
+                    if (found) id = found.value;
+                }
+
+                if (id) {
+                    slot.selectedId = id;
+                    slot.smartSelected = true;
+                }
+            });
+        }
+
+        renderPresetCreator();
+    }
+
     function presetSetDouble(sectionIndex, on) {
         const section = presetState.sections[sectionIndex];
         if (!section) return;
 
         section.double = !!on;
+
+        if (on) {
+            (section.slots || []).forEach(function (s) {
+                if (!s.onlyWhenDouble || s.selectedId || !s.mirrorOf) return;
+                const source = (section.slots || []).find(function (x) { return x.id === s.mirrorOf; });
+                if (source && source.selectedId) s.selectedId = source.selectedId;
+            });
+        }
 
         (section.slots || []).forEach(slot => {
             if (!slot.doubleSwitch) return;
@@ -12722,7 +13274,13 @@ function updateChronoDisplay() {
 
         if (picked === null) return;
 
+        const oldPickedId = slot.selectedId;
         slot.selectedId = picked;
+        presetPropagateMirror(section, slot, oldPickedId);
+        if (slot.kifil) {
+            presetKifilPieceChanged(sectionIndex, slotIndex);
+            return;
+        }
         renderPresetCreator();
     }
 
@@ -12762,6 +13320,7 @@ function updateChronoDisplay() {
     }
 
     function openPresetRuleEditor(sectionIndex, slotIndex, slot) {
+        presetKifilEditorPrepare(slot);
         presetEditorTarget = { sectionIndex, slotIndex, slot };
 
         const typeSelect = document.getElementById('preset-rule-type-select');
@@ -12801,6 +13360,10 @@ function updateChronoDisplay() {
         if (slot) {
             slot.type = typeSelect.value;
             slot.customRule = customInput.value.trim();
+            if (slot.kifil && Array.isArray(kifilDraft)) {
+                slot.kifilSlides = kifilDraft;
+                slot.kifilPieceId = slot.selectedId || '';
+            }
         }
 
         closePresetRuleEditor();
@@ -12839,9 +13402,10 @@ function updateChronoDisplay() {
         }
 
         const translationSegments = splitTranslation(piece.translation || '');
-        const chunks = presetChunkSegments(segments, previewType, previewCustomRule);
+        const useKifilPreview = !!(slot.kifil && Array.isArray(kifilDraft) && kifilDraft.length);
+        const chunks = useKifilPreview ? [] : presetChunkSegments(segments, previewType, previewCustomRule);
 
-        const previewDeck = [];
+        const previewDeck = useKifilPreview ? presetKifilBuildSlides(slot, piece, kifilDraft) : [];
         let segmentOffset = 0;
 
         chunks.forEach(chunk => {
@@ -12876,6 +13440,7 @@ function updateChronoDisplay() {
         }
 
         // Stash what to return to once the preview is closed.
+        window.__presetKifilDraftReturn = slot.kifil ? { slot: slot, draft: kifilDraft } : null;
         window.__presetPreviewReturn = {
             sectionIndex: presetEditorTarget.sectionIndex,
             slotIndex: presetEditorTarget.slotIndex,
@@ -13300,6 +13865,8 @@ function smartSelectPresetPieces(showStatus = true) {
 
     (presetState.sections || []).forEach(section => {
         (section.slots || []).forEach(slot => {
+            if (presetSlotHidden(section, slot)) return;
+
             const match = smartFindPieceForSlot(
                 section,
                 slot,
@@ -13569,6 +14136,14 @@ function appendPresetSlotToDeck(deck, slot) {
         return;
     }
 
+    if (presetKifilActive(slot)) {
+        const kifilDeck = presetKifilBuildSlides(slot, piece);
+        if (kifilDeck.length) {
+            kifilDeck.forEach(function (s) { deck.push(s); });
+            return;
+        }
+    }
+
     const isImage = isImagePieceHtml(visualData);
 
     /*
@@ -13670,6 +14245,8 @@ function appendPresetSlotToDeck(deck, slot) {
                     return;
                 }
 
+                if (presetSlotHidden(section, slot)) return;
+
                 const loopKey = presetLoopKey(slot);
 
                 if (loopKey) {
@@ -13677,7 +14254,7 @@ function appendPresetSlotToDeck(deck, slot) {
                     doneLoops.add(loopKey);
 
                     const members = slots.filter(s =>
-                        s && s.selectedId && presetLoopKey(s) === loopKey
+                        s && s.selectedId && !presetSlotHidden(section, s) && presetLoopKey(s) === loopKey
                     );
                     const rounds = Math.max(...members.map(presetRepeatOf));
 
