@@ -3739,7 +3739,10 @@ function copyBox() {
     if (!selectedSpanId) { alert('Select a box first.'); return; }
     var $s = $('#container').find('#' + selectedSpanId);
     if (!$s.length) { alert('Select a box first.'); return; }
-    _copiedBoxHtml = $s.html();
+    // Strip ALL leading hair spaces (the "starter", whether 0, 2 or more) so only the real contents are copied
+    var _boxHtml = $s.html().replace(/^(?:\u200A|&hairsp;|&#8202;|&#x200A;)+/i, '');
+    if (!_boxHtml.trim()) { alert('This box has nothing to copy.'); return; }
+    _copiedBoxHtml = _boxHtml;
     var $b = $('#copyBoxBtn');
     $b.text('✓ Copied!');
     setTimeout(function(){ $b.text('📦 Copy Box'); }, 1200);
