@@ -8319,7 +8319,7 @@ const SS_INTERLEAVE_TEXT_MAX_PX = 200;          // hard cap on text size in px
 
 // ===== Slide background (bright / dark switch) =====
 const SS_BG_BRIGHT = '#fffdf8';        // "Bright" = the original slide colour
-const SS_BG_DARK = '#efe4c8';          // "Dark" = parchment
+const SS_BG_DARK = '#f2e9d2';          // "Dark" = parchment
 const SS_BG_START_BRIGHT = true;       // very first load only: true = Bright, false = Dark. After that your last choice is remembered.
 let _ssBgBright = SS_BG_START_BRIGHT;
 try { const _sv = localStorage.getItem('miliket_ss_bg'); if (_sv === 'bright') _ssBgBright = true; else if (_sv === 'dark') _ssBgBright = false; } catch (e) {}
@@ -8329,7 +8329,7 @@ function ssBgHex() { return String(SS_SLIDE_BG).replace('#', '').toUpperCase(); 
 // ===== Letter halo (thin outline around Ge'ez letters and milikets in the slideshow) =====
 const SS_HALO_ON = true;            // false = no halo at all
 const SS_HALO_COLOUR = '#ffffff';
-const SS_HALO_EM = 0.026;           // thickness in em (scales with each letter and miliket)
+const SS_HALO_EM = 0.034;           // thickness in em (scales with each letter and miliket)
 const SS_HALO_BLUR_EM = 0;          // 0 = crisp outline, about 0.01 = soft glow
 (function () {
     if (!SS_HALO_ON || SS_HALO_EM <= 0) return;
@@ -8340,7 +8340,31 @@ const SS_HALO_BLUR_EM = 0;          // 0 = crisp outline, about 0.01 = soft glow
     }
     const st = document.createElement('style');
     st.id = 'ss-halo-style-permanent';
-    st.textContent = '#slideshow-overlay .letter-container, #slideshow-overlay .letter-container * { text-shadow: ' + parts.join(', ') + '; }';
+    // Red milikits get their own thin outline; everything else keeps the white halo above.
+    const RED_OUTLINE_EM = 0.020;
+    const RED_OUTLINE_COLOUR = '#000000';
+    const redParts = [];
+    for (let i = 0; i < n; i++) {
+        const a = 2 * Math.PI * i / n;
+        redParts.push((RED_OUTLINE_EM * Math.cos(a)).toFixed(4) + 'em ' + (RED_OUTLINE_EM * Math.sin(a)).toFixed(4) + 'em 0em ' + RED_OUTLINE_COLOUR);
+    }
+    const redSelectors = [];
+    ['color:red', 'color: red', 'rgb(255, 0, 0)'].forEach(function (v) {
+        redSelectors.push('#slideshow-overlay .letter-container [style*="' + v + '"]');
+        redSelectors.push('#slideshow-overlay .letter-container [style*="' + v + '"] *');
+    });
+    st.textContent =
+        '#slideshow-overlay .letter-container, #slideshow-overlay .letter-container * { text-shadow: ' + parts.join(', ') + '; }\n' +
+        redSelectors.join(', ') + ' { text-shadow: ' + redParts.join(', ') + '; }';
+    document.head.appendChild(st);
+})();
+
+// ===== Red milikit colour in the slideshow (deeper than pure red, reads better on cream) =====
+const SS_RED_COLOUR = '#ff0000';
+(function () {
+    const st = document.createElement('style');
+    st.id = 'ss-red-style';
+    st.textContent = '#slideshow-overlay [style*="color:red"], #slideshow-overlay [style*="color: red"] { color: ' + SS_RED_COLOUR + ' !important; }';
     document.head.appendChild(st);
 })();
 
@@ -8430,6 +8454,60 @@ function ssInkBounds(p) {
     });
     if (!isFinite(top)) return { top: 0, bot: p.inner.scrollHeight };
     return { top: top - SS_INTERLEAVE_INK_PAD_PX, bot: bot + SS_INTERLEAVE_INK_PAD_PX };
+}
+
+// ===== Breathing gaps: spend leftover height AFTER the slide is fully sized =====
+const SS_INTERLEAVE_GAP_SPREAD = true;      // false = no gaps (old compact look)
+const SS_INTERLEAVE_GAP_SHARE = 0.85;       // fraction of the leftover height spent on gaps; the rest stays as top/bottom margin
+const SS_GAP_W_GEEZ_TEXT = 1;               // weight: Ge'ez -> transliteration/translation
+const SS_GAP_W_TEXT_TEXT = 0.5;             // weight: transliteration -> translation
+const SS_GAP_W_GROUP = 2;                   // weight: between one line group and the next
+const SS_GAP_MAX_GEEZ_TEXT_EM = 0.5;        // max gap, as a multiple of the text size
+const SS_GAP_MAX_TEXT_TEXT_EM = 0.25;
+const SS_GAP_MAX_GROUP_EM = 1.2;
+
+function ssSpreadInterleaveGaps(pairs, host, availH, usedH) {
+    if (!SS_INTERLEAVE_GAP_SPREAD || !pairs.length) return;
+
+    const free = availH - usedH - 2;                      // leftover height, 2px safety
+    if (!(free > 4)) return;
+
+    const sample = pairs.map(function (p) { return p.tl || p.trans; }).find(Boolean);
+    const tPx = sample ? (parseFloat(getComputedStyle(sample).fontSize) || 0) : 0;
+    if (!tPx) return;
+
+    const slots = [];
+    pairs.forEach(function (p, k) {
+        const first = p.tl || p.trans;
+        if (first) slots.push({ el: first, w: SS_GAP_W_GEEZ_TEXT, max: tPx * SS_GAP_MAX_GEEZ_TEXT_EM, gap: 0 });
+        if (p.tl && p.trans) slots.push({ el: p.trans, w: SS_GAP_W_TEXT_TEXT, max: tPx * SS_GAP_MAX_TEXT_TEXT_EM, gap: 0 });
+        if (k > 0) slots.push({ el: p.wrap.parentNode, w: SS_GAP_W_GROUP, max: tPx * SS_GAP_MAX_GROUP_EM, gap: 0 });
+    });
+    if (!slots.length) return;
+
+    // Share the budget by weight; a gap that hits its cap hands the rest to the others.
+    let budget = free * SS_INTERLEAVE_GAP_SHARE;
+    let open = slots.slice();
+    for (let pass = 0; pass < 6 && open.length && budget > 0.5; pass++) {
+        const wSum = open.reduce(function (a, s) { return a + s.w; }, 0);
+        const next = [];
+        let spent = 0;
+        open.forEach(function (s) {
+            const add = budget * s.w / wSum;
+            const room = s.max - s.gap;
+            if (add >= room) { s.gap += room; spent += room; }
+            else { s.gap += add; spent += add; next.push(s); }
+        });
+        budget -= spent;
+        open = next;
+    }
+
+    slots.forEach(function (s) { s.el.style.marginTop = Math.floor(s.gap) + 'px'; });
+
+    // Safety net: if anything would overflow, drop all gaps and keep the compact layout.
+    if (host.scrollHeight > availH + 1) {
+        slots.forEach(function (s) { s.el.style.marginTop = ''; });
+    }
 }
 
 function ssTryRenderInterleaved(slide, counter) {
@@ -8554,7 +8632,8 @@ function ssTryRenderInterleaved(slide, counter) {
             const mid = (mLo + mHi) / 2;
             (layoutAt(sFinal, mid) <= availH) ? (mLo = mid) : (mHi = mid);
         }
-        layoutAt(sFinal, mLo);
+        const _usedH = layoutAt(sFinal, mLo);
+        ssSpreadInterleaveGaps(pairs, host, availH, _usedH);
     }
 
     document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
