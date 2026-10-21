@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Miliket Studio Admin</title>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&display=swap" rel="stylesheet">
+<style>
+:root{
+  --gold:#b8860b; --navy:#1a2a3a; --blue:#3a5a82; --bg:#f5f9ff; --card:#ffffff;
+  --line:#b8d4ee; --muted:#4a6a96; --red:#c0392b; --green:#27ae60;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--navy);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+button{font:inherit;cursor:pointer}
+.hidden{display:none !important}
+
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 20px;background:#ddeeff;border-bottom:3px solid var(--gold);position:sticky;top:0;z-index:5}
+.topbar h1{margin:0;font-size:1.1rem;color:var(--gold);margin-right:auto}
+.topbar .who{font-size:.8rem;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40vw}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--navy);border-radius:6px;padding:7px 14px;font-size:.85rem}
+.btn:hover{border-color:var(--gold)}
+.btn.primary{background:var(--gold);border-color:var(--gold);color:#fff;font-weight:600}
+.btn.primary:hover{background:#9d7209}
+.btn.danger{color:var(--red)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.panel{width:100%;max-width:400px;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:12px;padding:28px}
+.panel h2{margin:0 0 6px;font-size:1.15rem}
+.panel p{margin:0 0 16px;color:var(--muted);font-size:.88rem}
+.panel input{width:100%;padding:10px 12px;margin-bottom:12px;border:2px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--navy)}
+.panel input:focus{outline:none;border-color:var(--gold)}
+.msg{font-size:.82rem;color:var(--red);margin:0 0 12px;min-height:1.2em}
+.uid-box{font-family:ui-monospace,Consolas,monospace;font-size:.8rem;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;word-break:break-all;margin-bottom:14px}
+
+.layout{display:grid;grid-template-columns:minmax(280px,380px) 1fr;gap:20px;padding:20px;max-width:1300px;margin:0 auto;align-items:start}
+@media (max-width:800px){.layout{grid-template-columns:1fr}}
+.side{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.side-head{padding:14px;border-bottom:1px solid var(--line)}
+.side-head input{width:100%;padding:9px 11px;border:2px solid var(--line);border-radius:8px;font:inherit;background:#fff;color:var(--navy)}
+.side-head input:focus{outline:none;border-color:var(--gold)}
+.summary{font-size:.78rem;color:var(--muted);margin-top:8px}
+.user-list{max-height:calc(100vh - 220px);overflow-y:auto}
+.user-row{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #e3eefb;background:transparent;padding:11px 14px;color:var(--navy)}
+.user-row:hover{background:rgba(184,134,11,.06)}
+.user-row.active{background:rgba(184,134,11,.12);box-shadow:inset 3px 0 0 var(--gold)}
+.user-row .em{font-weight:600;word-break:break-all}
+.user-row .em.none{font-weight:400;font-style:italic;color:var(--muted)}
+.user-row .meta{font-size:.76rem;color:var(--muted)}
+.empty{padding:28px 16px;text-align:center;color:var(--muted);font-size:.88rem}
+
+.detail{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px;min-height:200px}
+.detail h2{margin:0 0 2px;font-size:1.15rem;word-break:break-all}
+.detail .sub{font-size:.8rem;color:var(--muted);word-break:break-all}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 18px}
+details{border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:#fff}
+details details{margin:8px 10px;border-color:#e3eefb}
+summary{cursor:pointer;padding:9px 12px;font-weight:600}
+summary .count{font-weight:400;color:var(--muted);font-size:.8rem;margin-left:6px}
+.piece{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;border-top:1px solid #e3eefb;background:transparent;padding:8px 14px;color:var(--navy)}
+.piece:hover{background:rgba(184,134,11,.06)}
+.piece .nm{flex:1;word-break:break-word}
+.piece .dt{font-size:.74rem;color:var(--muted);white-space:nowrap}
+.tag{font-size:.68rem;font-weight:600;padding:1px 7px;border-radius:10px;background:#e6f6ec;color:#1e7e34}
+
+.overlay{position:fixed;inset:0;background:rgba(15,21,32,.65);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+.modal{width:100%;max-width:700px;max-height:90vh;overflow-y:auto;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--gold);border-radius:12px;padding:22px}
+.modal h3{margin:0 0 2px;font-size:1.05rem;word-break:break-word}
+.modal .sub{font-size:.78rem;color:var(--muted);margin-bottom:14px;word-break:break-all}
+.lbl{font-size:.76rem;font-weight:700;color:var(--blue);margin:14px 0 4px}
+.box{background:#fffdf8;border:1px solid var(--line);border-radius:6px;padding:10px 12px;white-space:pre-wrap;word-break:break-word;user-select:text}
+.box.geez{font-family:"Abyssinica SIL",serif;font-size:1.35rem;line-height:1.6}
+.box img{max-width:100%;display:block}
+.modal .foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:18px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:9px 18px;border-radius:8px;font-size:.85rem;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- Loading / checking -->
+<div id="v-loading" class="center"><p>Checking sign-in…</p></div>
+
+<!-- Sign in -->
+<div id="v-login" class="center hidden">
+  <form class="panel" id="login-form" autocomplete="on">
+    <h2>Miliket Studio admin</h2>
+    <p>Sign in with your own account. Admin access is granted separately in the Firebase console.</p>
+    <input type="email" id="login-email" placeholder="Email" autocomplete="email" required>
+    <input type="password" id="login-password" placeholder="Password" autocomplete="current-password" required>
+    <div class="msg" id="login-msg"></div>
+    <button class="btn primary" type="submit" id="login-btn" style="width:100%">Sign in</button>
+  </form>
+</div>
+
+<!-- Signed in but not an admin -->
+<div id="v-denied" class="center hidden">
+  <div class="panel">
+    <h2>This account is not an admin</h2>
+    <p id="denied-text"></p>
+    <div class="uid-box" id="denied-uid"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="denied-copy">Copy UID</button>
+      <button class="btn" id="denied-out">Sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- Admin -->
+<div id="v-admin" class="hidden">
+  <div class="topbar">
+    <h1>Miliket Studio admin</h1>
+    <span class="who" id="who"></span>
+    <button class="btn" id="refresh-btn">Refresh</button>
+    <button class="btn" id="out-btn">Sign out</button>
+  </div>
+  <div class="layout">
+    <aside class="side">
+      <div class="side-head">
+        <input type="search" id="filter" placeholder="Search email, UID, project, folder or piece" autocomplete="off">
+        <div class="summary" id="summary"></div>
+      </div>
+      <div class="user-list" id="user-list"></div>
+    </aside>
+    <main class="detail" id="detail">
+      <div class="empty">Select an account to see its projects.</div>
+    </main>
+  </div>
+</div>
+
+<div id="piece-overlay" class="overlay hidden"><div class="modal" id="piece-modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// Public Firebase web config (same as the main app). Access is enforced by Firestore rules, not by hiding this.
+firebase.initializeApp({
+  apiKey: "AIzaSyBGqPnDo9cRnB1DQysPK1cG71NFwPfY5mM",
+  authDomain: "miliketstudio-1.firebaseapp.com",
+  projectId: "miliketstudio-1",
+  storageBucket: "miliketstudio-1.firebasestorage.app",
+  messagingSenderId: "188875051308",
+  appId: "1:188875051308:web:14f411a23e15d480125c89"
+});
+const auth = firebase.auth();
+const db = firebase.firestore();
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+let users = [];
+let activeUid = null;
+
+const $ = id => document.getElementById(id);
+
+// All user-supplied text goes through textContent, never innerHTML.
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text !== undefined && text !== null) e.textContent = text;
+  return e;
+}
+
+function show(view) {
+  ['loading', 'login', 'denied', 'admin'].forEach(v => $('v-' + v).classList.toggle('hidden', v !== view));
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+async function copyText(text, label) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) {}
+    ta.remove();
+  }
+  toast((label || 'Text') + ' copied');
+}
+
+function fmtDate(ms) {
+  if (!ms) return 'unknown';
+  return new Date(ms).toLocaleString('en-NZ', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ---------- Sign in ----------
+$('login-form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const btn = $('login-btn');
+  $('login-msg').textContent = '';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+  try {
+    await auth.signInWithEmailAndPassword($('login-email').value.trim(), $('login-password').value);
+  } catch (err) {
+    let m = 'Could not sign in.';
+    if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') m = 'Incorrect email or password.';
+    if (err.code === 'auth/too-many-requests') m = 'Too many attempts. Wait a few minutes and try again.';
+    $('login-msg').textContent = m;
+  } finally {
+    btn.disabled = false; btn.textContent = 'Sign in';
+  }
+});
+
+async function doSignOut() {
+  if (!confirm('Sign out? This also signs you out of Miliket Studio in this browser.')) return;
+  await auth.signOut();
+}
+$('out-btn').onclick = doSignOut;
+$('denied-out').onclick = doSignOut;
+
+auth.onAuthStateChanged(async user => {
+  if (!user || user.isAnonymous) {
+    users = []; activeUid = null;
+    show('login');
+    if (user && user.isAnonymous) $('login-msg').textContent = 'This browser is on a guest session. Sign in with your admin account.';
+    return;
+  }
+  show('loading');
+  try {
+    const snap = await db.collection('admins').doc(user.uid).get();
+    if (!snap.exists) {
+      $('denied-text').textContent = 'Signed in as ' + (user.email || 'unknown') + '. To make this account an admin, add a document to the "admins" collection in the Firebase console, using this UID as the document ID:';
+      $('denied-uid').textContent = user.uid;
+      $('denied-copy').onclick = () => copyText(user.uid, 'UID');
+      show('denied');
+      return;
+    }
+  } catch (err) {
+    console.error(err);
+    $('denied-text').textContent = 'Could not check admin status (' + (err.code || err.message) + '). Check that the Firestore rules include the admins rule.';
+    $('denied-uid').textContent = user.uid;
+    $('denied-copy').onclick = () => copyText(user.uid, 'UID');
+    show('denied');
+    return;
+  }
+  $('who').textContent = user.email || user.uid;
+  show('admin');
+  loadUsers();
+});
+
+// ---------- Load accounts ----------
+function statsOf(index) {
+  let p = 0, f = 0, pc = 0;
+  Object.keys(index || {}).filter(k => k !== '_lastSaved').forEach(name => {
+    p++;
+    ((index[name] || {}).folders || []).forEach(fl => { f++; pc += (fl.pieces || []).length; });
+  });
+  return { p, f, pc };
+}
+
+function haystack(u) {
+  if (u._hay) return u._hay;
+  const parts = [u.email, u.uid];
+  Object.keys(u.index).filter(k => k !== '_lastSaved').forEach(name => {
+    parts.push(name);
+    ((u.index[name] || {}).folders || []).forEach(fl => {
+      parts.push(fl.name);
+      (fl.pieces || []).forEach(pc => parts.push(pc.name));
+    });
+  });
+  u._hay = parts.join('\n').toLowerCase();
+  return u._hay;
+}
+
+async function loadUsers() {
+  $('summary').textContent = 'Loading accounts…';
+  $('user-list').innerHTML = '';
+  try {
+    const snap = await db.collection('users').get();
+    users = snap.docs.map(d => {
+      const x = d.data() || {};
+      const idx = x.index || {};
+      return {
+        uid: d.id,
+        email: x.email || '',
+        index: idx,
+        order: Array.isArray(x.projectOrder) ? x.projectOrder : [],
+        updatedMs: x.indexUpdatedAt && x.indexUpdatedAt.toMillis ? x.indexUpdatedAt.toMillis() : 0,
+        stats: statsOf(idx)
+      };
+    });
+    users.sort((a, b) => b.updatedMs - a.updatedMs);
+  } catch (err) {
+    console.error(err);
+    $('summary').textContent = '';
+    $('user-list').appendChild(el('div', 'empty', 'Could not load accounts (' + (err.code || err.message) + '). Check the Firestore rules.'));
+    return;
+  }
+  renderList();
+  if (activeUid) {
+    const u = users.find(x => x.uid === activeUid);
+    if (u) renderDetail(u);
+  }
+}
+$('refresh-btn').onclick = loadUsers;
+$('filter').addEventListener('input', renderList);
+
+function renderList() {
+  const q = $('filter').value.trim().toLowerCase();
+  const list = $('user-list');
+  list.innerHTML = '';
+  const withEmail = users.filter(u => u.email).length;
+  const shown = q ? users.filter(u => haystack(u).includes(q)) : users;
+  $('summary').textContent = users.length + ' account' + (users.length === 1 ? '' : 's') + ' · ' + withEmail + ' with an email saved' + (q ? ' · ' + shown.length + ' match' : '');
+  if (!shown.length) {
+    list.appendChild(el('div', 'empty', users.length ? 'No accounts match your search.' : 'No accounts found.'));
+    return;
+  }
+  shown.forEach(u => {
+    const row = el('button', 'user-row' + (u.uid === activeUid ? ' active' : ''));
+    row.type = 'button';
+    row.appendChild(el('div', 'em' + (u.email ? '' : ' none'), u.email || 'No email saved (guest or older account)'));
+    const s = u.stats;
+    row.appendChild(el('div', 'meta', s.p + ' project' + (s.p === 1 ? '' : 's') + ', ' + s.f + ' folder' + (s.f === 1 ? '' : 's') + ', ' + s.pc + ' piece' + (s.pc === 1 ? '' : 's')));
+    row.appendChild(el('div', 'meta', 'Updated ' + fmtDate(u.updatedMs) + ' · ' + u.uid.slice(0, 8)));
+    row.onclick = () => { activeUid = u.uid; renderList(); renderDetail(u); };
+    list.appendChild(row);
+  });
+}
+
+// ---------- Account detail ----------
+function orderedProjects(u) {
+  const names = Object.keys(u.index).filter(k => k !== '_lastSaved');
+  const rank = n => { const i = u.order.indexOf(n); return i === -1 ? 1e9 : i; };
+  return names.sort((a, b) => rank(a) - rank(b));
+}
+
+function renderDetail(u) {
+  const d = $('detail');
+  d.innerHTML = '';
+  d.appendChild(el('h2', '', u.email || 'No email saved'));
+  d.appendChild(el('div', 'sub', 'UID: ' + u.uid + ' · Last synced ' + fmtDate(u.updatedMs)));
+
+  const actions = el('div', 'actions');
+  const copyUid = el('button', 'btn', 'Copy UID');
+  copyUid.onclick = () => copyText(u.uid, 'UID');
+  actions.appendChild(copyUid);
+  if (u.email) {
+    const copyEm = el('button', 'btn', 'Copy email');
+    copyEm.onclick = () => copyText(u.email, 'Email');
+    actions.appendChild(copyEm);
+    const reset = el('button', 'btn', 'Send password reset email');
+    reset.onclick = async () => {
+      if (!confirm('Send a password reset email to ' + u.email + '?')) return;
+      try { await auth.sendPasswordResetEmail(u.email); toast('Reset email sent'); }
+      catch (err) { alert('Could not send: ' + (err.code || err.message)); }
+    };
+    actions.appendChild(reset);
+  }
+  d.appendChild(actions);
+
+  const projects = orderedProjects(u);
+  if (!projects.length) {
+    d.appendChild(el('div', 'empty', 'This account has no projects yet.'));
+    return;
+  }
+
+  projects.forEach(name => {
+    const folders = (u.index[name] || {}).folders || [];
+    const pd = el('details');
+    pd.open = projects.length === 1;
+    const ps = el('summary', '', name);
+    ps.appendChild(el('span', 'count', folders.length + ' folder' + (folders.length === 1 ? '' : 's')));
+    pd.appendChild(ps);
+
+    if (!folders.length) pd.appendChild(el('div', 'empty', 'No folders.'));
+
+    folders.forEach(fl => {
+      const pieces = fl.pieces || [];
+      const fd = el('details');
+      const fs = el('summary', '', fl.name || 'Untitled folder');
+      fs.appendChild(el('span', 'count', pieces.length + ' piece' + (pieces.length === 1 ? '' : 's')));
+      fd.appendChild(fs);
+      if (!pieces.length) fd.appendChild(el('div', 'empty', 'No pieces.'));
+      pieces.forEach(pc => {
+        const row = el('button', 'piece');
+        row.type = 'button';
+        row.appendChild(el('span', 'nm', pc.name || 'Untitled piece'));
+        if (pc.translation) row.appendChild(el('span', 'tag', 'translated'));
+        row.appendChild(el('span', 'dt', pc.lastModified ? fmtDate(new Date(pc.lastModified).getTime()) : ''));
+        row.onclick = () => openPiece(u, name, fl.name, pc);
+        fd.appendChild(row);
+      });
+      pd.appendChild(fd);
+    });
+    d.appendChild(pd);
+  });
+}
+
+// ---------- Piece viewer ----------
+function decompress(raw) {
+  if (!raw) return '';
+  if (raw.startsWith('lzb64:')) {
+    try {
+      const out = LZString.decompressFromBase64(raw.slice(6));
+      return out === null ? raw : out.normalize('NFC');
+    } catch (e) { return raw; }
+  }
+  return raw;
+}
+
+// DOMParser builds an inert document: no scripts run and no images load.
+function parseHtml(html) { return new DOMParser().parseFromString(html || '', 'text/html'); }
+
+function geezTextFromHtml(html) {
+  const doc = parseHtml(html);
+  let out = '';
+  doc.querySelectorAll('.baseletter').forEach(e => {
+    const t = e.textContent || '';
+    if (e.classList.contains('whitespace') || t.trim() === '0') out += ' ';
+    else out += t.replace(/[\u200A-\u200D\uFEFF]/g, '');
+  });
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+function imageFromHtml(html) {
+  const doc = parseHtml(html);
+  if (doc.querySelector('.letter-container')) return '';
+  const im = doc.querySelector('img');
+  const src = im ? (im.getAttribute('src') || '') : '';
+  return /^data:image\/(png|jpe?g|gif|webp);/i.test(src) ? src : '';
+}
+
+function closePiece() { $('piece-overlay').classList.add('hidden'); }
+$('piece-overlay').addEventListener('mousedown', e => { if (e.target === $('piece-overlay')) closePiece(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePiece(); });
+
+async function openPiece(u, projectName, folderName, pc) {
+  const modal = $('piece-modal');
+  modal.innerHTML = '';
+  modal.appendChild(el('h3', '', pc.name || 'Untitled piece'));
+  modal.appendChild(el('div', 'sub', projectName + ' / ' + folderName + ' · ' + u.uid.slice(0, 8)));
+  const body = el('div', '', 'Loading piece…');
+  modal.appendChild(body);
+  $('piece-overlay').classList.remove('hidden');
+
+  let html = '';
+  try {
+    const snap = await db.collection('users').doc(u.uid).collection('pieces').doc(pc.id).get();
+    html = snap.exists ? decompress((snap.data() || {}).visualData || '') : '';
+  } catch (err) {
+    body.textContent = 'Could not load this piece (' + (err.code || err.message) + ').';
+    return;
+  }
+
+  body.remove();
+  const img = imageFromHtml(html);
+  const geez = html ? geezTextFromHtml(html) : '';
+  const fallback = (pc.content || '').trim();
+
+  modal.appendChild(el('div', 'lbl', 'Ge\u2019ez text'));
+  if (img) {
+    const box = el('div', 'box');
+    const im = document.createElement('img');
+    im.src = img; im.alt = '';
+    box.appendChild(im);
+    modal.appendChild(box);
+  } else {
+    modal.appendChild(el('div', 'box geez', geez || fallback || '(no text saved)'));
+  }
+  if (pc.translation) {
+    modal.appendChild(el('div', 'lbl', 'Translation'));
+    modal.appendChild(el('div', 'box', pc.translation));
+  }
+  if (pc.transliteration) {
+    modal.appendChild(el('div', 'lbl', 'Transliteration'));
+    modal.appendChild(el('div', 'box', pc.transliteration));
+  }
+  modal.appendChild(el('div', 'sub', 'Piece ID ' + pc.id + ' · Last modified ' + (pc.lastModified ? fmtDate(new Date(pc.lastModified).getTime()) : 'unknown') + ' · Visual data ' + Math.round(html.length / 1024) + ' KB'));
+
+  const foot = el('div', 'foot');
+  if (geez || fallback) {
+    const b = el('button', 'btn', 'Copy Ge\u2019ez text');
+    b.onclick = () => copyText(geez || fallback, 'Ge\u2019ez text');
+    foot.appendChild(b);
+  }
+  if (html) {
+    const b = el('button', 'btn', 'Copy HTML');
+    b.onclick = () => copyText(html, 'HTML');
+    foot.appendChild(b);
+  }
+  const c = el('button', 'btn primary', 'Close');
+  c.onclick = closePiece;
+  foot.appendChild(c);
+  modal.appendChild(foot);
+}
+</script>
+</body>
+</html>
