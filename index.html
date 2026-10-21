@@ -3611,11 +3611,45 @@ function resetEditorModes() {
     $('#togglecolor').text('Red milikit').css({ background:'#1a2a3a', color:'white', borderColor:'#3a5a82' });
 }
 
+// A box is "blank" when it has no milikits/stacks inside and no visible text.
+function _cellIsBlank(el) {
+    return !el.children.length && !el.textContent.trim();
+}
+
+// Returns null if the box is already in its original state.
+// Otherwise { html: what to restore, known: true if we recorded it }.
+function boxOriginalHtml($s) {
+    var el = $s[0];
+    if (el.hasAttribute('data-orig')) {
+        return { html: el.getAttribute('data-orig'), known: true };
+    }
+    if (_cellIsBlank(el)) return null;                       // untouched box: leave as is
+    if ($s.hasClass('cussta')) return { html: '&hairsp;', known: false };
+
+    // Older boxes edited before original-tracking existed: copy the most common
+    // blank content among the untouched boxes in the same row.
+    var idx = $s.parent().children('.letter').index(el);
+    var counts = {}, best = null, bestN = 0;
+    $('#container').children('.letter-container').each(function () {
+        var cell = $(this).children('.letter').get(idx);
+        if (!cell || cell === el || cell.hasAttribute('data-orig') || !_cellIsBlank(cell)) return;
+        var h = cell.innerHTML;
+        counts[h] = (counts[h] || 0) + 1;
+        if (counts[h] > bestN) { bestN = counts[h]; best = h; }
+    });
+    return { html: best !== null ? best : '&hairsp;&hairsp;', known: false };
+}
+
 function applyToSelected(html) {
     if (!selectedSpanId) return;
     var $s = $('#container').find('#' + selectedSpanId);
     if (!$s.length) return;
     snapshotForUndo();
+    var el = $s[0];
+    // Remember the box's brand-new content, once, only while it is still untouched.
+    if (!el.hasAttribute('data-orig') && _cellIsBlank(el)) {
+        el.setAttribute('data-orig', el.innerHTML);
+    }
     $s.html($s.html() + html);
 }
 
@@ -3969,14 +4003,26 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
     $('#undoBtn').off('click.un').on('click.un', function(){ doUndo(); });
     $('#redoBtn').off('click.un').on('click.un', function(){ doRedo(); });
     
-        // Clear box
+        // Clear box: restore the box to its original, brand-new state
     $('#clearBoxBtn').off('click.cb').on('click.cb', function(e){
+        e.stopImmediatePropagation();
         if (!selectedSpanId) return;
         var $s = $('#container').find('#' + selectedSpanId);
         if (!$s.length) return;
+        var el = $s[0];
+        var orig = boxOriginalHtml($s);
+        if (orig === null) return;                           // already original, nothing to do
+        if (orig.known && el.innerHTML === orig.html) {      // already back to original
+            el.removeAttribute('data-orig');
+            return;
+        }
         snapshotForUndo();
-        $s.html('&hairsp;&hairsp;');
-        e.stopImmediatePropagation();
+        $s.html(orig.html);
+        el.removeAttribute('data-orig');                     // box is pristine again
+        rebindCussta();
+        if (!orig.known) {
+            showToast('This box was edited before original-tracking existed, so it was restored to match the empty boxes in its row.', 'info');
+        }
     });
 
     $('#copyButton').off('click.cp').on('click.cp', function(){
@@ -6290,6 +6336,7 @@ function convertPieceHtmlForIdefisseha(html) {
     const temp = document.createElement('div');
     temp.innerHTML = html;
     temp.querySelectorAll('.highlight, .row-selected').forEach(el => el.classList.remove('highlight', 'row-selected'));
+    temp.querySelectorAll('[data-orig]').forEach(el => el.removeAttribute('data-orig'));
     temp.querySelectorAll('.letter').forEach(cell => {
         const first = cell.firstChild;
         if (first && first.nodeType === 3) {
