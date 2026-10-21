@@ -13574,6 +13574,7 @@ function updateChronoDisplay() {
         }
 
         const translationSegments = splitTranslation(piece.translation || '');
+        translationSegments.splice(0, presetLeadingSkipCount(segments, previewType));
         const useKifilPreview = !!(slot.kifil && Array.isArray(kifilDraft) && kifilDraft.length);
         const chunks = useKifilPreview ? [] : presetChunkSegments(segments, previewType, previewCustomRule);
 
@@ -14189,9 +14190,24 @@ function smartSelectPresetPieces(showStatus = true) {
         return segments.slice(0, Math.min(segments.length, i + 1));
     }
 
+    // ዜማ ×2 special rule: how many leading lines to skip (everything before the
+// first line that comes after the last ሃሌ ሉያ line). 0 if there is no ሃሌ ሉያ.
+    function presetLeadingSkipCount(segments, ruleType) {
+        if (ruleType !== 'Mezmur Zema' || !Array.isArray(segments)) return 0;
+        let i = 0;
+        while (i < segments.length && !presetIsHalleluyaSegment(segments[i])) i++;
+        if (i >= segments.length) return 0;
+        while (i < segments.length && presetIsHalleluyaSegment(segments[i])) i++;
+        return i;
+    }
+
     function presetChunkSegments(segments, ruleType, customRule) {
         if (ruleType === 'Zema Halleluya' && Array.isArray(segments)) {
             segments = presetHalleluyaCut(segments);
+        }
+
+        if (ruleType === 'Mezmur Zema' && Array.isArray(segments)) {
+            segments = segments.slice(presetLeadingSkipCount(segments, ruleType));
         }
 
         if (!Array.isArray(segments) || !segments.length) {
@@ -14341,6 +14357,8 @@ function appendPresetSlotToDeck(deck, slot) {
     const translationSegments = isImage
         ? [piece.translation || '']
         : splitTranslation(piece.translation || '');
+
+    if (!isImage) translationSegments.splice(0, presetLeadingSkipCount(segments, slot.type));
 
     const chunks = isImage
         ? [segments]
