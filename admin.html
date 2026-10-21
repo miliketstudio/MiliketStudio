@@ -343,6 +343,9 @@ function renderDetail(u) {
   d.appendChild(el('div', 'sub', 'UID: ' + u.uid + ' · Last synced ' + fmtDate(u.updatedMs)));
 
   const actions = el('div', 'actions');
+  const openStudio = el('button', 'btn primary', 'Open in Studio (admin view)');
+  openStudio.onclick = () => { location.href = './?adminView=' + encodeURIComponent(u.uid); };
+  actions.appendChild(openStudio);
   const copyUid = el('button', 'btn', 'Copy UID');
   copyUid.onclick = () => copyText(u.uid, 'UID');
   actions.appendChild(copyUid);
