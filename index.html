@@ -2172,6 +2172,12 @@ body.dark-mode .sd-btn-cancel { background: #2e3d52; color: #e0e0e0; }
 
         
     </style>
+<style>
+body.admin-view [onclick="logOut()"],
+body.admin-view [onclick="openChangeEmail()"],
+body.admin-view [onclick="openRecoveryModal()"],
+body.admin-view [onclick="saveAndSync()"] { display: none !important; }
+</style>
 </head>
 <body id="main-body">
 
@@ -3430,6 +3436,10 @@ document.addEventListener('keydown', function (e) {
     }
 }, true);
 
+// Admin view: opened from admin.html as ./?adminView=<uid>. While on, nothing is ever saved.
+const _adminTargetUid = (function () { try { return new URLSearchParams(location.search).get('adminView') || ''; } catch (e) { return ''; } })();
+const _adminView = !!_adminTargetUid;
+
 let idcount = 0, mcount = 0, cusstaid = 0, loadednotelength = 0;
 let highlightedspan = "", selectedSpanId = "";
 let redtext = false, numOfRows = 1;
@@ -4039,7 +4049,7 @@ $('#tripledown').off('click.sb').on('click.sb',   function(e){ applyToSelected(c
         _conflictHold = false;           // an explicit, confirmed Save releases any paused sync
         savePieceNow(true);
         await saveAndSync();
-        $b.text('Saved!'); setTimeout(()=>$b.text(restLabel),1200);
+        $b.text(_adminView ? 'Kept (not saved)' : 'Saved!'); setTimeout(()=>$b.text(restLabel),1200);
     });
 
 }
@@ -4263,6 +4273,7 @@ $('#submitBtn').on('click', function(){
 // --- BroadcastChannel (real-time tab sync) ---
 const studioChannel = new BroadcastChannel('miliket_studio');
 studioChannel.onmessage = (e) => {
+    if (_adminView) return;
     if (!e.data || e.data.type !== 'data_updated') return;
     if (unsavedChanges) return;
     if (document.getElementById('page-editor').classList.contains('active')) return;
@@ -4365,6 +4376,7 @@ let _orderDirty = (function () {
     try { return localStorage.getItem('miliket_order_dirty') === '1'; } catch (e) { return false; }
 })();
 function markOrderDirty() {
+    if (_adminView) return;
     _orderDirty = true;
     try { localStorage.setItem('miliket_order_dirty', '1'); } catch (e) {}
 }
@@ -4611,6 +4623,7 @@ async function idbSet(key, value) {
     });
 }
 function saveData() {
+    if (_adminView) return;
     if (!idb) { console.warn('saveData called before IndexedDB was ready; change not persisted'); return; }
     idbSet('miliket_data', appData)
         .then(() => studioChannel.postMessage({ type: 'data_updated' }))
@@ -4619,6 +4632,13 @@ function saveData() {
 
 // --- Sync status ---
 function showSyncStatus(state) {
+    if (_adminView) {
+        ['sync-indicator', 'sync-indicator-folders', 'sync-indicator-pieces'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) { el.style.background = '#3a5a82'; el.textContent = 'Admin view: not saving'; }
+        });
+        return;
+    }
     ['sync-indicator', 'sync-indicator-folders', 'sync-indicator-pieces'].forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -4630,6 +4650,7 @@ function showSyncStatus(state) {
 }
 
 async function saveAndSync() {
+    if (_adminView) return;
     unsavedChanges = true;
     appData._lastSaved = Date.now();
     localStorage.setItem('miliket_last_saved', appData._lastSaved);
@@ -5238,6 +5259,7 @@ async function _lockHeldByOther(data) {
 
 // Atomic: check + take in one transaction. force=true is "Open Anyway".
 async function acquireLock(pieceId, force) {
+    if (_adminView) return { ok: true };
     const user = firebase.auth().currentUser;
     if (!user || !pieceId || !navigator.onLine) return { ok: true };   // fail open: never block offline work
     const ref = _lockRef(user.uid, pieceId);
@@ -6496,6 +6518,7 @@ function savePieceNow(force) {
 // Real conflict = the cloud copy was written by someone ELSE (not one of our own stamps)
 // and is newer than the version we opened.
 async function checkRemoteConflict(pieceId, loadedModified) {
+    if (_adminView) return { conflict: false };
     if (!pieceId) return { conflict: false };
     const user = firebase.auth().currentUser;
     if (!user || !navigator.onLine) return { conflict: false };
@@ -6832,6 +6855,7 @@ async function runAutoSave() {
 // Pushes to the cloud, but first checks we are not about to overwrite a newer copy
 // of the piece being edited. On a real conflict it pauses ALL pushes until you decide.
 async function guardedPush() {
+    if (_adminView) return;
     const pieceId = _editorPieceId;
     const loaded = _editorPieceLoadedModified;
 
@@ -10432,6 +10456,50 @@ function attachDragHandlers(div, type) {
 // --- Init ---
 let _studioInitialized = false;
 
+// Admin dashboard: type  admin  in the browser console. It opens on top of the studio.
+function openAdminDashboard() {
+    if (document.getElementById('admin-dash-overlay')) return 'The admin dashboard is already open.';
+    const o = document.createElement('div');
+    o.id = 'admin-dash-overlay';
+    o.style.cssText = 'position:fixed;inset:0;z-index:450000;display:flex;flex-direction:column;background:#f5f9ff;';
+
+    const bar = document.createElement('div');
+    bar.style.cssText = 'display:flex;align-items:center;gap:12px;padding:8px 14px;background:#1a2a3a;border-bottom:3px solid #b8860b;flex-shrink:0;';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.textContent = '← Back to Miliket Studio';
+    back.style.cssText = 'background:#b8860b;color:#fff;border:none;border-radius:6px;padding:7px 16px;font:bold 13px sans-serif;cursor:pointer;';
+    back.onclick = closeAdminDashboard;
+    const label = document.createElement('span');
+    label.textContent = 'Admin dashboard';
+    label.style.cssText = 'color:#fffdf8;font:bold 13px sans-serif;';
+    bar.appendChild(back);
+    bar.appendChild(label);
+
+    const frame = document.createElement('iframe');
+    frame.src = './admin.html';
+    frame.title = 'Admin dashboard';
+    frame.style.cssText = 'flex:1;width:100%;border:0;background:#f5f9ff;';
+
+    o.appendChild(bar);
+    o.appendChild(frame);
+    document.body.appendChild(o);
+    return 'Opening the admin dashboard…';
+}
+function closeAdminDashboard() {
+    const o = document.getElementById('admin-dash-overlay');
+    if (o) o.remove();
+}
+Object.defineProperty(window, 'admin', { configurable: true, get: openAdminDashboard });
+
+// Coming back from an admin view lands here and reopens the dashboard.
+if (new URLSearchParams(location.search).has('admindash')) {
+    window.addEventListener('load', function () {
+        history.replaceState(null, '', window.location.pathname);
+        openAdminDashboard();
+    });
+}
+
 function downloadJson(data, filename) {
     const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
     const url = URL.createObjectURL(blob);
@@ -10635,6 +10703,7 @@ async function loadFromFirestore(uid) {
 
 let _pushInFlight = null;
 async function pushToFirestore() {
+    if (_adminView) return;
     const user = firebase.auth().currentUser;
     if (!user) return;
     if (!navigator.onLine) {
@@ -10946,6 +11015,7 @@ function proceedToStudio() {
 }
 
 async function enterStudio() {
+    if (_adminView) { showStudioPage('page-projects'); renderProjects(); return; }
     if (_studioInitialized) {
         showStudioPage('page-projects');
         renderProjects();
@@ -10982,6 +11052,104 @@ async function enterStudio() {
     showLoggedInAsToast();
 }
 
+// ============================================================
+// ADMIN VIEW: loads another account into memory only.
+// Every save path is switched off above, and Firestore rules are read-only for admins.
+// ============================================================
+function adminViewOverlay(message, withLinks) {
+    let o = document.getElementById('admin-view-overlay');
+    if (!o) {
+        o = document.createElement('div');
+        o.id = 'admin-view-overlay';
+        o.style.cssText = 'position:fixed;inset:0;z-index:400000;background:#f5f9ff;display:flex;align-items:center;justify-content:center;padding:24px;font-family:sans-serif;color:#1a2a3a;text-align:center;';
+        document.body.appendChild(o);
+    }
+    o.innerHTML = '';
+    const box = document.createElement('div');
+    box.style.maxWidth = '420px';
+    const p = document.createElement('p');
+    p.textContent = message;
+    box.appendChild(p);
+    if (withLinks) {
+        [['./?admindash=1', 'Back to the admin dashboard'], [window.location.pathname, 'Open Miliket Studio normally']].forEach(function (l) {
+            const a = document.createElement('a');
+            a.href = l[0]; a.textContent = l[1];
+            a.style.cssText = 'display:block;margin-top:10px;color:#3a5a82;font-weight:bold;';
+            box.appendChild(a);
+        });
+    }
+    o.appendChild(box);
+    return o;
+}
+
+function adminViewPill(label) {
+    const pill = document.createElement('div');
+    pill.style.cssText = 'position:fixed;left:12px;bottom:12px;z-index:9000;display:flex;align-items:center;gap:10px;background:#1a2a3a;color:#fffdf8;border:2px solid #b8860b;border-radius:10px;padding:8px 12px;font:12px/1.4 sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.3);max-width:calc(100vw - 24px);';
+    const t = document.createElement('span');
+    t.textContent = 'Admin view: ' + label + '. Nothing is saved anywhere, and your own account is untouched.';
+    const x = document.createElement('a');
+    x.href = './?admindash=1';
+    x.textContent = 'Back to dashboard';
+    x.style.cssText = 'background:#b8860b;color:#fff;border-radius:6px;padding:4px 12px;font-weight:bold;text-decoration:none;white-space:nowrap;';
+    pill.appendChild(t);
+    pill.appendChild(x);
+    const leave = document.createElement('a');
+    leave.href = window.location.pathname;
+    leave.textContent = 'Leave admin';
+    leave.style.cssText = 'border:1px solid rgba(255,255,255,.4);color:#fffdf8;border-radius:6px;padding:4px 12px;font-weight:bold;text-decoration:none;white-space:nowrap;';
+    pill.appendChild(leave);
+    document.body.appendChild(pill);
+}
+
+async function startAdminView() {
+    document.body.classList.add('admin-view');
+    adminViewOverlay('Opening the account in admin view…', false);
+
+    const user = await new Promise(function (resolve) {
+        const unsub = firebase.auth().onAuthStateChanged(function (u) { unsub(); resolve(u); });
+    });
+    if (!user || user.isAnonymous) { adminViewOverlay('Sign in on the admin page first.', true); return; }
+
+    try {
+        const adminDoc = await fsdb.collection('admins').doc(user.uid).get();
+        if (!adminDoc.exists) { adminViewOverlay('This account is not an admin.', true); return; }
+
+        const uid = _adminTargetUid;
+        const doc = await fsdb.collection('users').doc(uid).get({ source: 'server' });
+        if (!doc.exists) { adminViewOverlay('That account has no data.', true); return; }
+
+        const data = doc.data() || {};
+        const cloudIndex = data.index || {};
+        const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
+        const pieceMap = {};
+        pieceSnaps.forEach(function (p) { pieceMap[p.id] = decompressFromCloud((p.data() || {}).visualData || ''); });
+
+        Object.keys(cloudIndex).filter(function (k) { return k !== '_lastSaved'; }).forEach(function (projName) {
+            (cloudIndex[projName].folders || []).forEach(function (folder) {
+                (folder.pieces || []).forEach(function (piece) { piece.visualData = pieceMap[piece.id] || ''; });
+            });
+        });
+        reorderProjectsInPlace(cloudIndex, data.projectOrder);
+
+        appData = cloudIndex;
+        _studioInitialized = true;
+        currentUser = null; currentFolder = null; currentPiece = null;
+
+        window.addEventListener('beforeunload', function (e) {
+            if (_dirtyPieceIds.size || _deletedPieceIds.size) { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        adminViewPill(data.email || ('guest account ' + uid.slice(0, 8)));
+        document.getElementById('admin-view-overlay').remove();
+        showStudioPage('page-projects');
+        renderProjects();
+        showSyncStatus('saved');
+    } catch (err) {
+        console.error('Admin view failed:', err);
+        adminViewOverlay('Could not open the account (' + (err.code || err.message) + '). Check the Firestore rules.', true);
+    }
+}
+
 window.addEventListener('DOMContentLoaded', async () => {
     // Theme
     if (localStorage.getItem('miliket_theme') === 'dark') {
@@ -10999,7 +11167,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Open DB silently
     idb = await openDB();
     const saved = await idbGet('miliket_data');
-    if (saved) appData = saved;
+    if (saved && !_adminView) appData = saved;
+    if (_adminView) { startAdminView(); return; }
     migrateMissingIds();
     markAllPiecesDirty();
 });
