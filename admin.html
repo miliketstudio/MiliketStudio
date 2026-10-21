@@ -156,6 +156,11 @@ let activeUid = null;
 
 const $ = id => document.getElementById(id);
 
+// When opened inside the studio (console command), the studio's own bar provides "Back",
+// and signing out here would also sign out the studio.
+const EMBEDDED = window.self !== window.top;
+if (EMBEDDED) { $('out-btn').classList.add('hidden'); $('denied-out').classList.add('hidden'); }
+
 // All user-supplied text goes through textContent, never innerHTML.
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -344,7 +349,7 @@ function renderDetail(u) {
 
   const actions = el('div', 'actions');
   const openStudio = el('button', 'btn primary', 'Open in Studio (admin view)');
-  openStudio.onclick = () => { location.href = './?adminView=' + encodeURIComponent(u.uid); };
+  openStudio.onclick = () => { window.top.location.href = new URL('./?adminView=' + encodeURIComponent(u.uid), location.href).href; };
   actions.appendChild(openStudio);
   const copyUid = el('button', 'btn', 'Copy UID');
   copyUid.onclick = () => copyText(u.uid, 'UID');
