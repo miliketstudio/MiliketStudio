@@ -8088,7 +8088,7 @@ function applySlideZoom() {
 // Ge'ez line, [transliteration], translation, then the next Ge'ez line...
 // Buttons in the slideshow bar:  "⇅ Interleave"  and  "Aa Translit".
 // ============================================================
-const SS_INTERLEAVE_MAX_LINES = 4;        // slides with more Ge'ez lines than this keep the classic layout (use 99 to always interleave)
+const SS_INTERLEAVE_MAX_LINES = 5;        // slides with more Ge'ez lines than this keep the classic layout (use 99 to always interleave)
 const SS_INTERLEAVE_TRANS_RATIO = 0.6;    // translation text size relative to the Ge'ez letter size
 const SS_INTERLEAVE_TRANSLIT_RATIO = 0.38; // transliteration text size relative to the Ge'ez letter size (smaller than the translation)
 const SS_INTERLEAVE_GAP = 14;             // minimum space between one line group and the next (px)
@@ -8458,7 +8458,7 @@ function ssInkBounds(p) {
 
 // ===== Breathing gaps: spend leftover height AFTER the slide is fully sized =====
 const SS_INTERLEAVE_GAP_SPREAD = true;      // false = no gaps (old compact look)
-const SS_INTERLEAVE_GAP_SHARE = 0.85;       // fraction of the leftover height spent on gaps; the rest stays as top/bottom margin
+const SS_INTERLEAVE_GAP_SHARE = 0.90;       // fraction of the leftover height spent on gaps; the rest stays as top/bottom margin
 const SS_GAP_W_GEEZ_TEXT = 1;               // weight: Ge'ez -> transliteration/translation
 const SS_GAP_W_TEXT_TEXT = 0.5;             // weight: transliteration -> translation
 const SS_GAP_W_GROUP = 2;                   // weight: between one line group and the next
@@ -8504,9 +8504,18 @@ function ssSpreadInterleaveGaps(pairs, host, availH, usedH) {
 
     slots.forEach(function (s) { s.el.style.marginTop = Math.floor(s.gap) + 'px'; });
 
-    // Safety net: if anything would overflow, drop all gaps and keep the compact layout.
-    if (host.scrollHeight > availH + 1) {
-        slots.forEach(function (s) { s.el.style.marginTop = ''; });
+    // Safety net: judge overflow by the real layout boxes of the line groups.
+    // host.scrollHeight also counts the glyph box of the translit/translation text
+    // (line-height 0.8 makes it spill ~20px past its line box), which falsely looked
+    // like overflow and removed every gap.
+    const _kids = host.children;
+    if (_kids.length) {
+        const _contentH = _kids[_kids.length - 1].getBoundingClientRect().bottom - _kids[0].getBoundingClientRect().top;
+        const _overflow = _contentH - host.getBoundingClientRect().height;
+        if (window.ssGapDebug) console.log('gap spread', { free: free, share: SS_INTERLEAVE_GAP_SHARE, contentH: _contentH, overflow: _overflow });
+        if (_overflow > 1) {
+            slots.forEach(function (s) { s.el.style.marginTop = ''; });
+        }
     }
 }
 
