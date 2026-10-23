@@ -92,6 +92,9 @@
         #container .row-selected { border:0.1rem solid #00b8cc!important; z-index:20000000!important; }
         #container.row-select-mode .letter { cursor:pointer; }
         #container.row-select-mode .baseletter { cursor:default; }
+        #container.multi-select-mode .letter { cursor:pointer; }
+        #container.multi-select-mode .baseletter { cursor:default; }
+        #container .multi-selected { outline:2px solid #1abc9c !important; outline-offset:-2px; background:rgba(26,188,156,0.20) !important; }
         .cussta { cursor:pointer; font-size:2.5rem!important; display:inline-flex; }
         .added { margin-bottom:0.2rem; }
         .widestack .basics { line-height:1rem!important; }
@@ -2460,6 +2463,9 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
                     <button id="pasteButton" class="btn" style="background:#2e4a6a; color:white; border:1px solid #5a7aaa; font-size:0.9rem;">Paste HTML</button>
                     <button id="copyBoxBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">📦 Copy Box</button>
                     <button id="pasteBoxBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">📋 Paste Box</button>
+                    <button id="multiCopyBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">🗂 Multi Copy</button>
+                    <button id="multiCancelBtn" class="btn" style="display:none; background:#7a3a2a; color:white; border:1px solid #a05a4a; font-size:0.9rem;">✕ Cancel</button>
+                    <button id="multiPasteBtn" class="btn" style="background:#1a6a5a; color:white; border:1px solid #2a8a75; font-size:0.9rem;">🗂 Multi Paste</button>
                     <button id="saveform" class="btn" style="background:#1e7e34; color:white; border:1px solid #28a745; font-size:0.9rem;">💾 Save</button>
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
@@ -3584,6 +3590,7 @@ function containsArr(str, arr) { return arr.some(el => str.includes(el)); }
 
 function rebindCussta() {
     $('#container').off('click.cs').on('click.cs', '.cussta', function(e) {
+        if (multiSelectMode) return;
         selectedSpanId = $(this).attr('id');
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
@@ -3592,7 +3599,7 @@ function rebindCussta() {
 
 function bindLetterClicks() {
     $('#container').off('click.lc').on('click.lc', '.letter', function(e) {
-        if (rowSelectMode) return;
+        if (rowSelectMode || multiSelectMode) return;
         selectedSpanId = $(this).attr('id');
         removeGlow(); addGlow(selectedSpanId);
         e.stopImmediatePropagation();
@@ -3600,6 +3607,7 @@ function bindLetterClicks() {
 }
 
 function resetEditorModes() {
+    exitMultiSelect();
     rowSelectMode = false;
     selectedRowIndices.clear();
     selectedSpanId = '';
@@ -3776,44 +3784,226 @@ function resizeImageForPaste(file, callback) {
     reader.readAsDataURL(file);
 }
 
-// --- Copy Box / Paste Box: clone a full box's contents (any stack, cussta, custom shape) into another box ---
-var _copiedBoxHtml = null;
+// --- Copy Box / Paste Box + Multi Copy / Multi Paste ---------------------------
+// Clipboards live in localStorage, so they work across tabs, windows, pieces and projects
+// (same browser, same site address). Memory is a fallback if storage is blocked.
+const BOX_CLIP_KEY   = 'miliket_box_clipboard_v1';
+const MULTI_CLIP_KEY = 'miliket_multibox_clipboard_v1';
+var _clipMemory = {};
+var multiSelectMode = false;
 
+function _boxClipWrite(key, payload) {
+    payload.savedAt = Date.now();
+    _clipMemory[key] = payload;
+    try { localStorage.setItem(key, JSON.stringify(payload)); return true; }
+    catch (e) { return false; }
+}
+function _boxClipRead(key) {
+    try {
+        var raw = localStorage.getItem(key);
+        if (raw) { var p = JSON.parse(raw); if (p && p.v === 1) return p; }
+    } catch (e) {}
+    return _clipMemory[key] || null;
+}
+function _flashBtn(sel, text, rest) {
+    var $b = $(sel); $b.text(text);
+    setTimeout(function () { $b.text(rest); }, 1200);
+}
+function _warnClipLocalOnly() {
+    showToast('Copied, but browser storage is blocked, so it will only work in this tab.', 'warning');
+}
+
+// Contents of a box without selection classes and without the leading hair-space starter.
+function _boxCleanHtml(el, keepStarter) {
+    var clone = el.cloneNode(true);
+    clone.querySelectorAll('.highlight, .row-selected, .multi-selected').forEach(function (n) {
+        n.classList.remove('highlight', 'row-selected', 'multi-selected');
+    });
+    if (keepStarter) return clone.innerHTML;
+    return clone.innerHTML.replace(/^(?:\u200A|&hairsp;|&#8202;|&#x200A;)+/i, '');
+}
+
+// Gives pasted cussta / space elements fresh ids so they never clash with this tab's ids.
+function _boxRemapIds(html) {
+    var $temp = $('<div>').html(html);
+    $temp.find('[id]').each(function () {
+        var $el = $(this), oldId = $el.attr('id');
+        if (/^cussta\d+$/.test(oldId)) { $el.attr('id', 'cussta' + cusstaid); cusstaid++; }
+        else if (/^space\d+$/.test(oldId)) { $el.attr('id', 'space' + idcount); idcount++; }
+    });
+    return $temp.html();
+}
+
+// Adds html to a box (same behaviour as the normal paste), remembering its original state for Clear box.
+function _boxAppend(el, html) {
+    if (!el.hasAttribute('data-orig') && _cellIsBlank(el)) el.setAttribute('data-orig', el.innerHTML);
+    $(el).html($(el).html() + html);
+}
+
+// Replaces a box's contents exactly (used by Multi Paste). Keeps the original state for Clear box.
+function _boxReplace(el, html) {
+    if (!el.hasAttribute('data-orig') && _cellIsBlank(el)) el.setAttribute('data-orig', el.innerHTML);
+    $(el).html(html);
+}
+
+// Editor html without the multi-select highlight (used when saving).
+function _editorCleanHtml() {
+    if (!document.querySelector('#container .multi-selected')) return $('#container').html();
+    var $c = $('#container').clone();
+    $c.find('.multi-selected').removeClass('multi-selected');
+    return $c.html();
+}
+
+// ---- single box ----
 function copyBox() {
     if (!selectedSpanId) { alert('Select a box first.'); return; }
     var $s = $('#container').find('#' + selectedSpanId);
     if (!$s.length) { alert('Select a box first.'); return; }
-    // Strip ALL leading hair spaces (the "starter", whether 0, 2 or more) so only the real contents are copied
-    var _boxHtml = $s.html().replace(/^(?:\u200A|&hairsp;|&#8202;|&#x200A;)+/i, '');
-    if (!_boxHtml.trim()) { alert('This box has nothing to copy.'); return; }
-    _copiedBoxHtml = _boxHtml;
-    var $b = $('#copyBoxBtn');
-    $b.text('✓ Copied!');
-    setTimeout(function(){ $b.text('📦 Copy Box'); }, 1200);
+    var html = _boxCleanHtml($s[0]);
+    if (!html.trim()) { alert('This box has nothing to copy.'); return; }
+    var saved = _boxClipWrite(BOX_CLIP_KEY, { v: 1, html: html });
+    _flashBtn('#copyBoxBtn', '✓ Copied!', '📦 Copy Box');
+    if (!saved) _warnClipLocalOnly();
 }
 
 function pasteBox() {
-    if (_copiedBoxHtml === null) { alert('Copy a box first.'); return; }
+    var clip = _boxClipRead(BOX_CLIP_KEY);
+    if (!clip || !clip.html) { alert('Copy a box first.'); return; }
+    if (!selectedSpanId || !$('#container').find('#' + selectedSpanId).length) {
+        alert('Select the box you want to paste into.'); return;
+    }
+    applyToSelected(_boxRemapIds(clip.html));
+    rebindCussta();
+    _flashBtn('#pasteBoxBtn', '✓ Pasted!', '📋 Paste Box');
+}
 
-    var $temp = $('<div>').html(_copiedBoxHtml);
-    $temp.find('[id]').each(function() {
-        var $el = $(this);
-        var oldId = $el.attr('id');
-        if (/^cussta\d+$/.test(oldId)) {
-            $el.attr('id', 'cussta' + cusstaid);
-            cusstaid++;
-        } else if (/^space\d+$/.test(oldId)) {
-            $el.attr('id', 'space' + idcount);
-            idcount++;
-        }
+// ---- multi box ----
+function bindMultiBox() {
+    $('#multiCopyBtn').off('click.mcb').on('click.mcb', function (e) {
+        e.stopImmediatePropagation();
+        if (!multiSelectMode) enterMultiSelect(); else multiCopyCommit();
+    });
+    $('#multiCancelBtn').off('click.mcx').on('click.mcx', function (e) {
+        e.stopImmediatePropagation();
+        exitMultiSelect();
+    });
+    $('#multiPasteBtn').off('click.mpb').on('click.mpb', function (e) {
+        e.stopImmediatePropagation();
+        multiPasteBox();
+    });
+    $('#container').off('click.msel').on('click.msel', '.letter', function (e) {
+        if (!multiSelectMode) return;
+        $(this).toggleClass('multi-selected');
+        updateMultiBtn();
+        e.stopImmediatePropagation();
+        e.preventDefault();
+    });
+}
+
+function enterMultiSelect() {
+    if (rowSelectMode) { alert('Finish or cancel "Select Rows" first.'); return; }
+    if (!$('#container .letter').length) { alert('There are no boxes to select yet.'); return; }
+    multiSelectMode = true;
+    selectedSpanId = '';
+    highlightedspan = '';
+    removeGlow();
+    $('#container').addClass('multi-select-mode');
+    $('#multiCancelBtn').show();
+    updateMultiBtn();
+}
+
+function exitMultiSelect() {
+    multiSelectMode = false;
+    $('#container').removeClass('multi-select-mode').find('.multi-selected').removeClass('multi-selected');
+    $('#multiCancelBtn').hide();
+    updateMultiBtn();
+}
+
+function updateMultiBtn() {
+    var $b = $('#multiCopyBtn');
+    if (!multiSelectMode) { $b.text('🗂 Multi Copy').css({ background: '#1a6a5a' }); return; }
+    var n = $('#container .letter.multi-selected').length;
+    $b.text(n ? ('✓ Copy ' + n + ' box' + (n === 1 ? '' : 'es')) : 'Select boxes…')
+      .css({ background: n ? '#27ae60' : '#555' });
+}
+
+function multiCopyCommit() {
+    var $sel = $('#container .letter.multi-selected');
+    if (!$sel.length) { alert('Click the boxes you want to copy first, or press Cancel.'); return; }
+
+    var cols = $('#container').children('.letter-container').toArray();
+    var items = [], minC = Infinity, minR = Infinity;
+
+    $sel.each(function () {
+        var lc = this.parentNode;
+        var c = cols.indexOf(lc);
+        var r = $(lc).children('.letter').index(this);
+        if (c < 0 || r < 0) return;
+        items.push({ c: c, r: r, html: _boxCleanHtml(this, true) });
+        if (c < minC) minC = c;
+        if (r < minR) minR = r;
     });
 
-    applyToSelected($temp.html());
-    rebindCussta();
-    var $b = $('#pasteBoxBtn');
-    $b.text('✓ Pasted!');
-    setTimeout(function(){ $b.text('📋 Paste Box'); }, 1200);
+    if (!items.length || !items.some(function (i) { return i.html.trim(); })) {
+        alert('The selected boxes are all empty, so there is nothing to copy.');
+        return;
+    }
+
+    var cells = items.map(function (i) { return { dc: i.c - minC, dr: i.r - minR, html: i.html }; });
+    var saved = _boxClipWrite(MULTI_CLIP_KEY, { v: 1, exact: true, cells: cells });
+    var filled = cells.filter(function (c) { return c.html.trim(); }).length;
+
+    exitMultiSelect();
+    showToast('Copied ' + filled + ' box' + (filled === 1 ? '' : 'es') + '. Click the top-left target box, then Multi Paste.', 'success');
+    if (!saved) _warnClipLocalOnly();
 }
+
+function multiPasteBox() {
+    if (multiSelectMode) { alert('Press Cancel first, then pick the target box.'); return; }
+    var clip = _boxClipRead(MULTI_CLIP_KEY);
+    if (!clip || !clip.cells || !clip.cells.length) { alert('Use Multi Copy first.'); return; }
+    if (!selectedSpanId) { alert('Click the box where the top-left of the copied pattern should land.'); return; }
+
+    var $anchor = $('#container').find('#' + selectedSpanId).closest('.letter');
+    if (!$anchor.length) { alert('Click the box where the top-left of the copied pattern should land.'); return; }
+
+    var cols = $('#container').children('.letter-container').toArray();
+    var aLc = $anchor[0].parentNode;
+    var aC = cols.indexOf(aLc);
+    var aR = $(aLc).children('.letter').index($anchor[0]);
+    if (aC < 0 || aR < 0) { alert('Could not locate the selected box.'); return; }
+
+    var targets = [], skipped = 0;
+    clip.cells.forEach(function (cell) {
+        if (!cell.html || !cell.html.trim()) return;
+        var lc = cols[aC + cell.dc];
+        var letter = lc ? $(lc).children('.letter').get(aR + cell.dr) : null;
+        if (!letter) { skipped++; return; }
+        targets.push({ el: letter, html: cell.html });
+    });
+
+    if (!targets.length) {
+        alert('Nothing fit from this position. The pattern needs more letters to the right and/or more rows below the selected box.\n\nTip: select the top-left box of the target word, and use "Add row" if the target has fewer rows.');
+        return;
+    }
+
+    snapshotForUndo();
+    var exact = clip.exact === true;
+    targets.forEach(function (t) {
+        var h = _boxRemapIds(t.html);
+        if (exact) _boxReplace(t.el, h); else _boxAppend(t.el, h);
+    });
+    rebindCussta();
+
+    _flashBtn('#multiPasteBtn', '✓ Pasted!', '🗂 Multi Paste');
+    if (skipped) {
+        showToast('Pasted ' + targets.length + ' box' + (targets.length === 1 ? '' : 'es') + '. ' + skipped + ' did not fit and were skipped (not enough letters or rows).', 'warning');
+    }
+}
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && multiSelectMode && !document.querySelector('.sd-overlay')) exitMultiSelect();
+});
 
 function copyHairSpace(btn) {
     var HAIR = '\u200A';
@@ -3853,6 +4043,7 @@ function init() {
     bindLetterClicks();
     updaterowcount();
     bindImagePaste();
+    bindMultiBox();
     $('#container').off('input.autosave').on('input.autosave', function(){ triggerAutoSave(); });
 
     $('#addStackBtn').off('click.as').on('click.as', function(e) { addStack(); e.stopImmediatePropagation(); });
@@ -6531,7 +6722,7 @@ function pullFromLocal() {
 // Editor content with selection glow removed, so clicking a cell doesn't count as an edit.
 function _editorSnapshot() {
     const $clone = $('#container').clone();
-    $clone.find('.highlight, .row-selected').removeClass('highlight row-selected');
+    $clone.find('.highlight, .row-selected, .multi-selected').removeClass('highlight row-selected multi-selected');
     return $clone.html();
 }
 
@@ -6549,7 +6740,7 @@ function savePieceNow(force) {
         return false;                               // nothing changed, so don't re-stamp
     }
     const stamp = new Date().toISOString();
-    piece.visualData = $('#container').html();
+    piece.visualData = _editorCleanHtml();
     piece.lastModified = stamp;
     _ownStamps.add(stamp);                          // remember: this stamp is ours
     _editorBaselineHtml = snap;
