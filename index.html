@@ -8531,7 +8531,7 @@ function ssUpdateInterleaveButtons(plan) {
 
 // Draws the slide as interleaved rows. Returns false when this slide should use the classic layout instead.
 const SS_INTERLEAVE_ALLOW_WRAP = false;   // false = every Ge'ez line stays on ONE line when interleaved. true = old behaviour (long lines may wrap)
-const SS_INTERLEAVE_LINE_BOOST = 3;   // short lines may grow up to this many times the shared size (1 = no growth)
+const SS_INTERLEAVE_LINE_BOOST = 1.5;   // short lines may grow up to this many times the shared size (1 = no growth)
 
 // ===== Fonts: always measure slides with the REAL fonts, never the fallback =====
 let _ssFontsPromise = null;
