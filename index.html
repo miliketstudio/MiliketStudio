@@ -9085,6 +9085,38 @@ function ssTransliterate(text) {
     return SS_TL_CAPITALIZE_LINES ? out.charAt(0).toUpperCase() + out.slice(1) : out;
 }
 
+// Screen-px y of the lowest REAL ink (letters, milikits, stacks, overlines) of a classic Ge'ez block.
+// Same measuring as the interleave layout, but only for the lowest rows so it stays fast on long slides.
+function ssClassicInkBottom(inner, scale) {
+    const z = (typeof ssGetZoom === 'function' ? ssGetZoom() : 1) || 1;
+    const saved = inner.style.transform;
+    inner.style.transform = 'none';                 // measure at natural size, then map back through the scale
+    let cells = [];
+    try {
+        const lcs = Array.from(inner.children).filter(function (el) {
+            return el.classList && el.classList.contains('letter-container');
+        });
+        const rows = new Map();
+        lcs.forEach(function (el) {
+            const key = Math.round(el.getBoundingClientRect().bottom);
+            if (!rows.has(key)) rows.set(key, []);
+            rows.get(key).push(el);
+        });
+        const keys = Array.from(rows.keys()).sort(function (a, b) { return b - a; });
+        for (let i = 0; i < keys.length && i < 3 && !cells.length; i++) {
+            cells = ssMeasureInkCells({ children: rows.get(keys[i]) });   // a row with no ink (blank spaces) falls through to the row above
+        }
+    } finally {
+        inner.style.transform = saved;
+    }
+    let bottom = 0;
+    cells.forEach(function (c) {
+        const y = c.el.getBoundingClientRect().top + (c.bot + SS_INTERLEAVE_INK_PAD_PX) * scale * z;
+        if (y > bottom) bottom = y;
+    });
+    return bottom;                                  // 0 = nothing measurable, caller falls back
+}
+
 function renderSlideshowSlide() {
     if (
         !Array.isArray(_ssSlides) ||
@@ -9264,16 +9296,18 @@ function renderSlideshowSlide() {
         const zLabel = document.getElementById('ss-zoom-label');
         if (zLabel) zLabel.textContent = Math.round(ssGetZoom() * 100) + '%';
 
-        // ---- Adaptive translation band: claim unused Ge'ez space (capped) ----
-        if (slide.translation && slide.translation.trim()) {
+        // ---- Adaptive translation band: claim every bit of space below the last real ink (capped) ----
+        if (ssSlideHasBand(slide)) {
             const _lay = ssGetLayoutForSlide(_ssIndex);
             if (!_lay.manual) {
                 const GAP_PCT = 0.1, MAX_TRANS_PCT = 30, MIN_TOP = 100 - MAX_TRANS_PCT;
                 const _stage = document.getElementById('ss-slide-content').getBoundingClientRect();
-                let _bottom = 0;
-                inner.querySelectorAll('.baseletter').forEach(b => {
-                    _bottom = Math.max(_bottom, b.getBoundingClientRect().bottom);
-                });
+                let _bottom = ssClassicInkBottom(inner, finalScale);
+                if (!_bottom) {
+                    inner.querySelectorAll('.baseletter').forEach(b => {
+                        _bottom = Math.max(_bottom, b.getBoundingClientRect().bottom);
+                    });
+                }
                 if (_stage.height > 0 && _bottom > 0) {
                     const _endPct = ((_bottom - _stage.top) / _stage.height) * 100;
                     const _top = Math.max(MIN_TOP, Math.min(_lay.translation.yPct, _endPct + GAP_PCT));
