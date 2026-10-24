@@ -2536,7 +2536,8 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
         <button onclick="ssZoomIn()" id="ss-zoom-in" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 10px;font-size:15px;cursor:pointer;font-family:sans-serif;line-height:1;">+</button>
         <input id="ss-zoom-input" type="text" maxlength="5" placeholder="100" style="display:none;width:56px;padding:4px 6px;font-size:13px;border:1px solid #b8860b;border-radius:6px;background:#1a2a3a;color:white;text-align:center;font-family:monospace;" />
         <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
-        <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave</button>
+        <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave All</button>
+        <button onclick="toggleSsInterleaveSlide()" id="ss-interleave-slide-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">▤ This slide</button>
         <button onclick="toggleSsBg()" id="ss-bg-btn" style="background:var(--gold);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">☀ Bright (switched on)</button>
         <button onclick="toggleSsTranslit()" id="ss-translit-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Aa Translit: Off</button>
         <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
@@ -7874,7 +7875,8 @@ function finishAndPresent() {
     _ssIndex = 0;
     _ssHudHidden = false;
     _ssZoomLevels = [];
-    _ssLayoutOverrides = {}; // fresh session — don't inherit layout from a previously presented piece
+    _ssLayoutOverrides = {}; // fresh session
+    _ssInterleaveOverrides = {}; // fresh session: don't inherit per-slide interleave choices
     document.getElementById('slideshow-overlay').style.display = 'flex';
     renderSlideshowSlide();
     showSsHud();
@@ -8284,6 +8286,7 @@ const SS_INTERLEAVE_TRANS_RATIO = 0.6;    // translation text size relative to t
 const SS_INTERLEAVE_TRANSLIT_RATIO = 0.38; // transliteration text size relative to the Ge'ez letter size (smaller than the translation)
 const SS_INTERLEAVE_GAP = 14;             // minimum space between one line group and the next (px)
 let _ssInterleave = false;
+let _ssInterleaveOverrides = {};          // { [slideIndex]: true | false } — per-slide exceptions to the master switch
 let _ssTranslit = false;                  // transliteration is OFF by default
 try { _ssInterleave = localStorage.getItem('miliket_ss_interleave') === '1'; } catch (e) {}
 try { _ssTranslit = localStorage.getItem('miliket_ss_translit') === '1'; } catch (e) {}
@@ -8441,7 +8444,7 @@ function ssTightenGaps(root) {
 
 // Splits a slide into rows of { geezHtml, translit, translation }. Returns { rows } or { reason } when the classic layout should be used.
 function ssInterleaveRows(slide) {
-    if (!_ssInterleave) return { reason: 'off' };
+    if (!ssSlideInterleaveOn(_ssIndex)) return { reason: 'off' };
     if (!slide) return { reason: 'no slide' };
     if (isImagePieceHtml(slide.geezHtml)) return { reason: 'image' };
     const hasTrans = !!(slide.translation && slide.translation.trim());
@@ -8460,13 +8463,65 @@ function ssInterleaveRows(slide) {
     };
 }
 
+function ssSlideInterleaveOn(idx) {
+    return Object.prototype.hasOwnProperty.call(_ssInterleaveOverrides, idx)
+        ? !!_ssInterleaveOverrides[idx]
+        : _ssInterleave;
+}
+
+function ssInterleaveOverrideCount() {
+    return Object.keys(_ssInterleaveOverrides).length;
+}
+
+// Called by the master button: "all" means all, so per-slide exceptions are dropped.
+function ssClearInterleaveOverrides(announce) {
+    const n = ssInterleaveOverrideCount();
+    _ssInterleaveOverrides = {};
+    if (announce && n && typeof showToast === 'function') {
+        showToast('Master switch applied to every slide. ' + n + ' individual change' + (n === 1 ? '' : 's') + ' cleared.', 'info');
+    }
+}
+
+// Flips ONLY the slide you are on. Click again to put it back.
+function toggleSsInterleaveSlide() {
+    if (!_ssSlides.length || !_ssSlides[_ssIndex]) return;
+    const makeOn = !ssSlideInterleaveOn(_ssIndex);
+    if (makeOn === _ssInterleave) delete _ssInterleaveOverrides[_ssIndex];   // back in line with the master: no exception needed
+    else _ssInterleaveOverrides[_ssIndex] = makeOn;
+    renderSlideshowSlide();
+    if (makeOn) {
+        const plan = ssInterleaveRows(_ssSlides[_ssIndex]);
+        if (!plan.rows && typeof showToast === 'function') {
+            showToast("This slide can't be interleaved (" + plan.reason + '), so it stays in the classic layout.', 'warning');
+        }
+    }
+}
+
 function ssUpdateInterleaveButtons(plan) {
+    const changed = ssInterleaveOverrideCount();
+
+    // Master button
     const btn = document.getElementById('ss-interleave-btn');
     if (btn) {
         btn.style.background = _ssInterleave ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
-        btn.textContent = !_ssInterleave ? '⇅ Interleave'
-            : (plan.rows ? '⇅ Interleaved' : '⇅ Classic here (' + plan.reason + ')');
+        btn.textContent = '⇅ All: ' + (_ssInterleave ? 'On' : 'Off') + (changed ? ' (' + changed + ' changed)' : '');
+        btn.title = 'Master switch: interleave or un-interleave EVERY slide at once (clears per-slide changes)';
     }
+
+    // This-slide button
+    const sbtn = document.getElementById('ss-interleave-slide-btn');
+    if (sbtn) {
+        const wantOn = ssSlideInterleaveOn(_ssIndex);
+        const overridden = Object.prototype.hasOwnProperty.call(_ssInterleaveOverrides, _ssIndex);
+        const shown = !!plan.rows;
+        sbtn.style.background = shown ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+        sbtn.style.borderColor = overridden ? '#f0c040' : '#aaa';
+        sbtn.textContent = '▤ This slide: ' + (shown ? 'Interleaved' : (wantOn ? 'Classic (' + plan.reason + ')' : 'Classic'));
+        sbtn.title = overridden
+            ? 'This slide differs from the master switch. Click to put it back.'
+            : 'Flip only this slide to the opposite layout';
+    }
+
     const tbtn = document.getElementById('ss-translit-btn');
     if (tbtn) {
         tbtn.style.background = _ssTranslit ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
@@ -8844,6 +8899,7 @@ function ssTryRenderInterleaved(slide, counter) {
 
 function toggleSsInterleave() {
     _ssInterleave = !_ssInterleave;
+    ssClearInterleaveOverrides(true);
     try { localStorage.setItem('miliket_ss_interleave', _ssInterleave ? '1' : '0'); } catch (e) {}
     renderSlideshowSlide();
 }
@@ -13955,6 +14011,7 @@ function updateChronoDisplay() {
         if (presetCreator) presetCreator.classList.remove('open');
 
         _ssSlides = previewDeck;
+        _ssInterleaveOverrides = {};
         _ssIndex = 0;
         _ssHudHidden = false;
         _ssZoomLevels = [];
