@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT Archive · ምልክት Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abyssinica+SIL&family=Lexend:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+    --page: #f5f9ff;
+    --card: #ffffff;
+    --ink: #1a2a3a;
+    --muted: #4a6a96;
+    --line: #b8d4ee;
+    --gold: #b8860b;
+    --gold-deep: #8e6a00;
+    --gold-soft: rgba(184,134,11,0.12);
+    --blue: #3a5a82;
+    --code: #eef3ff;
+}
+body.dark {
+    --page: #243040;
+    --card: #1e2a3a;
+    --ink: #e8ecf1;
+    --muted: #7eb8f7;
+    --line: #2e4a6a;
+    --gold: #d9a21b;
+    --gold-deep: #f0c040;
+    --gold-soft: rgba(217,162,27,0.16);
+    --blue: #6a9fe0;
+    --code: #16212e;
+}
+* { box-sizing: border-box; margin: 0; }
+html { scroll-behavior: smooth; }
+body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: 'Lexend', system-ui, sans-serif;
+    font-size: 1rem;
+    line-height: 1.65;
+    -webkit-text-size-adjust: 100%;
+}
+a { color: var(--blue); }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 4px; }
+
+/* ---- top bar (same family as the Studio pages) ---- */
+.topbar {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 24px;
+    background: var(--card);
+    border-bottom: 3px solid var(--gold);
+    position: sticky; top: 0; z-index: 10;
+}
+.topbar .brand {
+    font-family: 'Abyssinica SIL', serif;
+    font-size: 1.25rem; font-weight: bold; letter-spacing: 1px;
+    color: var(--gold); margin-right: auto;
+}
+.pill {
+    background: var(--gold); color: #fff; border: none; border-radius: 20px;
+    padding: 6px 16px; font: 600 0.78rem 'Lexend', sans-serif;
+    cursor: pointer; text-decoration: none; display: inline-block;
+}
+.pill:hover { background: var(--gold-deep); }
+body.dark .pill { color: #1a2a3a; }
+
+/* ---- layout ---- */
+main { max-width: 760px; margin: 0 auto; padding: 56px 24px 72px; }
+section + section { margin-top: 64px; }
+h1 {
+    font-size: clamp(2rem, 6vw, 3.1rem);
+    line-height: 1.12; font-weight: 700; letter-spacing: -0.02em;
+    max-width: 18ch;
+}
+h2 {
+    font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em;
+    padding-top: 14px; margin-bottom: 20px; position: relative;
+}
+/* the short gold rule above each heading echoes the milikit overline */
+h2::before {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 36px; height: 4px; background: var(--gold); border-radius: 2px;
+}
+.lede { margin-top: 18px; max-width: 54ch; color: var(--muted); font-size: 1.05rem; }
+
+/* ---- launch panel ---- */
+.launch {
+    margin-top: 32px; padding: 24px;
+    background: var(--card);
+    border: 2px solid var(--line); border-left: 6px solid var(--gold);
+    border-radius: 14px;
+}
+.launch label { display: block; font-weight: 500; margin-bottom: 8px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.row input {
+    flex: 1 1 260px; min-width: 0;
+    padding: 13px 14px; font: inherit; font-size: 0.95rem;
+    color: var(--ink); background: var(--page);
+    border: 2px solid var(--line); border-radius: 9px;
+}
+.row input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.go {
+    flex: 0 0 auto; padding: 13px 22px; border: none; border-radius: 9px;
+    background: var(--gold); color: #fff; font: 700 0.95rem 'Lexend', sans-serif;
+    cursor: pointer; transition: background .15s;
+}
+.go:hover { background: var(--gold-deep); }
+body.dark .go { color: #1a2a3a; }
+.status { min-height: 1.6em; margin-top: 12px; font-size: 0.88rem; color: var(--muted); }
+.status.bad { color: #c0392b; }
+body.dark .status.bad { color: #ff8577; }
+.status.ok { color: #1e7e34; }
+body.dark .status.ok { color: #6fd08c; }
+.fine { margin-top: 6px; font-size: 0.85rem; color: var(--muted); }
+
+/* ---- steps (a real sequence, so they are numbered) ---- */
+.steps { list-style: none; padding: 0; counter-reset: s; }
+.steps li {
+    counter-increment: s; position: relative;
+    padding: 0 0 28px 54px;
+}
+.steps li:last-child { padding-bottom: 0; }
+.steps li::before {
+    content: counter(s);
+    position: absolute; left: 0; top: 0;
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--card); color: var(--gold-deep);
+    border: 2px solid var(--gold); font-weight: 700; font-size: 0.95rem;
+}
+.steps li::after {
+    content: ''; position: absolute; left: 17px; top: 40px; bottom: 4px;
+    width: 2px; background: var(--line);
+}
+.steps li:last-child::after { display: none; }
+.steps strong { display: block; font-weight: 700; }
+.steps span { color: var(--muted); }
+
+/* ---- output files ---- */
+.tree { list-style: none; padding: 0; margin: 0; }
+.tree > li { font-weight: 700; }
+.tree ul { list-style: none; padding: 6px 0 0 14px; margin: 0; border-left: 2px solid var(--line); }
+.tree ul li { position: relative; padding: 5px 0 5px 20px; font-weight: 400; }
+.tree ul li::before {
+    content: ''; position: absolute; left: 0; top: 50%; width: 14px; height: 2px; background: var(--line);
+}
+code {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.88em; background: var(--code); color: var(--ink);
+    padding: 2px 7px; border-radius: 5px;
+}
+.tree small { color: var(--muted); margin-left: 6px; font-size: 0.85rem; }
+
+/* ---- settings ---- */
+dl { margin: 0; }
+.setting { padding: 16px 0; border-top: 1px solid var(--line); }
+.setting:last-child { border-bottom: 1px solid var(--line); }
+dt { margin-bottom: 4px; }
+dd { margin: 0; color: var(--muted); max-width: 60ch; }
+dd b { color: var(--ink); font-weight: 500; }
+
+/* ---- notes ---- */
+.notes { padding: 0; list-style: none; display: grid; gap: 14px; }
+.notes li {
+    padding: 14px 16px; background: var(--card);
+    border: 1px solid var(--line); border-left: 4px solid var(--blue);
+    border-radius: 10px;
+}
+.notes b { font-weight: 500; }
+
+footer { text-align: center; color: var(--muted); font-size: 0.82rem; padding: 0 24px 40px; }
+
+@media (max-width: 520px) {
+    .topbar { padding: 10px 14px; }
+    main { padding: 36px 16px 56px; }
+    .launch { padding: 18px; }
+    .go { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+    <a class="pill" href="./">← Home</a>
+    <span class="brand">☦ ምልክት Studio</span>
+    <button class="pill" id="theme-btn" type="button">☾ Dark</button>
+</header>
+
+<main>
+    <section>
+        <h1>Turn a YouTube video into slides</h1>
+        <p class="lede">Paste a link, run the notebook on Google Colab, and get the video plus a PDF and a PowerPoint of every slide. Free, with no card or payment.</p>
+
+        <form class="launch" id="launch-form" novalidate>
+            <label for="yt-link">Video or playlist link</label>
+            <div class="row">
+                <input id="yt-link" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://www.youtube.com/watch?v=…">
+                <button class="go" type="submit">Copy link and open Colab</button>
+            </div>
+            <div class="status" id="status" role="status" aria-live="polite"></div>
+        </form>
+        <p class="fine">The download runs on Google’s computers, not in this page, because YouTube blocks website servers.</p>
+    </section>
+
+    <section>
+        <h2>How to run it</h2>
+        <ol class="steps">
+            <li>
+                <strong>Open the notebook</strong>
+                <span>The button above opens it in Colab. Sign in with any Google account.</span>
+            </li>
+            <li>
+                <strong>Run cell 1</strong>
+                <span>It installs the tools. This takes about a minute and is needed once per session.</span>
+            </li>
+            <li>
+                <strong>Paste your link into cell 2 and run it</strong>
+                <span>Works for one video or a whole playlist. Change the settings below first if you want.</span>
+            </li>
+            <li>
+                <strong>Wait for it to finish</strong>
+                <span>A zip downloads, or the files appear in your Google Drive when Save to Drive is on.</span>
+            </li>
+            <li>
+                <strong>Run cell 3 to flip through the slides</strong>
+                <span>Pick a video, drag the slider, or press play.</span>
+            </li>
+        </ol>
+    </section>
+
+    <section>
+        <h2>What you get</h2>
+        <ul class="tree">
+            <li>One folder per video
+                <ul>
+                    <li><code>slides.pdf</code><small>every slide as a page</small></li>
+                    <li><code>slides.pptx</code><small>PowerPoint you can edit</small></li>
+                    <li><code>frames.zip</code><small>the slide images</small></li>
+                    <li><code>video.mp4</code><small>the full video, unless you chose slides only</small></li>
+                </ul>
+            </li>
+        </ul>
+    </section>
+
+    <section>
+        <h2>Settings in cell 2</h2>
+        <dl>
+            <div class="setting">
+                <dt><code>MODE</code></dt>
+                <dd><b>"both"</b> saves slides and video. <b>"slides"</b> skips the video file. <b>"video"</b> downloads the video only.</dd>
+            </div>
+            <div class="setting">
+                <dt><code>SENSITIVITY</code></dt>
+                <dd>A lower number gives more slides, a higher number gives fewer. The default is <b>3.0</b>.</dd>
+            </div>
+            <div class="setting">
+                <dt><code>SAVE_TO_DRIVE</code></dt>
+                <dd>Set to <b>True</b> to save into a <code>video_archive</code> folder in your Drive instead of downloading a zip. Use it for big playlists, since a zip of 28 videos often fails in the browser. Drive’s free 15 GB applies.</dd>
+            </div>
+        </dl>
+    </section>
+
+    <section>
+        <h2>Good to know</h2>
+        <ul class="notes">
+            <li><b>Files vanish when the Colab session resets.</b> Download them or save to Drive right after a run.</li>
+            <li><b>Every video fails with “Sign in to confirm you’re not a bot”?</b> YouTube is blocking that session. In Colab choose Runtime, then Disconnect and delete runtime, and run again.</li>
+            <li><b>Colab asks you to authorize GitHub?</b> That happens when the yt-archive repository is private. Approve it once, or make the repository public.</li>
+        </ul>
+    </section>
+</main>
+
+<footer>ምልክት Studio · YT Archive</footer>
+
+<script>
+(function () {
+    'use strict';
+
+    var COLAB_URL = 'https://colab.research.google.com/github/miliketstudio/yt-archive/blob/main/video_tools.ipynb';
+
+    // ---- theme: shares the Studio's saved choice ----
+    var body = document.body;
+    var themeBtn = document.getElementById('theme-btn');
+    var dark = false;
+    try {
+        var saved = localStorage.getItem('miliket_theme');
+        dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+    } catch (e) {}
+
+    function paintTheme() {
+        body.classList.toggle('dark', dark);
+        themeBtn.textContent = dark ? '☀ Light' : '☾ Dark';
+    }
+    themeBtn.addEventListener('click', function () {
+        dark = !dark;
+        try { localStorage.setItem('miliket_theme', dark ? 'dark' : 'light'); } catch (e) {}
+        paintTheme();
+    });
+    paintTheme();
+
+    // ---- launcher ----
+    var form = document.getElementById('launch-form');
+    var input = document.getElementById('yt-link');
+    var status = document.getElementById('status');
+
+    function say(text, kind) {
+        status.textContent = text;
+        status.className = 'status' + (kind ? ' ' + kind : '');
+    }
+
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var link = input.value.trim();
+
+        if (link && !/(youtube\.com|youtu\.be)/i.test(link)) {
+            say('That is not a YouTube link. Paste a youtube.com or youtu.be address, or clear the box to open Colab without one.', 'bad');
+            input.focus();
+            return;
+        }
+
+        // Open first so the browser treats it as a direct click and does not block the tab.
+        window.open(COLAB_URL, '_blank', 'noopener');
+
+        if (!link) {
+            say('Colab is open. Paste your link into cell 2 when you get there.');
+            return;
+        }
+
+        var done = function () { say('Link copied and Colab is open. Run cell 1, then paste the link into cell 2.', 'ok'); };
+        var manual = function () {
+            input.select();
+            say('Colab is open. Copy the link from the box (Ctrl+C), then paste it into cell 2.');
+        };
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(link).then(done, manual);
+        } else {
+            manual();
+        }
+    });
+})();
+</script>
+</body>
+</html>
