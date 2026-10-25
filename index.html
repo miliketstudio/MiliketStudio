@@ -2199,7 +2199,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
             <h1>ምልክት Studio</h1>
             <p>Where would you like to go?</p>
         </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:32px;max-width:900px;width:100%;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:24px;margin-top:32px;max-width:1100px;width:100%;">
             <div class="studio-card" style="padding:48px 24px;" onclick="studioEntryRequested=true; (firebase.auth().currentUser && !firebase.auth().currentUser.isAnonymous) ? enterStudio() : showStudioPage('page-login')">
                 <div class="card-icon">✏️</div>
                 <div class="card-name" style="font-size:1.1rem;">Miliket Studio</div>
@@ -2209,6 +2209,11 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
                 <div class="card-icon">📅</div>
                 <div class="card-name" style="font-size:1.1rem;">Calendar</div>
                 <div class="card-meta">EOTC feast calendar</div>
+            </div>
+            <div class="studio-card" style="padding:48px 24px;" onclick="window.location.href='./yt-archive.html'">
+                <div class="card-icon">🎞</div>
+                <div class="card-name" style="font-size:1.1rem;">YT Archive</div>
+                <div class="card-meta">Save videos &amp; slides</div>
             </div>
             <div class="studio-card" style="padding:48px 24px;" onclick="window.location.href='./zema.html'">
                 <div class="card-icon">ዜማ</div>
