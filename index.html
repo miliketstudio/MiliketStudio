@@ -2556,10 +2556,10 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
     <!-- Full-width Ge'ez, translation floats as overlay on right -->
     <div id="ss-slide-content" style="flex:1;position:relative;min-height:0;overflow:hidden;">
         <div id="ss-geez-frame" class="ss-frame">
-            <div id="ss-geez" style="width:100%;height:100%;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:10px;box-sizing:border-box;"></div>
+            <div id="ss-geez" style="width:100%;height:100%;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:5px;box-sizing:border-box;"></div>
         </div>
         <div id="ss-translation-frame" class="ss-frame">
-            <div id="ss-translation" style="width:100%;height:100%;background:transparent;border-top:none;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px 48px;box-sizing:border-box;"></div>
+            <div id="ss-translation" style="width:100%;height:100%;background:transparent;border-top:none;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0;box-sizing:border-box;"></div>
         </div>
     </div>
     <!-- Nav buttons -->
@@ -7450,6 +7450,32 @@ function fitTranslationFontSize(text, widthInches, heightInches, minPt = 1, maxP
     return optimalSize;
 }
 
+// Classic-band text fit for PPTX: same box as the on-screen band (no padding), line-height 1.
+// The box is measured in real points (1 in = 72 pt) so the size matches what PowerPoint draws.
+function fitBandFontSize(text, widthInches, heightInches, minPt = 8, maxPt = 120) {
+    let probe = document.getElementById('pptx-font-probe');
+    if (!probe) {
+        probe = document.createElement('div');
+        probe.id = 'pptx-font-probe';
+        document.body.appendChild(probe);
+    }
+    probe.style.cssText =
+        'position:absolute;top:0;left:-9999px;visibility:hidden;white-space:pre-line;word-break:break-word;' +
+        'box-sizing:border-box;padding:0;margin:0;text-align:center;' +
+        'font-family:Lexend,sans-serif;font-weight:700;line-height:1;';
+    probe.style.width = (widthInches * 72 * 0.98) + 'pt';
+    const maxHeightPx = heightInches * 96 * 0.98;   // 1 in = 96 CSS px
+    probe.textContent = text;
+    let lo = minPt, hi = maxPt, best = minPt;
+    while (lo <= hi) {
+        const mid = Math.floor((lo + hi) / 2);
+        probe.style.fontSize = mid + 'pt';
+        if (probe.scrollHeight <= maxHeightPx && probe.scrollWidth <= probe.clientWidth + 1) { best = mid; lo = mid + 1; }
+        else { hi = mid - 1; }
+    }
+    return best;
+}
+
 function removeFontProbe() {
     const probe = document.getElementById('pptx-font-probe');
     if (probe && probe.parentNode) probe.parentNode.removeChild(probe);
@@ -7499,7 +7525,7 @@ async function exportToPptx() {
 
             // Render Ge'ez to a hidden fixed-size div
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + rW + 'px;height:' + rH + 'px;overflow:hidden;background:' + SS_SLIDE_BG + ';display:flex;align-items:flex-start;justify-content:flex-start;padding:20px 40px;box-sizing:border-box;pointer-events:none;font-family:"Abyssinica SIL",serif;';
+            wrap.style.cssText = 'position:fixed;top:0;left:-9999px;width:' + rW + 'px;height:' + rH + 'px;overflow:hidden;background:' + SS_SLIDE_BG + ';display:flex;align-items:flex-start;justify-content:flex-start;padding:' + SS_GEEZ_PAD + 'px;box-sizing:border-box;pointer-events:none;font-family:"Abyssinica SIL",serif;';
             const inner = document.createElement('div');
             inner.style.cssText = 'display:flex;flex-wrap:wrap;justify-content:flex-start;align-content:flex-start;align-items:flex-end;white-space:normal;box-sizing:border-box;';
             inner.innerHTML = geezHtml;
@@ -7544,7 +7570,7 @@ async function exportToPptx() {
 
             // Binary search scale — same logic as the live presenter
             const availW = rW - 40;
-            const availH = rH - 20;
+            const availH = rH - 2 * SS_GEEZ_PAD;
             let lo = 0.05, hi = 8;
             for (let iter = 0; iter < 24; iter++) {
                 const mid = (lo + hi) / 2;
@@ -7621,20 +7647,20 @@ async function exportToPptx() {
                 });
             }
             if (translation || exportTranslit) {
-                const fitted = fitTranslationFontSize((exportTranslit ? exportTranslit + '\n' : '') + translation, PW - 0.6, transH - 0.2);
+                const fitted = fitBandFontSize((exportTranslit ? exportTranslit + '\n' : '') + translation, PW, transH);
                 slide.addText(exportTranslit ? [
                     { text: exportTranslit, options: { fontSize: fitted, color: ssTranslitHex(), breakLine: !!translation } }
                 ].concat(translation ? [{ text: translation, options: { fontSize: fitted } }] : []) : translation, {
-                    x: 0.3, y: transY + 0.1,
-                    w: PW - 0.6, h: transH - 0.2,
+                    x: 0, y: transY,
+                    w: PW, h: transH,
                     fontSize: fitted,
                     bold: true, italic: false,
-                    color: '000000',
+                    color: ssTranslationHex(),
                     fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
                     wrap: true,
                     margin: 0,
-                    lineSpacingMultiple: 1.2
+                    lineSpacingMultiple: 0.8
                 });
             }
         }
@@ -7813,18 +7839,18 @@ async function exportToPptxExact() {
                 });
                 const _tl = ssSlideTranslitText(_ssSlides[si]);
                 const _tr = (_ssSlides[si].translation || '').trim();
-                const fitted = fitTranslationFontSize((_tl ? _tl + '\n' : '') + _tr, PW - 0.6, nativeTransH - 0.1);
+                const fitted = fitBandFontSize((_tl ? _tl + '\n' : '') + _tr, PW, nativeTransH);
                 slide.addText(_tl ? [
                     { text: _tl, options: { fontSize: fitted, color: ssTranslitHex(), breakLine: !!_tr } }
                 ].concat(_tr ? [{ text: _tr, options: { fontSize: fitted } }] : []) : _tr, {
-                    x: 0.3, y: nativeTransY + 0.05,
-                    w: PW - 0.6, h: nativeTransH - 0.1,
+                    x: 0, y: nativeTransY,
+                    w: PW, h: nativeTransH,
                     fontSize: fitted, bold: true,
-                    color: '000000', fontFace: 'Lexend',
+                    color: ssTranslationHex(), fontFace: 'Lexend',
                     align: 'center', valign: 'middle',
                     wrap: true,
                     margin: 0,
-                    lineSpacingMultiple: 1.2
+                    lineSpacingMultiple: 0.8
                 });
             }
         }
@@ -7959,6 +7985,7 @@ function viewResults() {
 // SLIDESHOW PRESENTATION MODE
 let _ssSlides = [];
 let ssGapCtx = null; // reused canvas 2D context for per-letter ink-gap measurement
+const SS_GEEZ_PAD = 5; // padding (px) inside #ss-geez, used by BOTH the classic and the interleaved layout
 let _ssIndex = 0;
 let _ssHudHidden = false;
 let _ssZoomLevels = [];
@@ -8535,7 +8562,7 @@ function ssUpdateInterleaveButtons(plan) {
 }
 
 // Draws the slide as interleaved rows. Returns false when this slide should use the classic layout instead.
-const SS_INTERLEAVE_ALLOW_WRAP = false;   // false = every Ge'ez line stays on ONE line when interleaved. true = old behaviour (long lines may wrap)
+const SS_INTERLEAVE_ALLOW_WRAP = true;   // false = every Ge'ez line stays on ONE line when interleaved. true = old behaviour (long lines may wrap)
 const SS_INTERLEAVE_LINE_BOOST = 1.5;   // short lines may grow up to this many times the shared size (1 = no growth)
 
 // ===== Fonts: always measure slides with the REAL fonts, never the fallback =====
@@ -8621,6 +8648,8 @@ const SS_RED_COLOUR = '#ff0000';
 
 // ===== Transliteration colour (one place to change it) =====
 let SS_TRANSLIT_COLOR = '#8b1e2d';   // transliteration colour. The translation stays #1a2a3a.
+const SS_TRANSLATION_COLOR = '#0d151d';   // classic-band translation colour = rgb(13,21,29)
+function ssTranslationHex() { return String(SS_TRANSLATION_COLOR).replace('#', '').toUpperCase(); }
 function ssTranslitHex() { return String(SS_TRANSLIT_COLOR).replace('#', '').toUpperCase(); }   // PPTX wants hex without the #
 function _gsRgb(hex) {   // Google Slides wants 0..1 values
     const h = String(hex).replace('#', '');
@@ -8786,13 +8815,13 @@ function ssTryRenderInterleaved(slide, counter) {
     transEl.innerHTML = '';
     counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
 
-    geezEl.style.padding = '10px';
+    geezEl.style.padding = SS_GEEZ_PAD + 'px';
     geezEl.style.justifyContent = 'flex-start';
     geezEl.style.alignItems = 'flex-start';
     geezEl.innerHTML = '';
 
-    const availW = geezEl.clientWidth - 24;
-    const availH = geezEl.clientHeight - 20;
+    const availW = geezEl.clientWidth - (2 * SS_GEEZ_PAD + 4); // content width minus a 4px safety
+    const availH = geezEl.clientHeight - 2 * SS_GEEZ_PAD;
     if (availW > 0 && availH > 0) {
         const host = document.createElement('div');
         host.style.cssText = 'width:100%;display:flex;flex-direction:column;justify-content:center;height:' + availH + 'px;';
@@ -9032,11 +9061,11 @@ function ssPaintClassicBand(slide) {
     const transEl = document.getElementById('ss-translation');
     if (!transEl || transEl.clientHeight <= 0) return;
     const p = document.createElement('p');
-    p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+    p.style.cssText = 'margin:0;color:rgb(13,21,29);font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1;font-weight:700;word-break:break-word;padding:0;box-sizing:border-box;width:100%;';
     ssFillBandP(p, slide);
     transEl.innerHTML = '';
     transEl.appendChild(p);
-    const availH = transEl.clientHeight - 16;
+    const availH = transEl.clientHeight;
     const availW = transEl.clientWidth;
     let lo = 12, hi = 140;
     for (let i = 0; i < 24; i++) {
@@ -9161,11 +9190,11 @@ function renderSlideshowSlide() {
         geezEl.style.background = '';
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
-            p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+            p.style.cssText = 'margin:0;color:rgb(13,21,29);font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1;font-weight:700;word-break:break-word;padding:0;box-sizing:border-box;width:100%;';
             p.textContent = slide.translation;
             transEl.innerHTML = '';
             transEl.appendChild(p);
-            const availH = transEl.clientHeight - 16;
+            const availH = transEl.clientHeight;
             const availW = transEl.clientWidth;
             let lo = 12, hi = 140;
             for (let i = 0; i < 24; i++) {
@@ -9184,7 +9213,7 @@ function renderSlideshowSlide() {
         applySlideZoom();
         return;
     }
-    geezEl.style.padding = '10px';
+    geezEl.style.padding = SS_GEEZ_PAD + 'px';
 
     // Scale the Ge'ez content to fit the available area
     // Strip any inline width/max-width from letter-containers so they reflow freely
@@ -9206,9 +9235,9 @@ function renderSlideshowSlide() {
 
         inner.querySelectorAll('br').forEach(br => { if (!br.closest('.cussta')) br.remove(); });
 
-        const rightBuffer = 12; // extra breathing room on the right, independent of the 10px left padding
+        const rightBuffer = SS_GEEZ_PAD + 2; // keeps the same 2px right edge as before, so the 5px saved on the left becomes real width
         const availW = geezEl.clientWidth - rightBuffer;
-        const availH = geezEl.clientHeight;
+        const availH = geezEl.clientHeight + (10 - SS_GEEZ_PAD); // top padding is 5px smaller, so the same bottom edge as before allows 5px more height
         if (availW <= 0 || availH <= 0) return;
 
         // Pin inner to top-left so transform-origin:top-left math is exact — no centering offset
@@ -9325,11 +9354,11 @@ function renderSlideshowSlide() {
 
         if (slide.translation && slide.translation.trim()) {
             const p = document.createElement('p');
-            p.style.cssText = 'margin:0;color:#1a2a3a;font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1.35;font-weight:700;word-break:break-word;padding:0 16px;box-sizing:border-box;width:100%;';
+            p.style.cssText = 'margin:0;color:rgb(13,21,29);font-style:normal;font-family:Lexend,sans-serif;text-align:center;line-height:1;font-weight:700;word-break:break-word;padding:0;box-sizing:border-box;width:100%;';
             p.textContent = slide.translation;
             transEl.innerHTML = '';
             transEl.appendChild(p);
-            const availH = transEl.clientHeight - 16;
+            const availH = transEl.clientHeight;
             const availW = transEl.clientWidth;
             let lo = 12, hi = 140;
             for (let i = 0; i < 24; i++) {
@@ -10223,7 +10252,7 @@ const GS_INTERLEAVE_Y_NUDGE_EM = (1.25 - SS_INTERLEAVE_TEXT_LINE_HEIGHT) / 2;   
 const GS_INTERLEAVE_MATCH_SCREEN = true;   // true = interleaved Slides text boxes use the exact on-screen text size and line spacing. false = old fit-to-box behaviour
 const GS_INTERLEAVE_LINE_SPACING_PCT = Math.round(SS_INTERLEAVE_TEXT_LINE_HEIGHT / 1.25 * 100);   // on-screen line height ÷ Lexend's natural line height (about 1.25)
 // Line spacing as a % of the font's natural line height (100 = Google's default, which leaves a lot of air above/below text)
-const GS_LINE_SPACING_PCT = 85;
+const GS_LINE_SPACING_PCT = 80;   // CSS line-height 1 ÷ Lexend's natural ~1.25
 
 // Largest whole-point font size at which `text` fits inside widthPt x heightPt,
 // measured with the same font/weight/centering used in the Slides text box.
@@ -10550,6 +10579,17 @@ async function exportToGoogleSlides() {
                 }
                 if (item.translit) {
                     requests.push({ updateTextStyle: { objectId: boxId, style: { foregroundColor: { opaqueColor: { rgbColor: _gsRgb(SS_TRANSLIT_COLOR) } } }, textRange: { type: 'FIXED_RANGE', startIndex: 0, endIndex: item.translit.length }, fields: 'foregroundColor' } });
+                }
+                // Translation colour (transliteration keeps its own colour set above)
+                if (item.translation) {
+                    requests.push({
+                        updateTextStyle: {
+                            objectId: boxId,
+                            style: { foregroundColor: { opaqueColor: { rgbColor: _gsRgb(SS_TRANSLATION_COLOR) } } },
+                            textRange: { type: 'FROM_START_INDEX', startIndex: item.translit ? item.translit.length + 1 : 0 },
+                            fields: 'foregroundColor'
+                        }
+                    });
                 }
                 // Vertically centre the text in the box, like the in-app translation panel
                 requests.push({
