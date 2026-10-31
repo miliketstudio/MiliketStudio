@@ -2,6 +2,21 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+<script>
+// Google sign-in popup return handler: runs first, hands the token to the main tab, closes the popup
+(function () {
+    var h = location.hash || '';
+    if (h.indexOf('access_token=') === -1 && h.indexOf('error=') === -1) return;
+    var p = new URLSearchParams(h.slice(1));
+    var st = p.get('state');
+    if (!st || st !== localStorage.getItem('gslides_oauth_state')) return;
+    localStorage.removeItem('gslides_oauth_state');
+    var ch = new BroadcastChannel('gslides_oauth');
+    ch.postMessage({ state: st, access_token: p.get('access_token'), expires_in: p.get('expires_in'), error: p.get('error') });
+    document.title = 'Signed in. You can close this window.';
+    setTimeout(function () { ch.close(); window.close(); }, 300);
+})();
+</script>
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <title>Miliket Studio</title>
     <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
@@ -10087,6 +10102,81 @@ function _gslidesEnsureTokenClient() {
 }
 
 function _gslidesRequestToken() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            const saved = _gslidesGetSession();
+            if (saved) {
+                const choice = await _gslidesShowAccountPicker(saved.email);
+                if (choice === 'continue') {
+                    _gslidesAccessToken = saved.token;
+                    resolve(saved.token);
+                    return;
+                }
+            }
+
+            const redirectUri = location.origin + location.pathname;
+            const state = Math.random().toString(36).slice(2) + Date.now().toString(36);
+            localStorage.setItem('gslides_oauth_state', state);
+            console.log('Google sign-in redirect URI (must be in Authorized redirect URIs):', redirectUri);
+
+            const url = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({
+                client_id: GSLIDES_CLIENT_ID,
+                redirect_uri: redirectUri,
+                response_type: 'token',
+                scope: GSLIDES_SCOPE,
+                state: state,
+                prompt: 'select_account',
+                include_granted_scopes: 'true'
+            }).toString();
+
+            const channel = new BroadcastChannel('gslides_oauth');
+            let settled = false;
+            let timer = null;
+            const finish = (fn, value) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                channel.close();
+                fn(value);
+            };
+
+            channel.onmessage = async (ev) => {
+                const d = ev.data || {};
+                if (d.state !== state) return;
+                console.log('Google token message received:', d.error || 'ok');
+                if (d.error || !d.access_token) {
+                    finish(reject, new Error('Google sign-in failed: ' + (d.error || 'no token returned')));
+                    return;
+                }
+                _gslidesAccessToken = d.access_token;
+                const email = await _gslidesFetchEmail(d.access_token);
+                _gslidesSaveSession(d.access_token, email || 'Google account', Number(d.expires_in) || 3600);
+                const cb = document.getElementById('gslides-close-btn');
+                if (cb) cb.style.display = 'none';
+                finish(resolve, d.access_token);
+            };
+
+            const w = 500, h = 650;
+            const left = Math.max(0, Math.round((screen.width - w) / 2));
+            const top = Math.max(0, Math.round((screen.height - h) / 2));
+            const popup = window.open(url, 'gslides_oauth_popup', 'width=' + w + ',height=' + h + ',left=' + left + ',top=' + top);
+            if (!popup) {
+                finish(reject, new Error('The Google sign-in popup was blocked. Allow popups for this site and try again.'));
+                return;
+            }
+
+            _gslidesSetMsg('Finish signing in in the Google window…', 'If you closed it, click Close to cancel.');
+            const closeBtn = document.getElementById('gslides-close-btn');
+            if (closeBtn) {
+                closeBtn.style.display = 'inline-block';
+                closeBtn.addEventListener('click', () => finish(reject, new Error('Google sign-in was cancelled.')), { once: true });
+            }
+            timer = setTimeout(() => finish(reject, new Error('Google sign-in timed out.')), 300000);
+        } catch (e) { reject(e); }
+    });
+}
+
+function _gslidesRequestTokenGis() {
     return new Promise(async (resolve, reject) => {
         try {
             if (!window.google || !google.accounts || !google.accounts.oauth2) {
