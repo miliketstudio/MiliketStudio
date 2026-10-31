@@ -10089,6 +10089,77 @@ function _gslidesEnsureTokenClient() {
 function _gslidesRequestToken() {
     return new Promise(async (resolve, reject) => {
         try {
+            if (!window.google || !google.accounts || !google.accounts.oauth2) {
+                reject(new Error('Google auth library not loaded. Check your internet connection and try again.'));
+                return;
+            }
+
+            const saved = _gslidesGetSession();
+            if (saved) {
+                const choice = await _gslidesShowAccountPicker(saved.email);
+                if (choice === 'continue') {
+                    _gslidesAccessToken = saved.token;
+                    resolve(saved.token);
+                    return;
+                }
+            }
+
+            let settled = false;
+            let timer = null;
+            const finish = (fn, value) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timer);
+                fn(value);
+            };
+
+            // Same shape as the console test that worked: fresh client, both callbacks passed in directly.
+            const client = google.accounts.oauth2.initTokenClient({
+                client_id: GSLIDES_CLIENT_ID,
+                scope: GSLIDES_SCOPE,
+                callback: async (resp) => {
+                    console.log('Google token response received:', resp && (resp.error || 'ok'));
+                    if (!resp || resp.error || !resp.access_token) {
+                        finish(reject, new Error('Google sign-in failed: ' + ((resp && (resp.error_description || resp.error)) || 'no token returned')));
+                        return;
+                    }
+                    _gslidesAccessToken = resp.access_token;
+                    const email = await _gslidesFetchEmail(resp.access_token);
+                    _gslidesSaveSession(resp.access_token, email || 'Google account', resp.expires_in);
+                    document.getElementById('gslides-close-btn').style.display = 'none';
+                    finish(resolve, resp.access_token);
+                },
+                error_callback: (err) => {
+                    console.log('Google error_callback:', err && err.type, err);
+                    if (settled) return;
+                    if (err && err.type === 'popup_failed_to_open') {
+                        finish(reject, new Error('The Google sign-in popup was blocked. Allow popups for this site and try again.'));
+                        return;
+                    }
+                                        if (err && err.type && err.type !== 'popup_closed') {
+                        finish(reject, new Error('Google sign-in failed (' + err.type + ').'));
+                        return;
+                    }
+                    // popup_closed is unreliable here, so keep waiting for the token. The Close button cancels.
+                    _gslidesSetMsg('Finish signing in in the Google window…', 'If you closed it, click Close to cancel.');
+                    const closeBtn = document.getElementById('gslides-close-btn');
+                    if (closeBtn) {
+                        closeBtn.style.display = 'inline-block';
+                        closeBtn.addEventListener('click', () => finish(reject, new Error('Google sign-in was cancelled.')), { once: true });
+                    }
+                    clearTimeout(timer);
+                    timer = setTimeout(() => finish(reject, new Error('Google sign-in timed out.')), 300000);
+                }
+            });
+
+            client.requestAccessToken({ prompt: 'select_account' });
+        } catch (e) { reject(e); }
+    });
+}
+
+function _gslidesRequestTokenOld() {
+    return new Promise(async (resolve, reject) => {
+        try {
             const saved = _gslidesGetSession();
             let promptMode = '';
 
