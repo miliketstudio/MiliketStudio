@@ -10124,6 +10124,24 @@ function _gslidesRequestToken() {
             let sawBlur = false;
             _gslidesOnError = (err) => {
                 if (settled) return;
+                if (err && err.type === 'popup_closed') {
+                    // Google can report this while the popup is still open (it is moving to the next page).
+                    // Keep listening for the token and only give up after a long wait.
+                    _gslidesSetMsg('Finish signing in in the Google window…', 'If you closed it, click Close to cancel.');
+                    document.getElementById('gslides-close-btn').style.display = 'inline-block';
+                    const cancelNow = () => {
+                        if (settled) return;
+                        settled = true;
+                        clearInterval(popupCheckInterval);
+                        clearTimeout(window._gslidesCloseTimer);
+                        reject(new Error('Google sign-in was cancelled (popup_closed).'));
+                    };
+                    const closeBtn = document.getElementById('gslides-close-btn');
+                    if (closeBtn) closeBtn.addEventListener('click', cancelNow, { once: true });
+                    clearTimeout(window._gslidesCloseTimer);
+                    window._gslidesCloseTimer = setTimeout(cancelNow, 300000);
+                    return;
+                }
                 settled = true;
                 clearInterval(popupCheckInterval);
                 reject(new Error(err && err.type === 'popup_failed_to_open'
@@ -10137,7 +10155,7 @@ function _gslidesRequestToken() {
                 if (!document.hasFocus()) { sawBlur = true; return; }   // popup is open and has focus
                 if (!sawBlur) return;                                   // popup never took focus yet: not a dismissal
                 setTimeout(() => {
-                    if (!settled && document.hasFocus()) {
+                    if (false) {   // disabled: the focus check wrongly cancelled sign-in
                         settled = true;
                         clearInterval(popupCheckInterval);
                         reject(new Error('Google sign-in was cancelled.'));
