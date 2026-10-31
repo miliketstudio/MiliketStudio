@@ -10128,7 +10128,8 @@ function _gslidesRequestToken() {
                 clearInterval(popupCheckInterval);
                 reject(new Error(err && err.type === 'popup_failed_to_open'
                     ? 'The Google sign-in popup was blocked. Allow popups for this site and try again.'
-                    : 'Google sign-in was cancelled.'));
+                    : 'Google sign-in was cancelled (' + ((err && err.type) || 'unknown') + ').'));
+                console.log('Google sign-in error detail:', err);
             };
 
             popupCheckInterval = setInterval(() => {
