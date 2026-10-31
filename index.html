@@ -8889,7 +8889,8 @@ function ssTryRenderInterleaved(slide, counter) {
             // Natural one-line width = the biggest scale at which this line still fits the slide width.
             p.inner.style.width = 'max-content';
             p.inner.style.transform = 'none';
-            p.cells = ssMeasureInkCells(p.inner);   // real ink position of every letter-container (scale-independent, measured once)
+            p.cells = ssMeasureInkCells(p.inner);
+            p.cellsNatural = p.cells;   // real ink position of every letter-container (scale-independent, measured once)
             const nat = p.inner.scrollWidth;
             p.fit = nat > 0 ? 0.995 * availW / nat : 0;
         });
@@ -8908,7 +8909,11 @@ function ssTryRenderInterleaved(slide, counter) {
                 const si = rowScale(p, s);
                 p.inner.style.width = Math.max(60, Math.round(availW / si)) + 'px';
                 p.inner.style.transform = 'none';
-                const b = ssInkBounds(p);                       // highest / lowest ink at this wrapping
+                const _compacted = ssCompactBareWraps(p.inner);
+                p.cells = _compacted.length
+                    ? p.cellsNatural.filter(function (c) { return _compacted.indexOf(c.el) === -1; }).concat(ssMeasureInkCells({ children: _compacted }))
+                    : p.cellsNatural;
+                const b = ssInkBounds(p);                     // highest / lowest ink at this wrapping
                 const h = Math.ceil((b.bot - b.top) * si);      // visible height of the line = ink only
                 p.wrap.style.height = (h + gap) + 'px';
                 p.inner.style.top = (gap / 2 - b.top * si) + 'px';   // slide the line up so its highest ink sits at the top of the box
@@ -9166,6 +9171,66 @@ function ssClassicInkBottom(inner, scale) {
     return bottom;                                  // 0 = nothing measurable, caller falls back
 }
 
+// ===== Compact bare wrapped lines =====
+// A wrapped line that holds only a few letters and NO miliket in any row (usually a lone ፤)
+// has its empty miliket rows collapsed, so it no longer leaves a tall blank gap.
+const SS_COMPACT_BARE_WRAPS = true;   // false = switch the feature off
+const SS_COMPACT_MAX_ITEMS = 2;       // a wrapped line is compacted only if it has at most this many letters/spaces
+const SS_COMPACT_GAP_PX = 8;          // small gap kept above the compacted letter (px at 100% size)
+
+function ssContainerIsBare(lc) {
+    const cells = lc.querySelectorAll('.letter');
+    for (let i = 0; i < cells.length; i++) {
+        if (cells[i].children.length) return false;
+        if (cells[i].textContent.replace(/[\s\u200A-\u200D\u2060\uFEFF\u00A0]/g, '')) return false;
+    }
+    return true;
+}
+
+// Undoes any earlier compaction, then compacts bare wrapped lines. Returns the letter-containers it compacted.
+function ssCompactBareWraps(inner) {
+    inner.querySelectorAll('.ss-compact-cell').forEach(function (c) {
+        c.classList.remove('ss-compact-cell');
+        c.style.removeProperty('display');
+    });
+    inner.querySelectorAll('.ss-compact-lc').forEach(function (lc) {
+        lc.classList.remove('ss-compact-lc');
+        lc.style.paddingTop = '';
+    });
+    if (!SS_COMPACT_BARE_WRAPS) return [];
+
+    const lcs = Array.from(inner.children).filter(function (el) {
+        return el.classList && el.classList.contains('letter-container');
+    });
+    if (lcs.length < 2) return [];
+
+    // Group letter-containers into flex lines. Items in one line share the same bottom edge (align-items:flex-end).
+    const lines = [];
+    lcs.forEach(function (el) {
+        const bottom = el.offsetTop + el.offsetHeight;
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(last.bottom - bottom) <= 20) last.items.push(el);
+        else lines.push({ bottom: bottom, items: [el] });
+    });
+
+    const compacted = [];
+    lines.forEach(function (line, li) {
+        if (li === 0) return;                                  // the first line is never compacted
+        if (line.items.length > SS_COMPACT_MAX_ITEMS) return;
+        if (!line.items.every(ssContainerIsBare)) return;      // any miliket in the line keeps it as is
+        line.items.forEach(function (el) {
+            el.classList.add('ss-compact-lc');
+            el.style.paddingTop = SS_COMPACT_GAP_PX + 'px';
+            el.querySelectorAll('.letter').forEach(function (c) {
+                c.classList.add('ss-compact-cell');
+                c.style.setProperty('display', 'none', 'important');
+            });
+            compacted.push(el);
+        });
+    });
+    return compacted;
+}
+
 function renderSlideshowSlide() {
     if (
         !Array.isArray(_ssSlides) ||
@@ -9322,12 +9387,15 @@ function renderSlideshowSlide() {
         for (let i = 0; i < 24; i++) {
             const mid = (lo + hi) / 2;
             inner.style.width = Math.max(60, Math.round(availW / mid)) + 'px';
+            ssCompactBareWraps(inner);
             void inner.offsetHeight;
             (inner.scrollHeight * mid <= availH) ? (lo = mid) : (hi = mid);
         }
 
         const finalScale = lo * 0.995;
         inner.style.width = Math.max(60, Math.round(availW / finalScale)) + 'px';
+
+        ssCompactBareWraps(inner);
 
         // Fix last row: a flex:auto spacer absorbs leftover space so last row packs left
         let spacer = inner.querySelector('.ss-last-row-fix');
