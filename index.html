@@ -2381,6 +2381,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
         <div class="studio-center-actions">
             <button class="action-trio-btn action-back" onclick="showStudioPage('page-folders')">← Back</button>
             <button class="action-trio-btn action-add" onclick="createPiece()">＋ New Piece</button>
+            <button class="action-trio-btn action-analyze" onclick="paOpen()">📊 Analyze Patterns</button>
             <button class="action-trio-btn action-present" onclick="goToPresent()">▶ Present</button>
         </div>
     </div>
@@ -15269,6 +15270,933 @@ function generatePresetDeck() {
     window.openSmartSelectionModal = openSmartSelectionModal;
     window.closeSmartSelectionModal = closeSmartSelectionModal;
     window.confirmSmartSelectionModal = confirmSmartSelectionModal;
+})();
+
+</script>
+
+<!-- ============ PATTERN ANALYZER (pieces page) ============ -->
+<style>
+.action-analyze { background:#6a1a82; color:#ffffff; }
+
+#pa-overlay{display:none;position:fixed;inset:0;z-index:100070;align-items:center;justify-content:center;padding:16px;background:rgba(15,21,32,0.74);backdrop-filter:blur(4px);font-family:'Abyssinica SIL',serif;}
+#pa-overlay.open{display:flex;}
+.pa-box{width:min(1220px,98vw);height:min(94vh,1000px);display:flex;flex-direction:column;overflow:hidden;background:var(--card-bg);color:var(--text);border:2px solid var(--gold);border-radius:16px;box-shadow:0 22px 70px rgba(0,0,0,0.45);}
+.pa-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid var(--card-border);background:rgba(184,134,11,0.08);}
+.pa-head h2{margin:0;font-size:1.2rem;font-weight:bold;color:var(--gold);}
+.pa-head p{margin:3px 0 0;font-size:0.76rem;color:var(--text-muted);font-family:sans-serif;}
+.pa-x{width:34px;height:34px;border:none;border-radius:50%;background:transparent;color:var(--text-muted);font-size:26px;line-height:1;cursor:pointer;}
+.pa-x:hover{background:rgba(184,134,11,0.14);color:var(--gold);}
+.pa-tabs{display:flex;border-bottom:1px solid var(--card-border);background:var(--page-bg);}
+.pa-tabs button{flex:1;padding:11px 8px;border:none;border-bottom:3px solid transparent;background:transparent;color:var(--text-muted);font:bold 0.85rem sans-serif;cursor:pointer;}
+.pa-tabs button.active{color:var(--text);border-bottom-color:var(--gold);}
+.pa-body{flex:1;min-height:0;overflow-y:auto;padding:18px 22px 28px;}
+.pa-pane{display:none;}
+.pa-pane.active{display:block;}
+.pa-note{margin:0 0 12px;font-size:0.82rem;line-height:1.55;color:var(--text-muted);font-family:sans-serif;}
+.pa-h{margin:26px 0 4px;font-size:1.02rem;font-weight:bold;color:var(--text);}
+.pa-empty{padding:40px 16px;text-align:center;color:var(--text-muted);font-family:sans-serif;font-size:0.9rem;}
+.pa-empty.small{padding:14px;font-size:0.8rem;}
+.pa-more{padding:8px 4px;font-size:0.76rem;color:var(--text-muted);font-family:sans-serif;}
+.pa-btn{border:none;border-radius:8px;padding:9px 16px;background:#3a5a82;color:#fff;font:bold 0.8rem sans-serif;cursor:pointer;}
+.pa-btn:hover{opacity:0.88;}
+.pa-btn.gold{background:var(--gold);}
+.pa-btn.green{background:#27ae60;}
+.pa-btn:disabled{opacity:0.45;cursor:not-allowed;}
+.pa-quick{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.pa-folder-list{display:flex;flex-direction:column;gap:6px;margin-bottom:16px;}
+.pa-folder{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--page-bg);cursor:pointer;font-size:0.92rem;}
+.pa-folder:hover{border-color:var(--gold);}
+.pa-folder input{width:17px;height:17px;accent-color:#b8860b;}
+.pa-fproj{color:var(--text-muted);font-size:0.78rem;font-family:sans-serif;}
+.pa-fcount{margin-left:auto;color:var(--text-muted);font-size:0.74rem;font-family:sans-serif;}
+.pa-status{margin-top:12px;font-size:0.82rem;color:var(--text-muted);font-family:sans-serif;min-height:1.2em;}
+.pa-controls{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;margin-bottom:16px;padding:12px 14px;border:1px solid var(--card-border);border-radius:10px;background:var(--page-bg);}
+.pa-controls label{display:flex;flex-direction:column;gap:4px;font:bold 0.7rem sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;}
+.pa-controls select,.pa-controls input[type=number]{padding:7px 9px;border:1px solid var(--card-border);border-radius:7px;background:var(--card-bg);color:var(--text);font:0.82rem sans-serif;text-transform:none;letter-spacing:0;}
+.pa-controls input[type=number]{width:64px;}
+.pa-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:6px;}
+.pa-stat{padding:10px 12px;border:1px solid var(--card-border);border-left:4px solid var(--gold);border-radius:9px;background:var(--page-bg);}
+.pa-stat b{display:block;font-size:1.25rem;color:var(--text);}
+.pa-stat span{font:0.7rem sans-serif;color:var(--text-muted);}
+.pa-rule{margin-bottom:7px;border:1px solid var(--card-border);border-radius:9px;background:var(--card-bg);}
+.pa-rule[open]{border-color:var(--gold);}
+.pa-rule summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:9px 12px;cursor:pointer;font-size:0.95rem;list-style:none;}
+.pa-rule summary::-webkit-details-marker{display:none;}
+.pa-rule summary::before{content:'▸';color:var(--gold);}
+.pa-rule[open] summary::before{content:'▾';}
+.pa-cnt{margin-left:auto;font:bold 0.75rem sans-serif;color:var(--text-muted);}
+.pa-badge{padding:2px 9px;border-radius:99px;font:bold 0.7rem sans-serif;color:#fff;}
+.pa-badge.ok{background:#27ae60;}
+.pa-badge.warn{background:#e67e22;}
+.pa-badge.bad{background:#c0392b;}
+.pa-badge.info{background:#3a5a82;}
+.pa-detail{padding:4px 12px 12px;}
+.pa-pat{margin-top:10px;}
+.pa-pat-h{font:0.76rem sans-serif;color:var(--text-muted);margin-bottom:4px;}
+.pa-pat-h b{color:var(--text);}
+.pa-pat-t{margin-bottom:5px;font-size:0.88rem;line-height:1.7;color:var(--text);word-break:break-word;}
+.pa-prev{overflow-x:auto;background:#fffdf8;border:1px solid var(--card-border);border-radius:8px;padding:6px 8px;scrollbar-width:thin;color:#000;}
+.pa-prev-in{display:flex;align-items:flex-end;width:max-content;}
+.pa-chip{display:inline-block;padding:1px 9px;border-radius:6px;color:#fff;font-size:0.82rem;font-weight:bold;}
+.pa-table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:0.9rem;}
+.pa-table th{padding:6px 8px;text-align:left;font:bold 0.68rem sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--card-border);}
+.pa-table td{padding:5px 8px;border-bottom:1px solid var(--card-border);vertical-align:middle;}
+.pa-table td.w{font-size:1.15rem;}
+.pa-table td.s{font:0.76rem sans-serif;color:var(--text-muted);}
+.pa-sel{padding:3px 6px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text);font:0.78rem sans-serif;}
+.pa-line{margin-bottom:18px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:var(--page-bg);}
+.pa-line-h{margin-bottom:4px;font:bold 0.8rem sans-serif;color:var(--text);}
+.pa-review{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px;}
+.pa-rv{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--card-border);border-radius:8px;background:var(--card-bg);}
+.pa-rv-w{font-size:1.1rem;}
+.pa-rv-n{font:0.72rem sans-serif;color:var(--text-muted);}
+.pa-rv .pa-sel{margin-left:auto;}
+.pa-rv .pa-del{border:none;background:transparent;color:#c0392b;font-size:1rem;cursor:pointer;}
+#pa-test-input{width:100%;min-height:150px;padding:12px;border:2px solid var(--card-border);border-radius:10px;background:var(--page-bg);color:var(--text);font-family:'Abyssinica SIL',serif;font-size:1.3rem;line-height:1.6;outline:none;resize:vertical;}
+#pa-test-input:focus{border-color:var(--gold);}
+.pa-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
+@media (max-width:700px){.pa-body{padding:14px 12px 24px;}.pa-tabs button{font-size:0.74rem;}}
+</style>
+
+<div id="pa-overlay" role="dialog" aria-modal="true" aria-labelledby="pa-title">
+    <div class="pa-box">
+        <div class="pa-head">
+            <div>
+                <h2 id="pa-title">📊 Pattern Analyzer</h2>
+                <p>Learns which miliket goes with which ንባብ shape, then writes new pieces the same way</p>
+            </div>
+            <button class="pa-x" type="button" onclick="paClose()" aria-label="Close">×</button>
+        </div>
+        <div class="pa-tabs">
+            <button type="button" data-tab="scan" class="active" onclick="paTab('scan')">1 · Choose folders</button>
+            <button type="button" data-tab="rules" onclick="paTab('rules')">2 · Rules &amp; patterns</button>
+            <button type="button" data-tab="test" onclick="paTab('test')">3 · Test a piece</button>
+        </div>
+        <div class="pa-body" id="pa-body">
+            <div class="pa-pane active" id="pa-tab-scan"></div>
+            <div class="pa-pane" id="pa-tab-rules"></div>
+            <div class="pa-pane" id="pa-tab-test"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+/* ------------------------------------------------------------------
+   constants
+------------------------------------------------------------------ */
+const DICT_KEY = 'miliket_pa_dict_v1';
+const ORDER_NAMES = ['', 'ግእዝ', 'ካዕብ', 'ሣልስ', 'ራብዕ', 'ኃምስ', 'ሳድስ', 'ሳብዕ'];
+const ORDER_COLORS = ['#888888', '#27ae60', '#3a5a82', '#b8860b', '#8e44ad', '#c0392b', '#16a085', '#e67e22'];
+const CLASSES = {
+    tenesh:  { am: 'ተነሽ', color: '#27ae60' },
+    tetay:   { am: 'ተጣይ', color: '#3a5a82' },
+    wedaqi:  { am: 'ወዳቂ', color: '#b8860b' },
+    seyaf:   { am: 'ሰያፍ', color: '#8e44ad' },
+    unknown: { am: '?',    color: '#888888' }
+};
+const POS_LABEL = { only: 'only word', first: 'first word', mid: 'middle word', last: 'last word' };
+const FROM_END = ['last letter', '2nd from end', '3rd from end', '4th from end', '5th from end', '6th from end', '7th+ from end'];
+const LEVEL = {
+    line:    { text: 'whole-line rule',                 cls: 'ok'   },
+    wordpos: { text: 'word rule (length + place)',      cls: 'info' },
+    word:    { text: 'word rule (length)',              cls: 'info' },
+    letters: { text: 'letter rules only',               cls: 'warn' },
+    none:    { text: 'no data, left empty',             cls: 'bad'  }
+};
+const PUNCT_RE = /[።፤፡፠፨፣]/;
+const JUNK_RE = /[\u200A-\u200D\u2060\uFEFF\u00A0]/g;
+const EMPTY = '∅';
+const SPACE = '␣';
+const HAIR2 = '\u200A\u200A';
+const CP = String.fromCharCode;
+const VERB_PREFIX = new Set([CP(0x12ED), CP(0x1275), CP(0x1295), CP(0x12A5)]);   // ይ ት ን እ  (6th order)
+const CONJ_WAW = CP(0x12C8);                                                      // ወ
+const TI = CP(0x1275);                                                            // ት
+const FIXED_WEDAQI = new Set(['ዝ', 'ህየ', 'እወ', 'ሠለስተ', 'ክልዔተ', 'አርባዕተ', 'አሐዱ', 'ክልዔቱ', 'ሠለስቱ', 'አርባዕቱ', 'ዝንቱ', 'እሙንቱ', 'እማንቱ', 'ዛቲ', 'ኵሉ', 'ኩሉ', 'እፎ']);
+
+const PA = {
+    sel: new Set(), selInit: false, folderList: [],
+    mode: 'class', lineView: 'runs', wordView: 'pos', min: 2, thr: 80,
+    parsed: null, agg: null, tab: 'scan', reg: [], test: null, testText: ''
+};
+
+let dict = {};
+try { dict = JSON.parse(localStorage.getItem(DICT_KEY) || '{}') || {}; } catch (e) { dict = {}; }
+function saveDict() { try { localStorage.setItem(DICT_KEY, JSON.stringify(dict)); } catch (e) {} }
+
+const $ = function (id) { return document.getElementById(id); };
+function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+
+/* ------------------------------------------------------------------
+   Ge'ez word analysis  (ending letter order -> ንባብ class)
+------------------------------------------------------------------ */
+function orderOf(ch) {
+    const cp = ch.codePointAt(0);
+    if (typeof SS_TL_MAP !== 'undefined' && SS_TL_MAP[cp]) return SS_TL_MAP[cp].o;
+    if (cp >= 0x1200 && cp <= 0x135A) { const off = (cp - 0x1200) % 8; return off === 7 ? 4 : off + 1; }
+    return 0;
+}
+
+function looksVerb(L) {
+    if (L.length >= 4 && L[0] === CONJ_WAW) L = L.slice(1);
+    if (L.length >= 3 && VERB_PREFIX.has(L[0])) return true;                       // imperfect: ይቀትል ትቀትል ንቀትል እቀትል
+    const n = L.length;
+    if (n >= 4 && L[n - 1] === TI && orderOf(L[n - 2]) === 1) return true;       // perfect 3rd fem.: ቀተለት
+    return false;
+}
+
+const infoCache = new Map();
+function infoOf(text) {
+    let r = infoCache.get(text);
+    if (r) return r;
+    const L = Array.from(text);
+    const ord = L.length ? orderOf(L[L.length - 1]) : 0;
+    let cls = 'unknown', certain = false;
+    if (dict[text]) { cls = dict[text]; certain = true; }
+    else if (!ord) { cls = 'unknown'; }
+    else if (FIXED_WEDAQI.has(text)) { cls = 'wedaqi'; certain = true; }
+    else if (ord === 5) { cls = 'wedaqi'; certain = true; }                       // ends in ኃምስ: always ወዳቂ
+    else if (ord === 6) { cls = looksVerb(L) ? 'seyaf' : 'tetay'; }               // ሳድስ: ሰያፍ (verbs) or ተጣይ (nouns)
+    else if (ord === 1 || ord === 2) { cls = 'tenesh'; }
+    else { cls = looksVerb(L) ? 'tenesh' : 'wedaqi'; }                            // ሣልስ ራብዕ ሳብዕ
+    r = { cls: cls, certain: certain, ord: ord };
+    infoCache.set(text, r);
+    return r;
+}
+
+function grpOf(text) {
+    const i = infoOf(text);
+    if (PA.mode === 'order') return { code: 'o' + i.ord, label: ORDER_NAMES[i.ord] || '?', color: ORDER_COLORS[i.ord] || '#888888' };
+    const c = CLASSES[i.cls] || CLASSES.unknown;
+    return { code: i.cls, label: c.am, color: c.color };
+}
+
+/* ------------------------------------------------------------------
+   reading a piece: every letter-container = one letter + its miliket
+------------------------------------------------------------------ */
+function clean(s) { return String(s || '').replace(JUNK_RE, '').trim(); }
+
+function styleProp(el, prop) {
+    const s = el.getAttribute('style') || '';
+    const m = s.match(new RegExp('(?:^|;)\\s*' + prop + '\\s*:\\s*([^;]+)', 'i'));
+    return m ? m[1].trim().toLowerCase() : '';
+}
+function isRed(el) {
+    return /^(red|#f00|#ff0000|rgb\(\s*255\s*,\s*0\s*,\s*0\s*\))$/.test(styleProp(el, 'color'));
+}
+
+function innerSig(node) {
+    const out = [];
+    node.childNodes.forEach(function (n) {
+        if (n.nodeType === 3) { const t = clean(n.nodeValue); if (t) out.push(t); }
+        else if (n.nodeType === 1) { const s = elSig(n); if (s) out.push(s); }
+    });
+    return out.join(' ');
+}
+
+function elSig(el) {
+    const isStack = (/flex/.test(styleProp(el, 'display')) && /column/.test(styleProp(el, 'flex-direction'))) || el.classList.contains('widestack');
+    const red = isRed(el) ? 'r:' : '';
+    const over = /underline/.test(styleProp(el, 'text-decoration-line') + ' ' + styleProp(el, 'text-decoration')) ? '^' : '';
+    if (isStack) {
+        const slots = Array.prototype.map.call(el.children, function (c) { return innerSig(c) || '_'; });
+        return red + over + (el.classList.contains('widestack') ? 'w' : '') + '[' + slots.join('/') + ']';
+    }
+    const t = innerSig(el);
+    return t ? red + over + t : '';
+}
+
+function cellHtml(cell) {
+    const c = cell.cloneNode(true);
+    c.querySelectorAll('.highlight,.row-selected,.multi-selected').forEach(function (e) {
+        e.classList.remove('highlight', 'row-selected', 'multi-selected');
+    });
+    return c.innerHTML;
+}
+
+function parseColumn(lc, parsed) {
+    const base = lc.querySelector('.baseletter');
+    const txt = base ? base.textContent.replace(JUNK_RE, '').trim() : '';
+    const space = !base || base.classList.contains('whitespace') || txt === '' || txt === '0';
+    const cells = Array.prototype.filter.call(lc.children, function (el) { return el.classList && el.classList.contains('letter'); });
+    const rows = cells.length;
+    const items = [];
+    for (let r = 0; r < rows; r++) {
+        const cell = cells[rows - 1 - r];              // row 0 = the row nearest the letter
+        const sig = innerSig(cell);
+        if (sig) items.push({ r: r, cell: cell, sig: sig });
+    }
+    const key = items.length ? items.map(function (it) { return it.r + ':' + it.sig; }).join(' ; ') : EMPTY;
+    if (key !== EMPTY && !parsed.colEx.has(key)) {
+        parsed.colEx.set(key, {
+            rows: items.map(function (it) { return { r: it.r, html: cellHtml(it.cell) }; }),
+            maxR: items[items.length - 1].r
+        });
+    }
+    return { ch: space ? ' ' : txt, space: space, key: key, rows: rows };
+}
+
+function parsePiece(piece, f, parsed) {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = piece.visualData;
+    const nodes = tmp.querySelectorAll('.letter-container, br');
+    let words = [], w = null, n = 0, firstRows = null;
+    const pieceName = piece.name || 'Untitled';
+
+    function pushWord() {
+        if (w && w.cols.length) words.push({ text: w.cols.map(function (c) { return c.ch; }).join(''), cols: w.cols });
+        w = null;
+    }
+    function endLine(tail) {
+        pushWord();
+        if (words.length || tail) { n++; parsed.lines.push({ piece: pieceName, folder: f.name, n: n, words: words, tail: tail }); }
+        words = [];
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        if (node.tagName === 'BR') { if (!node.closest('.letter-container')) endLine(null); continue; }
+        const col = parseColumn(node, parsed);
+        if (firstRows === null) firstRows = col.rows;
+        if (col.space) { if (col.key !== EMPTY) parsed.spaceMili++; pushWord(); continue; }
+        if (PUNCT_RE.test(col.ch)) { endLine({ ch: col.ch, key: col.key }); continue; }
+        if (!w) w = { cols: [] };
+        w.cols.push({ ch: col.ch, key: col.key });
+    }
+    endLine(null);
+    parsed.pieces++;
+    if (firstRows) parsed.rowFreq.set(firstRows, (parsed.rowFreq.get(firstRows) || 0) + 1);
+}
+
+function flatten(line) {
+    const keys = [], chars = [];
+    line.words.forEach(function (w, i) {
+        if (i) { keys.push(SPACE); chars.push(' '); }
+        w.cols.forEach(function (c) { keys.push(c.key); chars.push(c.ch); });
+    });
+    if (line.tail) { keys.push(line.tail.key); chars.push(line.tail.ch); }
+    return { keys: keys, chars: chars };
+}
+
+/* ------------------------------------------------------------------
+   aggregation: shape  ->  which miliket patterns were used, how often
+------------------------------------------------------------------ */
+function aggregate() {
+    const P = PA.parsed;
+    const A = { exact: new Map(), runs: new Map(), wordPos: new Map(), word: new Map(), col: new Map(), tail: new Map(), uncertain: new Map(), totals: { lines: 0, words: 0, cols: 0 } };
+
+    function bump(map, key, label, pat, mk) {
+        let e = map.get(key);
+        if (!e) { e = { key: key, label: label, total: 0, pats: new Map() }; map.set(key, e); }
+        e.total++;
+        let p = e.pats.get(pat);
+        if (!p) { p = { pat: pat, n: 0, ex: mk() }; e.pats.set(pat, p); }
+        p.n++;
+    }
+
+    P.lines.forEach(function (line) {
+        const words = line.words, tail = line.tail;
+        const grps = words.map(function (w) { return grpOf(w.text); });
+        const where = line.piece + ' · line ' + line.n;
+        const flat = flatten(line);
+        const pat = flat.keys.join('¦');
+        const mkLine = function () { return { keys: flat.keys, chars: flat.chars, where: where }; };
+        A.totals.lines++;
+
+        const exactKey = words.map(function (w, i) { return grps[i].code + w.cols.length; }).join(' ') + (tail ? ' ' + tail.ch : '');
+        const exactLabel = words.map(function (w, i) { return grps[i].label + w.cols.length; }).join(' ') + (tail ? ' ' + tail.ch : '');
+        const runs = [];
+        grps.forEach(function (g) {
+            const last = runs[runs.length - 1];
+            if (last && last.code === g.code) last.n++; else runs.push({ code: g.code, label: g.label, n: 1 });
+        });
+        const runsKey = runs.map(function (r) { return r.code + '×' + r.n; }).join(' ') + (tail ? ' ' + tail.ch : '');
+        const runsLabel = runs.map(function (r) { return r.label + ' ×' + r.n; }).join('  →  ') + (tail ? '  ' + tail.ch : '');
+        bump(A.exact, exactKey, exactLabel, pat, mkLine);
+        bump(A.runs, runsKey, runsLabel, pat, mkLine);
+
+        words.forEach(function (w, i) {
+            const g = grps[i], len = w.cols.length;
+            const pos = words.length === 1 ? 'only' : (i === 0 ? 'first' : (i === words.length - 1 ? 'last' : 'mid'));
+            const keys = w.cols.map(function (c) { return c.key; });
+            const chars = w.cols.map(function (c) { return c.ch; });
+            const wpat = keys.join('¦');
+            const mkW = function () { return { keys: keys, chars: chars, where: where }; };
+            bump(A.word, g.code + '|' + len, g.label + ' · ' + len + ' letters', wpat, mkW);
+            bump(A.wordPos, g.code + '|' + len + '|' + pos, g.label + ' · ' + len + ' letters · ' + POS_LABEL[pos], wpat, mkW);
+            w.cols.forEach(function (c, j) {
+                const fe = Math.min(len - 1 - j, 6);
+                bump(A.col, g.code + '|e' + fe, g.label + ' · ' + FROM_END[fe], c.key, function () { return { keys: [c.key], chars: [c.ch], where: where }; });
+                A.totals.cols++;
+            });
+            A.totals.words++;
+            const inf = infoOf(w.text);
+            if (!inf.certain && inf.ord) {
+                const u = A.uncertain.get(w.text);
+                if (u) u.n++; else A.uncertain.set(w.text, { n: 1 });
+            }
+        });
+
+        if (tail && words.length) {
+            const lastG = grps[grps.length - 1];
+            const mkT = function () { return { keys: [tail.key], chars: [tail.ch], where: where }; };
+            bump(A.tail, 'P' + tail.ch + '|' + lastG.code, tail.ch + ' after ' + lastG.label, tail.key, mkT);
+            bump(A.tail, 'P' + tail.ch, tail.ch, tail.key, mkT);
+        }
+    });
+
+    [A.exact, A.runs, A.wordPos, A.word, A.col, A.tail].forEach(function (map) {
+        map.forEach(function (e) {
+            e.sorted = Array.from(e.pats.values()).sort(function (a, b) { return b.n - a.n; });
+            e.share = Math.round(e.sorted[0].n * 100 / e.total);
+        });
+    });
+    PA.agg = A;
+    return A;
+}
+
+function rowsNeeded(keys) {
+    let m = 0;
+    keys.forEach(function (k) {
+        const e = PA.parsed.colEx.get(k);
+        if (e && e.maxR + 1 > m) m = e.maxR + 1;
+    });
+    return Math.max(1, m);
+}
+
+/* ------------------------------------------------------------------
+   writing columns back out in the exact markup the editor uses
+------------------------------------------------------------------ */
+function buildCols(cols, rows, withIds) {
+    let sp = 0, cu = 0, html = '';
+    cols.forEach(function (c, i) {
+        if (c.br) { html += '<br>'; return; }
+        const ex = (!c.space && c.key && c.key !== EMPTY) ? PA.parsed.colEx.get(c.key) : null;
+        let cells = '';
+        for (let r = rows - 1; r >= 0; r--) {
+            let inner = HAIR2, touched = false;
+            if (ex) {
+                const hit = ex.rows.find(function (x) { return x.r === r; });
+                if (hit) { inner = hit.html; touched = true; }
+            }
+            inner = withIds
+                ? inner.replace(/\bid="cussta\d+"/g, function () { return 'id="cussta' + (cu++) + '"'; })
+                : inner.replace(/\sid="[^"]*"/g, '');
+            cells += '<span' + (r > 0 ? ' style="margin-bottom:-1rem;"' : '') + (withIds ? ' id="space' + (sp++) + '"' : '') +
+                ' class="letter"' + (withIds && touched ? ' data-orig="' + HAIR2 + '"' : '') + '>' + inner + '</span>';
+        }
+        const base = c.space ? '<span class="baseletter whitespace">0</span>' : '<span class="baseletter">' + esc(c.ch) + '\u200A</span>';
+        html += '<div class="letter-container"' + (withIds ? ' id="letter-container' + i + '"' : '') + '>' + cells + base + '</div>';
+    });
+    return html;
+}
+
+function previewHtml(ex, zoom) {
+    const cols = ex.keys.map(function (k, i) { return { key: k, ch: ex.chars[i], space: k === SPACE }; });
+    return '<div class="pa-prev borders-off"><div class="pa-prev-in" style="zoom:' + zoom + '">' + buildCols(cols, rowsNeeded(ex.keys), false) + '</div></div>';
+}
+
+function describeKey(k) {
+    if (k === EMPTY) return 'nothing';
+    if (k === SPACE) return 'space';
+    return k.split(' ; ').map(function (p) {
+        const i = p.indexOf(':');
+        return 'R' + (parseInt(p.slice(0, i), 10) + 1) + ' ' + p.slice(i + 1);
+    }).join(' + ');
+}
+
+function plainDescribe(ex) {
+    const out = [];
+    ex.keys.forEach(function (k, i) {
+        if (k === EMPTY || k === SPACE) return;
+        out.push(ex.chars[i] + ' → ' + describeKey(k));
+    });
+    return out.length ? out.join('   ·   ') : '(no miliket)';
+}
+
+/* ------------------------------------------------------------------
+   step 1: choose folders and scan
+------------------------------------------------------------------ */
+function listFolders() {
+    const out = [];
+    Object.keys(appData || {}).filter(function (k) { return k !== '_lastSaved'; }).forEach(function (proj) {
+        ((appData[proj] || {}).folders || []).forEach(function (f) {
+            const n = (f.pieces || []).filter(function (p) { return p.visualData && p.visualData.trim(); }).length;
+            out.push({ key: proj + '\u0001' + f.name, proj: proj, folder: f, name: f.name, count: n });
+        });
+    });
+    return out;
+}
+
+function renderScan() {
+    const el = $('pa-tab-scan');
+    let h = '<p class="pa-note">Tick the folders to learn from, for example your Melk folder. Every piece in them is read once: each word gets its ንባብ class and the miliket over every letter is recorded. Image pieces and empty pieces are skipped. Nothing is changed or saved by scanning.</p>';
+    h += '<div class="pa-quick">' +
+        '<button class="pa-btn" type="button" onclick="paQuick(\'here\')">This folder</button>' +
+        '<button class="pa-btn" type="button" onclick="paQuick(\'project\')">Whole project</button>' +
+        '<button class="pa-btn" type="button" onclick="paQuick(\'all\')">Everything</button>' +
+        '<button class="pa-btn" type="button" onclick="paQuick(\'none\')">None</button></div>';
+    if (!PA.folderList.length) h += '<div class="pa-empty">There are no folders yet.</div>';
+    h += '<div class="pa-folder-list">' + PA.folderList.map(function (f, i) {
+        return '<label class="pa-folder"><input type="checkbox" data-i="' + i + '" ' + (PA.sel.has(f.key) ? 'checked' : '') + ' onchange="paToggleFolder(this)">' +
+            '<span class="pa-fproj">' + esc(f.proj) + ' ›</span><b>' + esc(f.name) + '</b>' +
+            '<span class="pa-fcount">' + f.count + ' piece' + (f.count === 1 ? '' : 's') + ' with content</span></label>';
+    }).join('') + '</div>';
+    h += '<button class="pa-btn gold" id="pa-scan-btn" type="button" onclick="paScan()">🔍 Scan selected folders</button>';
+    h += '<div class="pa-status" id="pa-scan-status">' + (PA.parsed ? 'Last scan: ' + PA.parsed.pieces + ' pieces, ' + PA.parsed.lines.length + ' lines (' + esc(PA.parsed.folderNames.join(', ')) + '). Scan again after you edit pieces.' : '') + '</div>';
+    el.innerHTML = h;
+}
+
+window.paToggleFolder = function (cb) {
+    const f = PA.folderList[parseInt(cb.getAttribute('data-i'), 10)];
+    if (!f) return;
+    if (cb.checked) PA.sel.add(f.key); else PA.sel.delete(f.key);
+};
+
+window.paQuick = function (what) {
+    PA.sel = new Set();
+    if (what === 'here') {
+        const cur = ((appData[currentUser] || {}).folders || [])[currentFolder];
+        if (cur) PA.sel.add(currentUser + '\u0001' + cur.name);
+    } else if (what === 'project') {
+        PA.folderList.forEach(function (f) { if (f.proj === currentUser) PA.sel.add(f.key); });
+    } else if (what === 'all') {
+        PA.folderList.forEach(function (f) { PA.sel.add(f.key); });
+    }
+    renderScan();
+};
+
+window.paScan = async function () {
+    const folders = PA.folderList.filter(function (f) { return PA.sel.has(f.key); });
+    if (!folders.length) { alert('Tick at least one folder first.'); return; }
+    const btn = $('pa-scan-btn'), st = $('pa-scan-status');
+    btn.disabled = true;
+    const parsed = { lines: [], colEx: new Map(), pieces: 0, images: 0, empty: 0, failed: 0, spaceMili: 0, rowFreq: new Map(), folderNames: [], rowsMode: 1 };
+    let total = 0, done = 0;
+    folders.forEach(function (f) { total += (f.folder.pieces || []).length; });
+
+    for (let fi = 0; fi < folders.length; fi++) {
+        const f = folders[fi];
+        parsed.folderNames.push(f.name);
+        const pieces = f.folder.pieces || [];
+        for (let pi = 0; pi < pieces.length; pi++) {
+            const piece = pieces[pi];
+            done++;
+            st.textContent = 'Reading ' + done + ' / ' + total + ' · ' + (piece.name || '');
+            await tick();
+            if (!piece.visualData || !piece.visualData.trim()) { parsed.empty++; continue; }
+            if (isImagePieceHtml(piece.visualData)) { parsed.images++; continue; }
+            try { parsePiece(piece, f, parsed); }
+            catch (e) { console.error('Pattern Analyzer could not read', piece.name, e); parsed.failed++; }
+        }
+    }
+
+    let best = 0, bestN = 0;
+    parsed.rowFreq.forEach(function (n, rows) { if (n > bestN) { bestN = n; best = rows; } });
+    parsed.rowsMode = best || 1;
+    btn.disabled = false;
+
+    if (!parsed.lines.length) {
+        PA.parsed = null; PA.agg = null;
+        st.textContent = 'No readable lines were found in those folders (' + parsed.empty + ' empty, ' + parsed.images + ' image pieces).';
+        return;
+    }
+    PA.parsed = parsed;
+    PA.test = null;
+    aggregate();
+    PA.tab = 'rules';
+    window.paTab('rules');
+};
+
+/* ------------------------------------------------------------------
+   step 2: rules
+------------------------------------------------------------------ */
+function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + label + '</option>'; }
+function stat(v, label) { return '<div class="pa-stat"><b>' + v + '</b><span>' + label + '</span></div>'; }
+function chip(label, color) { return '<span class="pa-chip" style="background:' + color + '">' + esc(label) + '</span>'; }
+
+function classSelect(text, cur) {
+    return '<select class="pa-sel" data-w="' + esc(text) + '" onchange="paSetClass(this)">' +
+        (cur === 'unknown' ? '<option value="unknown" selected>?</option>' : '') +
+        ['tenesh', 'tetay', 'wedaqi', 'seyaf'].map(function (c) { return '<option value="' + c + '"' + (c === cur ? ' selected' : '') + '>' + CLASSES[c].am + '</option>'; }).join('') +
+        '</select>';
+}
+
+function listOf(map, min) {
+    return Array.from(map.values()).filter(function (e) { return e.total >= min; })
+        .sort(function (a, b) { return b.total - a.total || (a.label < b.label ? -1 : 1); });
+}
+
+function ruleRow(kind, e) {
+    PA.reg.push({ kind: kind, e: e });
+    const badge = e.share >= PA.thr
+        ? '<span class="pa-badge ok">' + e.share + '% same miliket</span>'
+        : '<span class="pa-badge warn">' + e.share + '% · ' + e.sorted.length + ' variants</span>';
+    return '<details class="pa-rule" data-ri="' + (PA.reg.length - 1) + '" ontoggle="paToggle(this)"><summary><span>' + esc(e.label) + '</span>' + badge +
+        '<span class="pa-cnt">seen ' + e.total + '×</span></summary><div class="pa-detail"></div></details>';
+}
+
+function detailHtml(e) {
+    const top = e.sorted.slice(0, 6);
+    let h = top.map(function (p) {
+        const pct = Math.round(p.n * 100 / e.total);
+        return '<div class="pa-pat"><div class="pa-pat-h"><b>' + pct + '%</b> · ' + p.n + ' of ' + e.total + ' · e.g. ' + esc(p.ex.where) + '</div>' +
+            '<div class="pa-pat-t">' + esc(plainDescribe(p.ex)) + '</div>' + previewHtml(p.ex, 0.36) + '</div>';
+    }).join('');
+    if (e.sorted.length > 6) h += '<div class="pa-more">+ ' + (e.sorted.length - 6) + ' rarer variants not shown</div>';
+    return h;
+}
+
+window.paToggle = function (d) {
+    if (!d.open) return;
+    const box = d.querySelector('.pa-detail');
+    if (!box || box.getAttribute('data-ready')) return;
+    const r = PA.reg[parseInt(d.getAttribute('data-ri'), 10)];
+    if (!r) return;
+    box.innerHTML = detailHtml(r.e);
+    box.setAttribute('data-ready', '1');
+};
+
+function section(title, note, list, kind, limit) {
+    let s = '<h3 class="pa-h">' + title + '</h3><p class="pa-note">' + note + '</p>';
+    if (!list.length) return s + '<div class="pa-empty small">Nothing has been seen ' + PA.min + ' or more times here yet. Lower the “seen” number above.</div>';
+    s += list.slice(0, limit).map(function (e) { return ruleRow(kind, e); }).join('');
+    if (list.length > limit) s += '<div class="pa-more">+ ' + (list.length - limit) + ' more. Use “Copy rules as text” to get the full list.</div>';
+    return s;
+}
+
+function renderRules() {
+    const el = $('pa-tab-rules');
+    if (!PA.agg) { el.innerHTML = '<div class="pa-empty">Nothing scanned yet. Go to step 1, tick your folders and press Scan.</div>'; return; }
+    PA.reg = [];
+    const A = PA.agg, P = PA.parsed, T = A.totals;
+
+    let h = '<div class="pa-controls">' +
+        '<label>Group words by<select onchange="paSet(\'mode\',this.value)">' + opt('class', 'ንባብ class (smart guess + my corrections)', PA.mode) + opt('order', 'Ending letter order only (exact, no guessing)', PA.mode) + '</select></label>' +
+        '<label>Line shapes<select onchange="paSet(\'lineView\',this.value)">' + opt('runs', 'Class runs  (e.g. ተጣይ ×5 → ወዳቂ ×2)', PA.lineView) + opt('exact', 'Classes + word lengths (strictest)', PA.lineView) + '</select></label>' +
+        '<label>Word rules<select onchange="paSet(\'wordView\',this.value)">' + opt('pos', 'Class + length + place in line', PA.wordView) + opt('plain', 'Class + length only', PA.wordView) + '</select></label>' +
+        '<label>Only rules seen ≥<input type="number" min="1" max="99" value="' + PA.min + '" onchange="paSet(\'min\',this.value)"></label>' +
+        '<label>“Same” means ≥ %<input type="number" min="50" max="100" value="' + PA.thr + '" onchange="paSet(\'thr\',this.value)"></label>' +
+        '<button class="pa-btn" type="button" onclick="paCopyRules()">📋 Copy rules as text</button></div>';
+
+    const ex2 = Array.from(A.exact.values()).filter(function (e) { return e.total >= 2; });
+    const ex2ok = ex2.filter(function (e) { return e.share >= PA.thr; }).length;
+    const w2 = Array.from(A.word.values()).filter(function (e) { return e.total >= 2; });
+    const w2ok = w2.filter(function (e) { return e.share >= PA.thr; }).length;
+    h += '<div class="pa-stats">' + stat(P.pieces, 'pieces read') + stat(T.lines, 'lines') + stat(T.words, 'words') + stat(T.cols, 'letters') +
+        stat(ex2.length, 'line shapes seen 2+ times (strict)') + stat(ex2ok + ' / ' + ex2.length, 'of those always use the same miliket') +
+        stat(w2.length, 'word templates seen 2+ times') + stat(w2ok + ' / ' + w2.length, 'of those always use the same miliket') + '</div>';
+    const skipped = [];
+    if (P.images) skipped.push(P.images + ' image piece' + (P.images === 1 ? '' : 's'));
+    if (P.empty) skipped.push(P.empty + ' empty piece' + (P.empty === 1 ? '' : 's'));
+    if (P.failed) skipped.push(P.failed + ' piece' + (P.failed === 1 ? '' : 's') + ' that could not be read');
+    if (P.spaceMili) skipped.push(P.spaceMili + ' space box' + (P.spaceMili === 1 ? '' : 'es') + ' that carry miliket (ignored)');
+    if (skipped.length) h += '<p class="pa-note" style="margin-top:8px">Skipped: ' + skipped.join(', ') + '.</p>';
+
+    const lineMap = PA.lineView === 'exact' ? A.exact : A.runs;
+    h += section('Line shapes → miliket',
+        PA.lineView === 'exact'
+            ? 'Each row is a line with exactly this sequence of word classes and word lengths (number after the class = letters). Open a row to see which miliket those lines used.'
+            : 'Each row is a line shape, for example five ተጣይ words and then two ወዳቂ words. Open a row to see the miliket those lines used. If the miliket varies here, the word lengths probably matter: switch to “Classes + word lengths”.',
+        listOf(lineMap, PA.min), 'line', 150);
+
+    const wordMap = PA.wordView === 'pos' ? A.wordPos : A.word;
+    h += section('Word templates → miliket',
+        'The miliket pattern a single word gets, by its class and number of letters' + (PA.wordView === 'pos' ? ' and where it stands in the line.' : '.'),
+        listOf(wordMap, PA.min), 'word', 150);
+
+    const colList = Array.from(A.col.values()).filter(function (e) { return e.total >= PA.min; })
+        .sort(function (a, b) { return a.key < b.key ? -1 : 1; });
+    h += section('Letter rules → miliket',
+        'The miliket most often written on a letter, by its word class and how far it is from the end of the word. These fill the gaps when no whole word has been seen before.',
+        colList, 'col', 120);
+
+    const tailList = Array.from(A.tail.values()).filter(function (e) { return e.key.indexOf('|') !== -1 && e.total >= PA.min; })
+        .sort(function (a, b) { return b.total - a.total; });
+    h += section('Punctuation → miliket', 'The miliket written on the ። ፤ ፡ mark that ends a line, by the class of the last word.', tailList, 'tail', 60);
+
+    if (PA.mode === 'class') {
+        const rev = Array.from(A.uncertain.entries()).sort(function (a, b) { return b[1].n - a[1].n; }).slice(0, 60);
+        h += '<h3 class="pa-h">Words to double check</h3><p class="pa-note">The class of a word is a guess from its ending and shape (verb or noun cannot be told for sure from spelling alone, and context can change it). Fix the class here and every rule above updates. Your corrections are remembered in this browser.</p>';
+        if (rev.length) {
+            h += '<div class="pa-review">' + rev.map(function (kv) {
+                return '<div class="pa-rv"><span class="pa-rv-w">' + esc(kv[0]) + '</span><span class="pa-rv-n">×' + kv[1].n + '</span>' + classSelect(kv[0], infoOf(kv[0]).cls) + '</div>';
+            }).join('') + '</div>';
+        } else {
+            h += '<div class="pa-empty small">No unsure words left.</div>';
+        }
+        const mine = Object.keys(dict);
+        if (mine.length) {
+            h += '<details class="pa-rule" style="margin-top:12px"><summary><span>My corrections</span><span class="pa-cnt">' + mine.length + ' word' + (mine.length === 1 ? '' : 's') + '</span></summary><div class="pa-detail"><div class="pa-review">' +
+                mine.sort().map(function (w) {
+                    return '<div class="pa-rv"><span class="pa-rv-w">' + esc(w) + '</span>' + classSelect(w, dict[w]) + '<button class="pa-del" type="button" data-w="' + esc(w) + '" onclick="paDelWord(this)" title="Remove my correction">✕</button></div>';
+                }).join('') + '</div></div></details>';
+        }
+    }
+    el.innerHTML = h;
+}
+
+function refreshRules() {
+    const body = $('pa-body');
+    const top = body ? body.scrollTop : 0;
+    renderRules();
+    if (body) body.scrollTop = top;
+}
+
+window.paSet = function (k, v) {
+    if (k === 'min') PA.min = Math.max(1, parseInt(v, 10) || 1);
+    else if (k === 'thr') PA.thr = Math.min(100, Math.max(50, parseInt(v, 10) || 80));
+    else PA[k] = v;
+    if (k === 'mode' && PA.parsed) aggregate();
+    refreshRules();
+    if (k === 'mode' && PA.test) runTest();
+};
+
+function dictChanged() {
+    saveDict();
+    infoCache.clear();
+    if (PA.parsed) aggregate();
+    refreshRules();
+    if (PA.test || PA.testText) runTest();
+}
+window.paSetClass = function (sel) { dict[sel.getAttribute('data-w')] = sel.value; dictChanged(); };
+window.paDelWord = function (btn) { delete dict[btn.getAttribute('data-w')]; dictChanged(); };
+
+window.paCopyRules = async function () {
+    if (!PA.agg) return;
+    const A = PA.agg, out = [];
+    function block(title, list) {
+        out.push('', '=== ' + title + ' ===');
+        if (!list.length) { out.push('(none)'); return; }
+        list.forEach(function (e) {
+            out.push('', '• ' + e.label + '   [seen ' + e.total + '×, ' + e.share + '% same, ' + e.sorted.length + ' variant' + (e.sorted.length === 1 ? '' : 's') + ']');
+            e.sorted.slice(0, 3).forEach(function (p) {
+                out.push('    ' + Math.round(p.n * 100 / e.total) + '% (' + p.n + '): ' + plainDescribe(p.ex));
+            });
+        });
+    }
+    out.push('Miliket pattern rules — grouped by ' + (PA.mode === 'class' ? 'ንባብ class' : 'ending letter order') + ', from ' + PA.parsed.folderNames.join(', '));
+    out.push('Row numbers: R1 is the row nearest the letter, R2 the row above it, and so on.');
+    block(PA.lineView === 'exact' ? 'Line shapes (classes + word lengths)' : 'Line shapes (class runs)', listOf(PA.lineView === 'exact' ? A.exact : A.runs, PA.min));
+    block('Word templates', listOf(PA.wordView === 'pos' ? A.wordPos : A.word, PA.min));
+    block('Letter rules', Array.from(A.col.values()).filter(function (e) { return e.total >= PA.min; }).sort(function (a, b) { return a.key < b.key ? -1 : 1; }));
+    block('Punctuation', Array.from(A.tail.values()).filter(function (e) { return e.key.indexOf('|') !== -1 && e.total >= PA.min; }));
+    try { await navigator.clipboard.writeText(out.join('\n')); showToast('Rules copied as text.', 'success'); }
+    catch (e) { alert('Clipboard access denied.'); }
+};
+
+/* ------------------------------------------------------------------
+   step 3: test a piece
+------------------------------------------------------------------ */
+function tokenizeInput(text) {
+    const out = [];
+    String(text || '').normalize('NFC').split(/\r?\n/).forEach(function (chunk) {
+        let words = [], cur = [];
+        const flush = function () { if (cur.length) { words.push({ text: cur.join(''), letters: cur }); cur = []; } };
+        const close = function (tail) { flush(); if (words.length || tail) out.push({ words: words, tail: tail, brAfter: false }); words = []; };
+        for (const ch of chunk) {
+            if (/\s/.test(ch) || /[\u200B-\u200D\u2060\uFEFF]/.test(ch)) flush();
+            else if (PUNCT_RE.test(ch)) close(ch);
+            else cur.push(ch);
+        }
+        close('');
+        if (out.length) out[out.length - 1].brAfter = true;
+    });
+    return out;
+}
+
+function predictLine(L) {
+    const A = PA.agg;
+    const grps = L.words.map(function (w) { return grpOf(w.text); });
+    const chars = [];
+    L.words.forEach(function (w, i) { if (i) chars.push(' '); w.letters.forEach(function (c) { chars.push(c); }); });
+    if (L.tail) chars.push(L.tail);
+
+    const exactKey = L.words.map(function (w, i) { return grps[i].code + w.letters.length; }).join(' ') + (L.tail ? ' ' + L.tail : '');
+    const runs = [];
+    grps.forEach(function (g) {
+        const last = runs[runs.length - 1];
+        if (last && last.code === g.code) last.n++; else runs.push({ code: g.code, label: g.label, n: 1 });
+    });
+    const shape = runs.map(function (r) { return r.label + ' ×' + r.n; }).join('  →  ') + (L.tail ? '  ' + L.tail : '');
+
+    const res = { words: [], keys: null, chars: chars, tail: L.tail, brAfter: L.brAfter, shape: shape };
+
+    const whole = A.exact.get(exactKey);
+    if (whole && whole.sorted[0].ex.keys.length === chars.length) {
+        res.keys = whole.sorted[0].ex.keys.slice();
+        L.words.forEach(function (w, i) {
+            res.words.push({ text: w.text, grp: grps[i], level: 'line', n: whole.total, share: whole.share, alts: whole.sorted.length - 1 });
+        });
+        return res;
+    }
+
+    const keys = [];
+    L.words.forEach(function (w, i) {
+        const g = grps[i], len = w.letters.length;
+        const pos = L.words.length === 1 ? 'only' : (i === 0 ? 'first' : (i === L.words.length - 1 ? 'last' : 'mid'));
+        let e = A.wordPos.get(g.code + '|' + len + '|' + pos), level = 'wordpos', wkeys, n, share, alts;
+        if (!e) { e = A.word.get(g.code + '|' + len); level = 'word'; }
+        if (e) {
+            wkeys = e.sorted[0].ex.keys.slice(); n = e.total; share = e.share; alts = e.sorted.length - 1;
+        } else {
+            level = 'letters'; wkeys = []; let hit = 0, nn = 0, sh = 0;
+            for (let j = 0; j < len; j++) {
+                const ce = A.col.get(g.code + '|e' + Math.min(len - 1 - j, 6));
+                if (ce) { wkeys.push(ce.sorted[0].pat); hit++; nn += ce.total; sh += ce.share; } else wkeys.push(EMPTY);
+            }
+            if (!hit) level = 'none';
+            n = hit ? Math.round(nn / hit) : 0; share = hit ? Math.round(sh / hit) : 0; alts = 0;
+        }
+        if (i) keys.push(SPACE);
+        wkeys.forEach(function (k) { keys.push(k); });
+        res.words.push({ text: w.text, grp: g, level: level, n: n, share: share, alts: alts });
+    });
+    if (L.tail) {
+        const lastG = grps[grps.length - 1];
+        const te = (lastG && A.tail.get('P' + L.tail + '|' + lastG.code)) || A.tail.get('P' + L.tail);
+        keys.push(te ? te.sorted[0].pat : EMPTY);
+    }
+    res.keys = keys;
+    return res;
+}
+
+function renderTest() {
+    const el = $('pa-tab-test');
+    if (!PA.agg) { el.innerHTML = '<div class="pa-empty">Scan some folders first (step 1). The tester writes miliket using what was learned there.</div>'; return; }
+    el.innerHTML = '<p class="pa-note">Paste or type Ge’ez text. Put each row on its own line if you want line breaks in the piece. Lines end at ። ፤ ፡ like the slide builder. The miliket is written from the patterns learned in step 1: a matching whole line first, then a matching word, then individual letters.</p>' +
+        '<textarea id="pa-test-input" spellcheck="false" placeholder="ወይቤሎ እግዚእ ኢየሱስ ለናትናኤል።">' + esc(PA.testText) + '</textarea>' +
+        '<div class="pa-actions"><button class="pa-btn gold" type="button" onclick="paRunTest()">▶ Write the miliket</button></div>' +
+        '<div id="pa-test-out"></div>';
+    if (PA.testText.trim()) runTest();
+}
+
+function runTest() {
+    if (!PA.agg) return;
+    const ta = $('pa-test-input');
+    if (ta) PA.testText = ta.value;
+    const out = $('pa-test-out');
+    if (!out) return;
+    const lines = tokenizeInput(PA.testText);
+    if (!lines.length) { out.innerHTML = '<div class="pa-empty small">Type some Ge’ez text first.</div>'; PA.test = null; return; }
+    PA.test = { lines: lines.map(predictLine) };
+    renderTestOut();
+}
+window.paRunTest = runTest;
+
+function renderTestOut() {
+    const out = $('pa-test-out');
+    const T = PA.test;
+    if (!out || !T) return;
+    const cnt = { line: 0, wordpos: 0, word: 0, letters: 0, none: 0 };
+    T.lines.forEach(function (L) { L.words.forEach(function (w) { cnt[w.level]++; }); });
+    let h = '<div class="pa-stats">';
+    Object.keys(LEVEL).forEach(function (k) { if (cnt[k]) h += stat(cnt[k], 'word' + (cnt[k] === 1 ? '' : 's') + ' · ' + LEVEL[k].text); });
+    h += '</div>';
+    if (cnt.none || cnt.letters) h += '<p class="pa-note" style="margin-top:8px">Words marked “letter rules only” or “no data” have no matching example in the folders you scanned, so treat their miliket as a rough guess.</p>';
+
+    T.lines.forEach(function (L, li) {
+        h += '<div class="pa-line"><div class="pa-line-h">Line ' + (li + 1) + ' · ' + esc(L.shape) + '</div>' +
+            '<table class="pa-table"><tr><th>Word</th><th>' + (PA.mode === 'class' ? 'ንባብ class' : 'Ending order') + '</th><th>Miliket came from</th><th>Support</th></tr>';
+        L.words.forEach(function (w) {
+            const lv = LEVEL[w.level];
+            const cls = PA.mode === 'class' ? chip(w.grp.label, w.grp.color) + ' ' + classSelect(w.text, infoOf(w.text).cls) : chip(w.grp.label, w.grp.color);
+            const sup = w.n ? w.n + ' seen · ' + w.share + '% same' + (w.alts ? ' · ' + w.alts + ' other' + (w.alts === 1 ? '' : 's') : '') : '—';
+            h += '<tr><td class="w">' + esc(w.text) + '</td><td>' + cls + '</td><td><span class="pa-badge ' + lv.cls + '">' + lv.text + '</span></td><td class="s">' + sup + '</td></tr>';
+        });
+        h += '</table>' + previewHtml({ keys: L.keys, chars: L.chars }, 0.42) + '</div>';
+    });
+    h += '<div class="pa-actions"><button class="pa-btn green" type="button" onclick="paCopyHtml()">📋 Copy piece HTML (for “Paste HTML” in the editor)</button>' +
+        '<button class="pa-btn" type="button" onclick="paCreatePiece()">＋ Create as a new piece in this folder</button></div>';
+    out.innerHTML = h;
+}
+
+function pieceHtml() {
+    const cols = [{ key: SPACE, ch: ' ', space: true }];
+    const all = [];
+    PA.test.lines.forEach(function (L, li) {
+        L.keys.forEach(function (k, i) { cols.push({ key: k, ch: L.chars[i], space: k === SPACE }); all.push(k); });
+        if (li < PA.test.lines.length - 1) {
+            if (L.brAfter) cols.push({ br: true });
+            else cols.push({ key: SPACE, ch: ' ', space: true });
+        }
+    });
+    return buildCols(cols, Math.max(PA.parsed.rowsMode || 1, rowsNeeded(all)), true);
+}
+
+window.paCopyHtml = async function () {
+    if (!PA.test) return;
+    try { await navigator.clipboard.writeText(pieceHtml()); showToast('Copied. In the editor click “Paste HTML”.', 'success'); }
+    catch (e) { alert('Clipboard access denied.'); }
+};
+
+window.paCreatePiece = async function () {
+    if (!PA.test) return;
+    if (currentUser === null || currentFolder === null || !appData[currentUser] || !appData[currentUser].folders[currentFolder]) { alert('Open a folder first.'); return; }
+    const name = await studioPrompt({
+        title: 'New piece from this prediction',
+        message: 'This adds a NEW piece to the folder you are in. Nothing existing is changed.',
+        icon: '📜', placeholder: 'Piece name', confirmLabel: 'Create'
+    });
+    if (!name || !name.trim()) return;
+    const folder = appData[currentUser].folders[currentFolder];
+    if (!folder.pieces) folder.pieces = [];
+    const piece = {
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: name.trim(), content: PA.testText.trim(), visualData: pieceHtml(), lastModified: new Date().toISOString()
+    };
+    folder.pieces.push(piece);
+    if (typeof markPieceDirty === 'function') markPieceDirty(piece.id);
+    saveAndSync();
+    if (typeof renderPieces === 'function') renderPieces();
+    showToast('Created “' + piece.name + '” in “' + folder.name + '”.', 'success');
+};
+
+/* ------------------------------------------------------------------
+   open / close / tabs
+------------------------------------------------------------------ */
+window.paTab = function (tab) {
+    PA.tab = tab;
+    document.querySelectorAll('#pa-overlay .pa-tabs button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === tab); });
+    document.querySelectorAll('#pa-overlay .pa-pane').forEach(function (p) { p.classList.toggle('active', p.id === 'pa-tab-' + tab); });
+    if (tab === 'scan') renderScan();
+    else if (tab === 'rules') renderRules();
+    else renderTest();
+    const body = $('pa-body');
+    if (body) body.scrollTop = 0;
+};
+
+window.paOpen = function () {
+    if (!currentUser || !appData[currentUser]) { alert('Open a project first.'); return; }
+    PA.folderList = listFolders();
+    if (!PA.selInit) {
+        PA.sel = new Set();
+        const cur = (appData[currentUser].folders || [])[currentFolder];
+        if (cur) PA.sel.add(currentUser + '\u0001' + cur.name);
+        PA.selInit = true;
+    }
+    $('pa-overlay').classList.add('open');
+    window.paTab(PA.agg ? PA.tab : 'scan');
+};
+
+window.paClose = function () { $('pa-overlay').classList.remove('open'); };
+
+document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    const o = $('pa-overlay');
+    if (!o || !o.classList.contains('open') || document.querySelector('.sd-overlay')) return;
+    e.preventDefault();
+    window.paClose();
+});
+
+/* test hook (harmless in the app) */
+window.__pa = { PA: PA, parsePiece: parsePiece, aggregate: aggregate, predictLine: predictLine, tokenizeInput: tokenizeInput, buildCols: buildCols, infoOf: infoOf, pieceHtml: pieceHtml, runTest: runTest };
 })();
 </script>
 </body>
