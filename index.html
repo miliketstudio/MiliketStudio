@@ -15294,6 +15294,8 @@ function generatePresetDeck() {
 .pa-pane.active{display:block;}
 .pa-note{margin:0 0 12px;font-size:0.82rem;line-height:1.55;color:var(--text-muted);font-family:sans-serif;}
 .pa-h{margin:26px 0 4px;font-size:1.02rem;font-weight:bold;color:var(--text);}
+.pa-h4{margin:16px 0 4px;padding-left:9px;border-left:4px solid var(--gold);font-size:0.95rem;font-weight:bold;color:var(--text);}
+.pa-sub{margin:8px 0 5px;font:bold 0.72rem sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;}
 .pa-empty{padding:40px 16px;text-align:center;color:var(--text-muted);font-family:sans-serif;font-size:0.9rem;}
 .pa-empty.small{padding:14px;font-size:0.8rem;}
 .pa-more{padding:8px 4px;font-size:0.76rem;color:var(--text-muted);font-family:sans-serif;}
@@ -15331,13 +15333,13 @@ function generatePresetDeck() {
 .pa-badge.bad{background:#c0392b;}
 .pa-badge.info{background:#3a5a82;}
 .pa-detail{padding:4px 12px 12px;}
+.pa-teach{margin:8px 0 2px;padding:7px 10px;border-left:3px solid #3a5a82;border-radius:0 6px 6px 0;background:rgba(58,90,130,0.10);font:0.78rem/1.55 sans-serif;color:var(--text);}
 .pa-pat{margin-top:10px;}
 .pa-pat-h{font:0.76rem sans-serif;color:var(--text-muted);margin-bottom:4px;}
 .pa-pat-h b{color:var(--text);}
 .pa-pat-t{margin-bottom:5px;font-size:0.88rem;line-height:1.7;color:var(--text);word-break:break-word;}
 .pa-prev{overflow-x:auto;background:#fffdf8;border:1px solid var(--card-border);border-radius:8px;padding:6px 8px;scrollbar-width:thin;color:#000;}
 .pa-prev-in{display:flex;align-items:flex-end;width:max-content;}
-/* differences shown in the previews (zoom is 0.36-0.42, so the sizes below look thin on screen) */
 .pa-prev .letter-container.pa-diff{background:rgba(231,76,60,0.24);outline:6px solid #e74c3c;outline-offset:-3px;border-radius:6px;}
 .pa-prev .letter-container.pa-gap-l{box-shadow:inset 9px 0 0 #e74c3c;}
 .pa-prev .letter-container.pa-gap-r{box-shadow:inset -9px 0 0 #e74c3c;}
@@ -15348,21 +15350,37 @@ function generatePresetDeck() {
 .pa-tag.ref{background:#3a5a82;}
 .pa-tag.sim{background:#d19a00;}
 .pa-tag.var{background:#c0392b;}
-.pa-chip{display:inline-block;padding:1px 9px;border-radius:6px;color:#fff;font-size:0.82rem;font-weight:bold;}
-.pa-table{width:100%;border-collapse:collapse;margin:6px 0 10px;font-size:0.9rem;}
-.pa-table th{padding:6px 8px;text-align:left;font:bold 0.68rem sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;border-bottom:1px solid var(--card-border);}
-.pa-table td{padding:5px 8px;border-bottom:1px solid var(--card-border);vertical-align:middle;}
-.pa-table td.w{font-size:1.15rem;}
-.pa-table td.s{font:0.76rem sans-serif;color:var(--text-muted);}
-.pa-sel{padding:3px 6px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text);font:0.78rem sans-serif;}
-.pa-line{margin-bottom:18px;padding:10px 12px;border:1px solid var(--card-border);border-radius:10px;background:var(--page-bg);}
-.pa-line-h{margin-bottom:4px;font:bold 0.8rem sans-serif;color:var(--text);}
-.pa-review{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px;}
-.pa-rv{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--card-border);border-radius:8px;background:var(--card-bg);}
-.pa-rv-w{font-size:1.1rem;}
-.pa-rv-n{font:0.72rem sans-serif;color:var(--text-muted);}
-.pa-rv .pa-sel{margin-left:auto;}
-.pa-rv .pa-del{border:none;background:transparent;color:#c0392b;font-size:1rem;cursor:pointer;}
+.pa-chk{display:flex;gap:10px;align-items:flex-start;margin:7px 0;font:0.84rem/1.5 sans-serif;color:var(--text);}
+.pa-ic{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font:bold 0.8rem sans-serif;}
+.pa-ic.ok{background:rgba(39,174,96,0.16);color:#1e8a4a;}
+.pa-ic.warn{background:rgba(230,126,34,0.18);color:#c0680f;}
+.pa-ic.info{background:rgba(58,90,130,0.16);color:#3a5a82;}
+.pa-chk details summary{cursor:pointer;color:var(--text-muted);font-size:0.76rem;}
+.pa-chk ul{margin:4px 0 0;padding-left:18px;font-size:0.76rem;color:var(--text-muted);}
+.pa-how{margin:0 0 14px;padding:10px 14px;border:1px solid var(--card-border);border-radius:10px;background:var(--page-bg);font:0.8rem/1.6 sans-serif;color:var(--text);}
+.pa-how summary{cursor:pointer;font-weight:bold;}
+.pa-how ol{margin:6px 0 0;padding-left:20px;}
+.pa-hcard{margin-bottom:18px;padding:12px 14px;border:1px solid var(--card-border);border-radius:10px;background:var(--page-bg);}
+.pa-hhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:8px;}
+.pa-hhead b{font-size:1.05rem;color:var(--text);}
+.pa-hhead label{display:flex;align-items:center;gap:6px;font:0.76rem sans-serif;color:var(--text-muted);}
+.pa-hhead select{padding:3px 6px;border:1px solid var(--card-border);border-radius:6px;background:var(--card-bg);color:var(--text);font:0.8rem sans-serif;}
+.pa-hline{font-size:1.25rem;line-height:1.6;padding:8px 10px;margin-bottom:10px;background:var(--card-bg);border-radius:6px;color:var(--text);}
+.pa-cols2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:10px;}
+@media (max-width:760px){.pa-cols2{grid-template-columns:1fr;}}
+.pa-col h5{margin:0 0 6px;font-size:0.9rem;color:var(--text);}
+.pa-blk{margin-bottom:7px;padding:7px 10px;border-left:4px solid var(--card-border);border-radius:8px;background:var(--card-bg);}
+.pa-blk.b{border-left-color:#3a5a82;background:rgba(58,90,130,0.10);}
+.pa-blk.r{border-left-color:#1a8a7a;background:rgba(26,138,122,0.10);}
+.pa-blk-t{font:bold 0.72rem sans-serif;color:var(--text-muted);margin-bottom:2px;}
+.pa-blk-w{font-size:1.2rem;line-height:1.5;color:var(--text);}
+.pa-blk-n{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:3px;font:0.74rem sans-serif;color:var(--text-muted);}
+.pa-eq{margin:2px 0 6px;font:bold 0.82rem sans-serif;color:var(--text);}
+.pa-adv{list-style:none;margin:6px 0 0;padding:0;}
+.pa-adv li{margin-bottom:5px;padding:6px 9px;border-radius:7px;font:0.78rem/1.5 sans-serif;color:var(--text);}
+.pa-adv li.ok{background:rgba(39,174,96,0.13);}
+.pa-adv li.warn{background:rgba(230,126,34,0.15);}
+.pa-adv li.info{background:rgba(58,90,130,0.12);}
 #pa-test-input{width:100%;min-height:150px;padding:12px;border:2px solid var(--card-border);border-radius:10px;background:var(--page-bg);color:var(--text);font-family:'Abyssinica SIL',serif;font-size:1.3rem;line-height:1.6;outline:none;resize:vertical;}
 #pa-test-input:focus{border-color:var(--gold);}
 .pa-actions{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0;}
@@ -15374,13 +15392,13 @@ function generatePresetDeck() {
         <div class="pa-head">
             <div>
                 <h2 id="pa-title">📊 Pattern Analyzer</h2>
-                <p>Learns which miliket goes with which ንባብ shape in your Melk folders, then writes new pieces the same way</p>
+                <p>Splits every መልክዕ line into house, base and receiver, learns which miliket goes with each part, then writes new pieces the same way</p>
             </div>
             <button class="pa-x" type="button" onclick="paClose()" aria-label="Close">×</button>
         </div>
         <div class="pa-tabs">
             <button type="button" data-tab="scan" class="active" onclick="paTab('scan')">1 · Choose folders</button>
-            <button type="button" data-tab="rules" onclick="paTab('rules')">2 · Rules &amp; patterns</button>
+            <button type="button" data-tab="rules" onclick="paTab('rules')">2 · Rules &amp; checks</button>
             <button type="button" data-tab="test" onclick="paTab('test')">3 · Test a piece</button>
         </div>
         <div class="pa-body" id="pa-body">
@@ -15395,105 +15413,114 @@ function generatePresetDeck() {
 (function () {
 'use strict';
 
-/* ------------------------------------------------------------------
-   constants
------------------------------------------------------------------- */
-const DICT_KEY = 'miliket_pa_dict_v1';
-const ORDER_NAMES = ['', 'ግእዝ', 'ካዕብ', 'ሣልስ', 'ራብዕ', 'ኃምስ', 'ሳድስ', 'ሳብዕ'];
-const ORDER_COLORS = ['#888888', '#27ae60', '#3a5a82', '#b8860b', '#8e44ad', '#c0392b', '#16a085', '#e67e22'];
-const CLASSES = {
-    tenesh:  { am: 'ተነሽ', color: '#27ae60' },
-    tetay:   { am: 'ተጣይ', color: '#3a5a82' },
-    wedaqi:  { am: 'ወዳቂ', color: '#b8860b' },
-    seyaf:   { am: 'ሰያፍ', color: '#8e44ad' },
-    unknown: { am: '?',    color: '#888888' }
+/* ==================================================================
+   constants and the teacher's tables (copied from the Splitter)
+================================================================== */
+const PART_ORDER = ['ob', 'or', 'eb', 'er'];
+const PART_SHORT = { ob: 'Opening base', or: 'Opening receiver', eb: 'Ending base', er: 'Ending receiver' };
+const PART_LABEL = {
+    ob: 'Opening · base (መደብ)',
+    or: 'Opening · receiver (ተቀባይ)',
+    eb: 'House-ending · base (መደብ)',
+    er: 'House-ending · receiver (ተቀባይ)'
 };
-const POS_LABEL = { only: 'only word', first: 'first word', mid: 'middle word', last: 'last word' };
 const FROM_END = ['last letter', '2nd from end', '3rd from end', '4th from end', '5th from end', '6th from end', '7th+ from end'];
 const LEVEL = {
-    line:    { text: 'whole-line rule',                 cls: 'ok'   },
-    wordpos: { text: 'word rule (length + place)',      cls: 'info' },
-    word:    { text: 'word rule (length)',              cls: 'info' },
-    letters: { text: 'letter rules only',               cls: 'warn' },
-    none:    { text: 'no data, left empty',             cls: 'bad'  }
+    line:    { text: 'whole-line rule',                     cls: 'ok'   },
+    sig:     { text: 'part rule (word lengths)',            cls: 'ok'   },
+    count:   { text: 'part rule (letter count)',            cls: 'ok'   },
+    any:     { text: 'part rule (any house)',               cls: 'info' },
+    letters: { text: 'letter rules only',                   cls: 'warn' },
+    none:    { text: 'no data, left empty',                 cls: 'bad'  }
 };
-const PUNCT_RE = /[።፤፡፠፨፣]/;
+const RULE3 = {
+    2: 'Handled like a 3-letter receiver.',
+    3: 'Handled like a 2-letter receiver.',
+    4: 'Uses the ዛቲ ጉሮሮ. The ending is shortened (ማሳጠር), not filled.',
+    5: 'Kum and Maregd are alike. Tsenatsel ends shortened or dropped.',
+    6: 'Uses the throw (መወርወር).',
+    7: 'The most common length, and ሰላም ለኩሊያቲክሙ is the model itself. Tsenatsel ends with a ሃሌሉያ-like cadence.',
+    8: 'Starts and ends like 7 but differs in the middle (model: ሰላም ለስእርተ ርእስክሙ). Kum and Maregd also differ here.'
+};
+const RULE4 = {
+    4: 'the ልደት / በአካል pattern',
+    5: 'the ቴዎድሮስ pattern',
+    6: 'the ዘይት pattern (as in መንክር ዘይተ አበለ)',
+    7: 'the ቅዳሴ pattern'
+};
+const END_RE = /[።፣፤፥]/;
+const SEP_RE = /[፠፨፦፧]/;
+const COLON = '፡';
+const LETTER_RE = /[\u1200-\u135A\u1380-\u138F\u2D80-\u2DDF\uAB00-\uAB2F]/;
 const JUNK_RE = /[\u200A-\u200D\u2060\uFEFF\u00A0]/g;
 const EMPTY = '∅';
 const SPACE = '␣';
 const HAIR2 = '\u200A\u200A';
-const CP = String.fromCharCode;
-// Only folders whose name contains one of these are analysed: መልክዕ, መልክእ, መልክ (all contain መልክ) and Melk
 const MELK_RE = /መልክ|melk/i;
-const VERB_PREFIX = new Set([CP(0x12ED), CP(0x1275), CP(0x1295), CP(0x12A5)]);   // ይ ት ን እ  (6th order)
-const CONJ_WAW = CP(0x12C8);                                                      // ወ
-const TI = CP(0x1275);                                                            // ት
-const FIXED_WEDAQI = new Set(['ዝ', 'ህየ', 'እወ', 'ሠለስተ', 'ክልዔተ', 'አርባዕተ', 'አሐዱ', 'ክልዔቱ', 'ሠለስቱ', 'አርባዕቱ', 'ዝንቱ', 'እሙንቱ', 'እማንቱ', 'ዛቲ', 'ኵሉ', 'ኩሉ', 'እፎ']);
+const OPEN_ORDER = ['O1', 'O2', 'O3', 'O23', 'O4', 'O5'];
+const END_ORDER = ['E1', 'E2', 'E3', 'E4', 'E14', 'E23', 'E5'];
 
 const PA = {
     sel: new Set(), selInit: false, folderList: [],
-    mode: 'class', lineView: 'runs', wordView: 'pos', min: 2, thr: 80,
-    varMax: 2,      // up to this many changed boxes = "similar"; more = "variation"
-    parsed: null, agg: null, tab: 'scan', reg: [], test: null, testText: ''
+    pool: 'lesson',     // lesson = 2=3 and 1~4 pooled, separate = every house on its own
+    view: 'count',      // count = group rules by letter count (teacher), sig = also by word lengths (strict)
+    min: 2, thr: 80, varMax: 2,
+    parsed: null, agg: null, tab: 'scan', reg: [],
+    test: null, testText: '', testLines: null, testH: {}, testCut: {}
 };
-
-let dict = {};
-try { dict = JSON.parse(localStorage.getItem(DICT_KEY) || '{}') || {}; } catch (e) { dict = {}; }
-function saveDict() { try { localStorage.setItem(DICT_KEY, JSON.stringify(dict)); } catch (e) {} }
 
 const $ = function (id) { return document.getElementById(id); };
 function esc(s) {
     return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 function tick() { return new Promise(function (r) { setTimeout(r, 0); }); }
+function sum(a) { return a.reduce(function (s, x) { return s + x; }, 0); }
 
-/* ------------------------------------------------------------------
-   Ge'ez word analysis  (ending letter order -> ንባብ class)
------------------------------------------------------------------- */
-function orderOf(ch) {
-    const cp = ch.codePointAt(0);
-    if (typeof SS_TL_MAP !== 'undefined' && SS_TL_MAP[cp]) return SS_TL_MAP[cp].o;
-    if (cp >= 0x1200 && cp <= 0x135A) { const off = (cp - 0x1200) % 8; return off === 7 ? 4 : off + 1; }
-    return 0;
+/* ==================================================================
+   the Splitter's cutting logic
+================================================================== */
+function wlen(w) { return w.cols.length; }
+
+// house h of n words: where the opening stops and the house-ending starts
+function defCut(h, n) {
+    if (n >= 5) return h === 4 ? n - 2 : n - 3;
+    return Math.max(1, n - 2);
 }
 
-function looksVerb(L) {
-    if (L.length >= 4 && L[0] === CONJ_WAW) L = L.slice(1);
-    if (L.length >= 3 && VERB_PREFIX.has(L[0])) return true;                       // imperfect: ይቀትል ትቀትል ንቀትል እቀትል
-    const n = L.length;
-    if (n >= 4 && L[n - 1] === TI && orderOf(L[n - 2]) === 1) return true;       // perfect 3rd fem.: ቀተለት
-    return false;
+function cutWords(words, h, over) {
+    const n = words.length;
+    let c = (over == null) ? defCut(h, n) : over;
+    c = Math.min(Math.max(c, 1), n);
+    const o = words.slice(0, c), e = words.slice(c);
+    return { c: c, n: n, parts: { ob: o.slice(0, 1), or: o.slice(1), eb: e.slice(0, -1), er: e.slice(-1) } };
 }
 
-const infoCache = new Map();
-function infoOf(text) {
-    let r = infoCache.get(text);
-    if (r) return r;
-    const L = Array.from(text);
-    const ord = L.length ? orderOf(L[L.length - 1]) : 0;
-    let cls = 'unknown', certain = false;
-    if (dict[text]) { cls = dict[text]; certain = true; }
-    else if (!ord) { cls = 'unknown'; }
-    else if (FIXED_WEDAQI.has(text)) { cls = 'wedaqi'; certain = true; }
-    else if (ord === 5) { cls = 'wedaqi'; certain = true; }                       // ends in ኃምስ: always ወዳቂ
-    else if (ord === 6) { cls = looksVerb(L) ? 'seyaf' : 'tetay'; }               // ሳድስ: ሰያፍ (verbs) or ተጣይ (nouns)
-    else if (ord === 1 || ord === 2) { cls = 'tenesh'; }
-    else { cls = looksVerb(L) ? 'tenesh' : 'wedaqi'; }                            // ሣልስ ራብዕ ሳብዕ
-    r = { cls: cls, certain: certain, ord: ord };
-    infoCache.set(text, r);
-    return r;
+function groupOpen(h) {
+    if (PA.pool === 'lesson') return h === 1 ? 'O1' : (h === 2 || h === 3) ? 'O23' : h === 4 ? 'O4' : 'O5';
+    return 'O' + h;
+}
+function groupEnd(h) {
+    if (PA.pool === 'lesson') return (h === 1 || h === 4) ? 'E14' : (h === 2 || h === 3) ? 'E23' : 'E5';
+    return 'E' + h;
+}
+function codeHouses(code) {
+    if (code === 'O23' || code === 'E23') return [2, 3];
+    if (code === 'E14') return [1, 4];
+    return [parseInt(code.slice(1), 10)];
+}
+function groupLabel(code) {
+    const map = {
+        O1: 'House 1 opening', O2: 'House 2 opening', O3: 'House 3 opening', O4: 'House 4 opening (ማንሻ)', O5: 'House 5 opening',
+        O23: 'Houses 2 + 3 openings (2 = 3)',
+        E1: 'House 1 ending', E2: 'House 2 ending', E3: 'House 3 ending', E4: 'House 4 ending', E5: 'House 5 ending',
+        E14: 'Houses 1 + 4 endings', E23: 'Houses 2 + 3 endings'
+    };
+    return map[code] || code;
 }
 
-function grpOf(text) {
-    const i = infoOf(text);
-    if (PA.mode === 'order') return { code: 'o' + i.ord, label: ORDER_NAMES[i.ord] || '?', color: ORDER_COLORS[i.ord] || '#888888' };
-    const c = CLASSES[i.cls] || CLASSES.unknown;
-    return { code: i.cls, label: c.am, color: c.color };
-}
-
-/* ------------------------------------------------------------------
+/* ==================================================================
    reading a piece: every letter-container = one letter + its miliket
------------------------------------------------------------------- */
+================================================================== */
 function clean(s) { return String(s || '').replace(JUNK_RE, '').trim(); }
 
 function styleProp(el, prop) {
@@ -15556,14 +15583,15 @@ function parseColumn(lc, parsed) {
     return { ch: space ? ' ' : txt, space: space, key: key, rows: rows };
 }
 
-/* A line = its FIRST EMPTY BOX (the one before the first word, which usually carries
-   miliket for that same line) + the words + the closing ፤ / ።  */
+/* A line (= a house) starts at its first empty box and ends at ፤ ። ፣ or ፥.
+   ፡ is only a word separator; two in a row (፡፡) count as ።. */
 function parsePiece(piece, f, parsed) {
     const tmp = document.createElement('div');
     tmp.innerHTML = piece.visualData;
     const nodes = tmp.querySelectorAll('.letter-container, br');
-    let words = [], w = null, n = 0, firstRows = null, lead = EMPTY, leadSeen = false;
+    const pid = ++parsed.pcount;
     const pieceName = piece.name || 'Untitled';
+    let words = [], w = null, n = 0, firstRows = null, lead = EMPTY, leadSeen = false, prevColon = false;
 
     function pushWord() {
         if (w && w.cols.length) words.push({ text: w.cols.map(function (c) { return c.ch; }).join(''), cols: w.cols });
@@ -15571,12 +15599,12 @@ function parsePiece(piece, f, parsed) {
     }
     function endLine(tail) {
         pushWord();
-        if (words.length || tail) {
+        if (words.length) {
             n++;
-            parsed.lines.push({ piece: pieceName, folder: f.name, n: n, lead: lead, words: words, tail: tail });
+            parsed.lines.push({ pid: pid, piece: pieceName, folder: f.name, n: n, lead: lead, words: words, tail: tail });
             words = []; lead = EMPTY; leadSeen = false;
         }
-        // a row break with nothing before it keeps the empty box it just saw, because that box belongs to the NEXT line
+        // a row break with nothing before it keeps the empty box it just saw: that box belongs to the NEXT line
     }
 
     for (let i = 0; i < nodes.length; i++) {
@@ -15590,30 +15618,79 @@ function parsePiece(piece, f, parsed) {
             pushWord();
             continue;
         }
-        if (PUNCT_RE.test(col.ch)) { endLine({ ch: col.ch, key: col.key }); continue; }
+        const ch = col.ch;
+        if (ch === COLON) {
+            pushWord();
+            if (prevColon) { endLine({ ch: '።', key: col.key }); prevColon = false; } else prevColon = true;
+            continue;
+        }
+        prevColon = false;
+        if (END_RE.test(ch)) { endLine({ ch: ch, key: col.key }); continue; }
+        if (SEP_RE.test(ch)) { pushWord(); continue; }
+        if (!LETTER_RE.test(ch.charAt(0))) { parsed.skipped++; continue; }
         if (!w) w = { cols: [] };
-        w.cols.push({ ch: col.ch, key: col.key });
+        w.cols.push({ ch: ch, key: col.key });
     }
     endLine(null);
     parsed.pieces++;
     if (firstRows) parsed.rowFreq.set(firstRows, (parsed.rowFreq.get(firstRows) || 0) + 1);
 }
 
-// One line laid out as boxes: [first empty box] [word] [space] [word] ... [closing mark]
-function flatten(line) {
-    const keys = [line.lead || EMPTY], chars = [' '];
-    line.words.forEach(function (w, i) {
-        if (i) { keys.push(SPACE); chars.push(' '); }
-        w.cols.forEach(function (c) { keys.push(c.key); chars.push(c.ch); });
+/* ==================================================================
+   examples: a pattern together with the letters it was seen on
+   keys/chars = what is drawn (with space boxes), lk/lch = letters only
+================================================================== */
+function partInfo(ws, where) {
+    const keys = [], chars = [], lk = [], lch = [], idx = [], wl = [];
+    ws.forEach(function (w, wi) {
+        if (wi) { keys.push(SPACE); chars.push(' '); }
+        w.cols.forEach(function (c, ci) {
+            idx.push(keys.length); keys.push(c.key); chars.push(c.ch);
+            lk.push(c.key); lch.push(c.ch); wl.push({ w: w.text, p: ci });
+        });
     });
-    if (line.tail) { keys.push(line.tail.key); chars.push(line.tail.ch); }
-    return { keys: keys, chars: chars };
+    return {
+        words: ws, N: lk.length, sig: ws.map(wlen).join('-'), pat: lk.join('¦'),
+        ex: { keys: keys, chars: chars, lk: lk, lch: lch, idx: idx, wl: wl, where: where }
+    };
 }
 
-/* ------------------------------------------------------------------
+function singleEx(key, ch, kind, where) {
+    return { keys: [key], chars: [ch], lk: [key], lch: [ch], idx: [0], wl: [{ w: '', p: kind }], where: where };
+}
+
+function lineEx(line, where) {
+    const keys = [], chars = [], lk = [], lch = [], idx = [], wl = [];
+    idx.push(0); keys.push(line.lead || EMPTY); chars.push(' '); lk.push(line.lead || EMPTY); lch.push(' '); wl.push({ w: '', p: -1 });
+    line.words.forEach(function (w, wi) {
+        if (wi) { keys.push(SPACE); chars.push(' '); }
+        w.cols.forEach(function (c, ci) {
+            idx.push(keys.length); keys.push(c.key); chars.push(c.ch);
+            lk.push(c.key); lch.push(c.ch); wl.push({ w: w.text, p: ci });
+        });
+    });
+    if (line.tail) {
+        idx.push(keys.length); keys.push(line.tail.key); chars.push(line.tail.ch);
+        lk.push(line.tail.key); lch.push(line.tail.ch); wl.push({ w: '', p: -2 });
+    }
+    return { keys: keys, chars: chars, lk: lk, lch: lch, idx: idx, wl: wl, where: where };
+}
+
+function makeRec(line, h, stanza) {
+    const cw = cutWords(line.words, h);
+    const where = line.piece + ' · line ' + line.n;
+    const parts = {};
+    PART_ORDER.forEach(function (p) { parts[p] = cw.parts[p].length ? partInfo(cw.parts[p], where) : null; });
+    return {
+        unit: line.pid, piece: line.piece, where: where, h: h, stanza: stanza, c: cw.c, n: cw.n,
+        oG: groupOpen(h), eG: groupEnd(h), parts: parts, line: line,
+        lens: line.words.map(wlen), tailCh: line.tail ? line.tail.ch : ''
+    };
+}
+
+/* ==================================================================
    comparing two patterns box by box
------------------------------------------------------------------- */
-// Number of boxes whose miliket differs (a missing / extra box counts as one change)
+================================================================== */
 function keyDist(a, b) {
     const n = a.length, m = b.length;
     if (n === m) { let d = 0; for (let i = 0; i < n; i++) if (a[i] !== b[i]) d++; return d; }
@@ -15630,8 +15707,6 @@ function keyDist(a, b) {
     return prev[m];
 }
 
-// Full comparison of a variant (b) against the most common pattern (a).
-// marks = boxes of b that differ, gaps = places in b where a box of a is missing
 function diffKeys(a, b, aChars) {
     const res = { dist: 0, marks: new Set(), gaps: new Set(), items: [] };
     const n = a.length, m = b.length;
@@ -15667,99 +15742,257 @@ function diffKeys(a, b, aChars) {
     return res;
 }
 
-/* ------------------------------------------------------------------
-   aggregation: shape  ->  which miliket patterns were used, how often
------------------------------------------------------------------- */
+// letter positions -> drawn box positions (the drawn version also has space boxes)
+function mapDiff(d, ex) {
+    const marks = new Set(), gaps = new Set();
+    d.marks.forEach(function (i) { if (ex.idx[i] != null) marks.add(ex.idx[i]); });
+    d.gaps.forEach(function (j) { gaps.add(j < ex.idx.length ? ex.idx[j] : ex.keys.length); });
+    return { marks: marks, gaps: gaps };
+}
+
+/* ==================================================================
+   aggregation: part of a house -> which miliket patterns were used
+================================================================== */
+function bump(map, key, label, pat, mk, meta) {
+    let e = map.get(key);
+    if (!e) {
+        e = { key: key, label: label, total: 0, pats: new Map() };
+        if (meta) Object.keys(meta).forEach(function (k) { e[k] = meta[k]; });
+        map.set(key, e);
+    }
+    e.total++;
+    let p = e.pats.get(pat);
+    if (!p) { p = { pat: pat, n: 0, ex: mk() }; e.pats.set(pat, p); }
+    p.n++;
+}
+
+function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
 function aggregate() {
     const P = PA.parsed;
-    const A = { exact: new Map(), runs: new Map(), wordPos: new Map(), word: new Map(), col: new Map(), tail: new Map(), lead: new Map(), uncertain: new Map(), totals: { lines: 0, words: 0, cols: 0 } };
-
-    function bump(map, key, label, pat, mk) {
-        let e = map.get(key);
-        if (!e) { e = { key: key, label: label, total: 0, pats: new Map() }; map.set(key, e); }
-        e.total++;
-        let p = e.pats.get(pat);
-        if (!p) { p = { pat: pat, n: 0, ex: mk() }; e.pats.set(pat, p); }
-        p.n++;
-    }
+    const A = {
+        line: new Map(), part: new Map(), partSig: new Map(), partAny: new Map(),
+        letter: new Map(), lead: new Map(), tail: new Map(), recs: [],
+        totals: { pieces: P.pieces, lines: 0, words: 0, letters: 0 }
+    };
 
     P.lines.forEach(function (line) {
-        const words = line.words, tail = line.tail;
-        const grps = words.map(function (w) { return grpOf(w.text); });
-        const where = line.piece + ' · line ' + line.n;
-        const flat = flatten(line);
-        const pat = flat.keys.join('¦');
-        const mkLine = function () { return { keys: flat.keys, chars: flat.chars, where: where, lead: true }; };
+        const h = ((line.n - 1) % 5) + 1, stanza = Math.floor((line.n - 1) / 5) + 1;
+        const rec = makeRec(line, h, stanza);
+        A.recs.push(rec);
         A.totals.lines++;
+        A.totals.words += line.words.length;
 
-        const exactKey = words.map(function (w, i) { return grps[i].code + w.cols.length; }).join(' ') + (tail ? ' ' + tail.ch : '');
-        const exactLabel = words.map(function (w, i) { return grps[i].label + w.cols.length; }).join(' ') + (tail ? ' ' + tail.ch : '');
-        const runs = [];
-        grps.forEach(function (g) {
-            const last = runs[runs.length - 1];
-            if (last && last.code === g.code) last.n++; else runs.push({ code: g.code, label: g.label, n: 1 });
-        });
-        const runsKey = runs.map(function (r) { return r.code + '×' + r.n; }).join(' ') + (tail ? ' ' + tail.ch : '');
-        const runsLabel = runs.map(function (r) { return r.label + ' ×' + r.n; }).join('  →  ') + (tail ? '  ' + tail.ch : '');
-        bump(A.exact, exactKey, exactLabel, pat, mkLine);
-        bump(A.runs, runsKey, runsLabel, pat, mkLine);
+        const where = rec.where;
 
-        // the first empty box of the line, by the class and length of the first word
-        if (words.length) {
-            const g0 = grps[0], l0 = words[0].cols.length;
-            const leadKey = line.lead || EMPTY;
-            const mkL = function () { return { keys: [leadKey], chars: [' '], where: where, lead: true }; };
-            bump(A.lead, 'L|' + g0.code + '|' + l0, 'Line start before ' + g0.label + ' · ' + l0 + ' letters', leadKey, mkL);
-            bump(A.lead, 'L|' + g0.code, 'Line start before ' + g0.label, leadKey, mkL);
-        }
+        // whole line
+        const lex = lineEx(line, where);
+        const lineKey = rec.oG + '|' + rec.eG + '|' + rec.lens.join('-') + '|' + rec.tailCh;
+        bump(A.line, lineKey,
+            groupLabel(rec.oG) + ' + ' + groupLabel(rec.eG).toLowerCase() + ' · words ' + rec.lens.join(' + ') + (rec.tailCh ? ' ' + rec.tailCh : ''),
+            lex.lk.join('¦'), function () { return lex; }, { grp: rec.oG });
 
-        words.forEach(function (w, i) {
-            const g = grps[i], len = w.cols.length;
-            const pos = words.length === 1 ? 'only' : (i === 0 ? 'first' : (i === words.length - 1 ? 'last' : 'mid'));
-            const keys = w.cols.map(function (c) { return c.key; });
-            const chars = w.cols.map(function (c) { return c.ch; });
-            const wpat = keys.join('¦');
-            const mkW = function () { return { keys: keys, chars: chars, where: where }; };
-            bump(A.word, g.code + '|' + len, g.label + ' · ' + len + ' letters', wpat, mkW);
-            bump(A.wordPos, g.code + '|' + len + '|' + pos, g.label + ' · ' + len + ' letters · ' + POS_LABEL[pos], wpat, mkW);
-            w.cols.forEach(function (c, j) {
-                const fe = Math.min(len - 1 - j, 6);
-                bump(A.col, g.code + '|e' + fe, g.label + ' · ' + FROM_END[fe], c.key, function () { return { keys: [c.key], chars: [c.ch], where: where }; });
-                A.totals.cols++;
-            });
-            A.totals.words++;
-            const inf = infoOf(w.text);
-            if (!inf.certain && inf.ord) {
-                const u = A.uncertain.get(w.text);
-                if (u) u.n++; else A.uncertain.set(w.text, { n: 1 });
+        // the four parts
+        PART_ORDER.forEach(function (p) {
+            const pi = rec.parts[p];
+            if (!pi) return;
+            const g = (p === 'ob' || p === 'or') ? rec.oG : rec.eG;
+            A.totals.letters += pi.N;
+            const short = PART_SHORT[p] + ' · ' + plural(pi.N, 'letter');
+            bump(A.part, g + '|' + p + '|' + pi.N, short, pi.pat, function () { return pi.ex; }, { grp: g, part: p, N: pi.N });
+            bump(A.partSig, g + '|' + p + '|' + pi.sig,
+                PART_SHORT[p] + ' · words ' + pi.sig.split('-').join(' + ') + ' (' + plural(pi.N, 'letter') + ')',
+                pi.pat, function () { return pi.ex; }, { grp: g, part: p, N: pi.N, sig: pi.sig });
+            bump(A.partAny, p + '|' + pi.N, short, pi.pat, function () { return pi.ex; }, { part: p, N: pi.N });
+            for (let j = 0; j < pi.N; j++) {
+                const fe = Math.min(pi.N - 1 - j, 6);
+                bump(A.letter, p + '|e' + fe, PART_SHORT[p] + ' · ' + FROM_END[fe], pi.ex.lk[j], function () {
+                    return { keys: [pi.ex.lk[j]], chars: [pi.ex.lch[j]], lk: [pi.ex.lk[j]], lch: [pi.ex.lch[j]], idx: [0], wl: [pi.ex.wl[j]], where: where };
+                }, { part: p });
             }
         });
 
-        if (tail && words.length) {
-            const lastG = grps[grps.length - 1];
-            const mkT = function () { return { keys: [tail.key], chars: [tail.ch], where: where }; };
-            bump(A.tail, 'P' + tail.ch + '|' + lastG.code, tail.ch + ' after ' + lastG.label, tail.key, mkT);
-            bump(A.tail, 'P' + tail.ch, tail.ch, tail.key, mkT);
+        // the first empty box of the line
+        const obN = rec.parts.ob.N, leadKey = line.lead || EMPTY;
+        const mkL = function () { return singleEx(leadKey, ' ', -1, where); };
+        bump(A.lead, 'L|' + rec.oG + '|' + obN, groupLabel(rec.oG) + ' · line start before a ' + plural(obN, 'letter') + ' base', leadKey, mkL, { grp: rec.oG });
+        bump(A.lead, 'L|' + rec.oG, groupLabel(rec.oG) + ' · line start', leadKey, mkL, { grp: rec.oG });
+        bump(A.lead, 'L', 'Line start (any house)', leadKey, mkL, { grp: '' });
+
+        // the closing mark
+        if (line.tail) {
+            const t = line.tail, erN = rec.parts.er ? rec.parts.er.N : 0;
+            const mkT = function () { return singleEx(t.key, t.ch, -2, where); };
+            bump(A.tail, 'T|' + t.ch + '|' + rec.eG + '|' + erN, t.ch + ' · ' + groupLabel(rec.eG).toLowerCase() + ' · ' + plural(erN, 'letter') + ' receiver', t.key, mkT, {});
+            bump(A.tail, 'T|' + t.ch + '|' + rec.eG, t.ch + ' · ' + groupLabel(rec.eG).toLowerCase(), t.key, mkT, {});
+            bump(A.tail, 'T|' + t.ch, t.ch + ' (any house)', t.key, mkT, {});
         }
     });
 
-    [A.exact, A.runs, A.wordPos, A.word, A.col, A.tail, A.lead].forEach(function (map) {
+    const all = [A.line, A.part, A.partSig, A.partAny, A.letter, A.lead, A.tail];
+    all.forEach(function (map) {
         map.forEach(function (e) {
             e.sorted = Array.from(e.pats.values()).sort(function (a, b) { return b.n - a.n; });
             e.share = Math.round(e.sorted[0].n * 100 / e.total);
         });
     });
-    // how many miliket changes separate every variant from the most common pattern of its shape
-    [A.exact, A.runs, A.wordPos, A.word].forEach(function (map) {
+    [A.line, A.part, A.partSig, A.partAny].forEach(function (map) {
         map.forEach(function (e) {
-            const ref = e.sorted[0].ex.keys;
-            e.sorted.forEach(function (p, i) { p.dist = i === 0 ? 0 : keyDist(ref, p.ex.keys); });
+            const ref = e.sorted[0].ex.lk;
+            e.sorted.forEach(function (p, i) { p.dist = i === 0 ? 0 : keyDist(ref, p.ex.lk); });
         });
     });
+    A.checks = runChecks(A.recs, true);
     PA.agg = A;
     return A;
 }
 
+/* ==================================================================
+   rule checks: your data against the teacher's rules
+================================================================== */
+function shapeOf(r) {
+    return (r.parts.ob ? r.parts.ob.N : 0) + ' + ' + (r.parts.or ? r.parts.or.N : 0);
+}
+function openPat(r) {
+    return (r.parts.ob ? r.parts.ob.pat : '') + '¦¦' + (r.parts.or ? r.parts.or.pat : '');
+}
+
+function runChecks(recs, withPat) {
+    const out = [];
+    const units = new Map();
+    recs.forEach(function (r) {
+        let u = units.get(r.unit);
+        if (!u) { u = { name: r.piece, lines: 0, st: new Map() }; units.set(r.unit, u); }
+        u.lines++;
+        let s = u.st.get(r.stanza);
+        if (!s) { s = {}; u.st.set(r.stanza, s); }
+        if (!s[r.h]) s[r.h] = r;
+    });
+    function add(title, total, bad, extra) {
+        out.push({ ok: bad.length === 0, info: false, text: title + ' — ' + (total - bad.length) + ' of ' + total + ' OK.' + (extra || ''), bad: bad });
+    }
+
+    let bad = [];
+    units.forEach(function (u) { if (u.lines % 5 !== 0) bad.push(u.name + ': ' + plural(u.lines, 'house')); });
+    add('Every piece has a multiple of 5 houses (5 per stanza)', units.size, bad);
+
+    const stz = [];
+    units.forEach(function (u) {
+        u.st.forEach(function (s, k) {
+            if ([1, 2, 3, 4, 5].every(function (h) { return s[h]; })) stz.push({ u: u, k: k, s: s });
+        });
+    });
+
+    if (!stz.length) {
+        out.push({ ok: true, info: true, text: 'No complete 5-house stanza was found, so the 2 = 3 and 1 ≈ 4 comparisons were skipped.', bad: [] });
+    } else {
+        bad = []; const sameShape = [];
+        stz.forEach(function (z) {
+            const a = shapeOf(z.s[2]), b = shapeOf(z.s[3]);
+            if (a === b) sameShape.push(z); else bad.push(z.u.name + ' · stanza ' + z.k + ': ' + a + ' vs ' + b);
+        });
+        add('Houses 2 and 3 openings have the same shape (2 = 3)', stz.length, bad);
+
+        bad = []; const sameRec = [];
+        stz.forEach(function (z) {
+            const a = z.s[1].parts.er ? z.s[1].parts.er.N : 0, b = z.s[4].parts.er ? z.s[4].parts.er.N : 0;
+            if (a === b) sameRec.push(z); else bad.push(z.u.name + ' · stanza ' + z.k + ': receivers have ' + a + ' and ' + b + ' letters');
+        });
+        add('Houses 1 and 4 endings have the same receiver length', stz.length, bad);
+
+        if (withPat) {
+            bad = [];
+            sameShape.forEach(function (z) {
+                if (openPat(z.s[2]) !== openPat(z.s[3])) bad.push(z.u.name + ' · stanza ' + z.k + ': the miliket differs although the shape is the same');
+            });
+            add('Houses 2 and 3 with the same shape use the same miliket (same method)', sameShape.length, bad);
+
+            bad = [];
+            sameRec.forEach(function (z) {
+                const a = z.s[1].parts.er ? z.s[1].parts.er.pat : '', b = z.s[4].parts.er ? z.s[4].parts.er.pat : '';
+                if (a !== b) bad.push(z.u.name + ' · stanza ' + z.k + ': the receiver miliket differs although the length is the same');
+            });
+            add('Houses 1 and 4 with the same receiver length use the same ending miliket', sameRec.length, bad);
+        }
+    }
+
+    bad = []; let n14 = 0;
+    recs.forEach(function (r) {
+        if ((r.h === 1 || r.h === 4) && r.parts.er) {
+            n14++;
+            if (!RULE4[r.parts.er.N]) bad.push(r.where + ' (house ' + r.h + '): ' + plural(r.parts.er.N, 'letter') + ' receiver');
+        }
+    });
+    add('House 1 and 4 ending receivers are in the receiver table (4 to 7 letters)', n14, bad);
+
+    bad = []; let n1 = 0;
+    recs.forEach(function (r) {
+        if (r.h === 1) {
+            n1++;
+            const b = r.parts.ob.words[0].text;
+            if (b !== 'ሰላም') bad.push(r.where + ': starts with “' + b + '”');
+        }
+    });
+    add('House 1 opens with the base ሰላም', n1, bad);
+
+    bad = []; let n1s = 0;
+    recs.forEach(function (r) {
+        if (r.h === 1 && r.parts.ob.words[0].text === 'ሰላም') {
+            n1s++;
+            const N = r.parts.or ? r.parts.or.N : 0;
+            if (!RULE3[N]) bad.push(r.where + ': ' + plural(N, 'letter') + ' receiver');
+        }
+    });
+    add('House 1 opening receivers (base ሰላም) are in the length table (2 to 8 letters)', n1s, bad);
+
+    return out;
+}
+
+function checksHtml(list) {
+    return list.map(function (c) {
+        const cls = c.info ? 'info' : (c.ok ? 'ok' : 'warn');
+        const icon = c.info ? 'i' : (c.ok ? '✓' : '!');
+        let more = '';
+        if (c.bad && c.bad.length) {
+            more = '<details><summary>show ' + c.bad.length + ' that differ</summary><ul>' +
+                c.bad.slice(0, 15).map(function (t) { return '<li>' + esc(t) + '</li>'; }).join('') +
+                (c.bad.length > 15 ? '<li>… and ' + (c.bad.length - 15) + ' more</li>' : '') + '</ul></details>';
+        }
+        return '<div class="pa-chk"><span class="pa-ic ' + cls + '">' + icon + '</span><div>' + esc(c.text) + more + '</div></div>';
+    }).join('');
+}
+
+/* ==================================================================
+   teacher notes
+================================================================== */
+function teachFor(grp, part, N) {
+    const hs = codeHouses(grp), isO = grp.charAt(0) === 'O', t = [];
+    function has(x) { return hs.indexOf(x) >= 0; }
+    if (isO) {
+        if (has(1)) {
+            if (part === 'or') t.push(RULE3[N] ? 'Teacher (base ሰላም, receiver of ' + N + ' letters): ' + RULE3[N] : 'Teacher: a ' + N + '-letter receiver is not covered in the lessons. Ask your teacher.');
+            else t.push('Teacher: the length table is given for the base ሰላም.');
+        }
+        if (has(2) || has(3)) t.push('Teacher: 2 = 3. Houses 2 and 3 are handled the same way, so you can swap them.');
+        if (has(4)) t.push('Teacher: Mansha (ማንሻ). Related to house 1’s opening but never “the same”.');
+        if (has(5)) t.push('Teacher: house 5 is its own path.');
+    } else {
+        if (has(1) || has(4)) {
+            if (part === 'er') t.push(RULE4[N] ? 'Teacher: imitate ' + RULE4[N] + '. The base length and the receiver’s class do not matter.' : 'Teacher: this length is not in the receiver table (4 to 7). Ask your teacher.');
+            else t.push('Teacher: for these endings the base length does not matter.');
+            t.push('Teacher: the endings of house 1 and house 4 follow the same pattern.');
+        }
+        if (has(2) || has(3)) {
+            if (part === 'er') t.push('Inference: the lessons give the receiver table for house 1. If it applies here: ' + (RULE4[N] ? 'imitate ' + RULE4[N] + '.' : 'a ' + N + '-letter receiver is not in the table.') + ' Confirm with your teacher.');
+        }
+        if (has(5)) t.push('Teacher: house 5’s ending is unique. Learn it directly.');
+    }
+    return t.join(' ');
+}
+
+/* ==================================================================
+   writing columns back out in the exact markup the editor uses
+================================================================== */
 function rowsNeeded(keys) {
     let m = 0;
     keys.forEach(function (k) {
@@ -15769,10 +16002,6 @@ function rowsNeeded(keys) {
     return Math.max(1, m);
 }
 
-/* ------------------------------------------------------------------
-   writing columns back out in the exact markup the editor uses
-   dm = optional difference info ({marks, gaps}) to highlight in red
------------------------------------------------------------------- */
 function buildCols(cols, rows, withIds, dm) {
     let sp = 0, cu = 0, html = '';
     cols.forEach(function (c, i) {
@@ -15819,39 +16048,36 @@ function describeKey(k) {
 
 function plainDescribe(ex) {
     const out = [];
-    ex.keys.forEach(function (k, i) {
-        if (k === EMPTY || k === SPACE) return;
-        out.push((ex.lead && i === 0 ? '▢ line start' : (ex.chars[i] === ' ' ? 'space' : ex.chars[i])) + ' → ' + describeKey(k));
+    ex.lk.forEach(function (k, i) {
+        if (k === EMPTY) return;
+        const w = ex.wl[i] || {};
+        out.push((w.p === -1 ? '▢ line start' : ex.lch[i]) + ' → ' + describeKey(k));
     });
     return out.length ? out.join('   ·   ') : '(no miliket)';
 }
 
-// Names a box in plain words: its letter, the word it is in, and its number in the line
 function boxName(ex, i) {
-    if (ex.lead && i === 0) return 'Line start ▢ (the empty box before the first word)';
-    const ch = ex.chars[i];
-    if (ch === ' ') return 'space between words (box ' + (i + 1) + ')';
-    let s = i, e = i;
-    while (s > 0 && ex.chars[s - 1] !== ' ') s--;
-    while (e < ex.chars.length - 1 && ex.chars[e + 1] !== ' ') e++;
-    return '“' + ch + '” in “' + ex.chars.slice(s, e + 1).join('') + '” (box ' + (i + 1) + ')';
+    const w = ex.wl[i];
+    if (!w) return 'box ' + (i + 1);
+    if (w.p === -1) return 'Line start ▢ (the empty box before the first word)';
+    if (w.p === -2) return 'the closing mark “' + ex.lch[i] + '”';
+    return '“' + ex.lch[i] + '” in “' + w.w + '” (letter ' + (w.p + 1) + ')';
 }
 
-// Plain-English list of what is different in a variant (ex = the variant's pattern)
 function diffNotes(ex, diff) {
     return diff.items.map(function (it) {
         if (it.t === 'len') return 'These two are too different in length to compare box by box.';
         if (it.t === 'sub') return boxName(ex, it.bi) + ': most common has ' + describeKey(it.from) + ', this one has ' + describeKey(it.to);
-        if (it.t === 'ins') return boxName(ex, it.bi) + ': an extra box here (' + describeKey(it.to) + ') that the most common line does not have';
+        if (it.t === 'ins') return boxName(ex, it.bi) + ': an extra box here (' + describeKey(it.to) + ') that the most common pattern does not have';
         const what = it.fromCh && it.fromCh !== ' ' ? '“' + it.fromCh + '”' : 'a box';
-        const where = it.bi < ex.keys.length ? 'before ' + boxName(ex, it.bi) : 'at the end';
-        return 'A box is missing ' + where + ': the most common line has ' + what + ' with ' + describeKey(it.from) + ' here';
+        const where = it.bi < ex.lk.length ? 'before ' + boxName(ex, it.bi) : 'at the end';
+        return 'A box is missing ' + where + ': the most common pattern has ' + what + ' with ' + describeKey(it.from) + ' here';
     });
 }
 
-/* ------------------------------------------------------------------
+/* ==================================================================
    step 1: choose folders and scan  (only Melk folders)
------------------------------------------------------------------- */
+================================================================== */
 function isMelkName(name) { return MELK_RE.test(String(name == null ? '' : name).normalize('NFC')); }
 
 function listFolders() {
@@ -15868,7 +16094,7 @@ function listFolders() {
 
 function renderScan() {
     const el = $('pa-tab-scan');
-    let h = '<p class="pa-note">Only folders whose name contains <b>መልክዕ / መልክእ / መልክ / Melk</b> are listed. Each piece is read line by line: a line starts at its first empty box and ends at ፤ or ።. Every word gets its ንባብ class and the miliket over every box is recorded. Image pieces and empty pieces are skipped. Nothing is changed or saved by scanning.</p>';
+    let h = '<p class="pa-note">Only folders whose name contains <b>መልክዕ / መልክእ / መልክ / Melk</b> are listed. Each piece is read house by house (a house ends at ፤ ። ፣ ፥). Every house is split like in the Splitter: an <b>opening</b> and a <b>house-ending</b>, each with a <b>base</b> and a <b>receiver</b>, and the letters of every part are counted. The miliket over every box is recorded. Houses are numbered 1 to 5 inside each stanza. Image and empty pieces are skipped. Scanning never changes or saves anything.</p>';
     h += '<div class="pa-quick">' +
         '<button class="pa-btn" type="button" onclick="paQuick(\'here\')">This folder</button>' +
         '<button class="pa-btn" type="button" onclick="paQuick(\'project\')">Whole project</button>' +
@@ -15881,7 +16107,7 @@ function renderScan() {
             '<span class="pa-fcount">' + f.count + ' piece' + (f.count === 1 ? '' : 's') + ' with content</span></label>';
     }).join('') + '</div>';
     h += '<button class="pa-btn gold" id="pa-scan-btn" type="button" onclick="paScan()">🔍 Scan selected folders</button>';
-    h += '<div class="pa-status" id="pa-scan-status">' + (PA.parsed ? 'Last scan: ' + PA.parsed.pieces + ' pieces, ' + PA.parsed.lines.length + ' lines (' + esc(PA.parsed.folderNames.join(', ')) + '). Scan again after you edit pieces.' : '') + '</div>';
+    h += '<div class="pa-status" id="pa-scan-status">' + (PA.parsed ? 'Last scan: ' + PA.parsed.pieces + ' pieces, ' + PA.parsed.lines.length + ' houses (' + esc(PA.parsed.folderNames.join(', ')) + '). Scan again after you edit pieces.' : '') + '</div>';
     el.innerHTML = h;
 }
 
@@ -15910,7 +16136,7 @@ window.paScan = async function () {
     if (!folders.length) { alert('Tick at least one folder first.'); return; }
     const btn = $('pa-scan-btn'), st = $('pa-scan-status');
     btn.disabled = true;
-    const parsed = { lines: [], colEx: new Map(), pieces: 0, images: 0, empty: 0, failed: 0, spaceMili: 0, rowFreq: new Map(), folderNames: [], rowsMode: 1 };
+    const parsed = { lines: [], colEx: new Map(), pieces: 0, pcount: 0, images: 0, empty: 0, failed: 0, skipped: 0, spaceMili: 0, rowFreq: new Map(), folderNames: [], rowsMode: 1 };
     let total = 0, done = 0;
     folders.forEach(function (f) { total += (f.folder.pieces || []).length; });
 
@@ -15937,38 +16163,23 @@ window.paScan = async function () {
 
     if (!parsed.lines.length) {
         PA.parsed = null; PA.agg = null;
-        st.textContent = 'No readable lines were found in those folders (' + parsed.empty + ' empty, ' + parsed.images + ' image pieces).';
+        st.textContent = 'No readable houses were found in those folders (' + parsed.empty + ' empty, ' + parsed.images + ' image pieces).';
         return;
     }
     PA.parsed = parsed;
-    PA.test = null;
+    PA.test = null; PA.testLines = null;
     aggregate();
     PA.tab = 'rules';
     window.paTab('rules');
 };
 
-/* ------------------------------------------------------------------
+/* ==================================================================
    step 2: rules
------------------------------------------------------------------- */
+================================================================== */
 function opt(v, label, cur) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + label + '</option>'; }
 function stat(v, label) { return '<div class="pa-stat"><b>' + v + '</b><span>' + label + '</span></div>'; }
-function chip(label, color) { return '<span class="pa-chip" style="background:' + color + '">' + esc(label) + '</span>'; }
+function usesDiff(kind) { return kind === 'line' || kind === 'part'; }
 
-function classSelect(text, cur) {
-    return '<select class="pa-sel" data-w="' + esc(text) + '" onchange="paSetClass(this)">' +
-        (cur === 'unknown' ? '<option value="unknown" selected>?</option>' : '') +
-        ['tenesh', 'tetay', 'wedaqi', 'seyaf'].map(function (c) { return '<option value="' + c + '"' + (c === cur ? ' selected' : '') + '>' + CLASSES[c].am + '</option>'; }).join('') +
-        '</select>';
-}
-
-function listOf(map, min) {
-    return Array.from(map.values()).filter(function (e) { return e.total >= min; })
-        .sort(function (a, b) { return b.total - a.total || (a.label < b.label ? -1 : 1); });
-}
-
-function usesDiff(kind) { return kind === 'line' || kind === 'word'; }
-
-// Splits the lines of one shape into: identical to the most common, similar (few changes), variation (many changes)
 function breakdown(e) {
     let sim = 0, vr = 0;
     e.sorted.forEach(function (p, i) {
@@ -15999,7 +16210,7 @@ function detailHtml(e, kind) {
     const top = e.sorted.slice(0, 6);
     const ref = top[0].ex;
     const diffOn = usesDiff(kind);
-    let h = '';
+    let h = e.teach ? '<div class="pa-teach">' + esc(e.teach) + '</div>' : '';
     if (diffOn && e.sorted.length === 1 && e.total > 1) {
         h += '<div class="pa-dn same">All ' + e.total + ' use exactly the same miliket. No differences.</div>';
     }
@@ -16010,11 +16221,11 @@ function detailHtml(e, kind) {
             if (idx === 0) {
                 tag = '<span class="pa-tag ref">most common</span>';
             } else {
-                const d = diffKeys(ref.keys, p.ex.keys, ref.chars);
+                const d = diffKeys(ref.lk, p.ex.lk, ref.lch);
                 const isSim = d.dist <= PA.varMax;
                 tag = '<span class="pa-tag ' + (isSim ? 'sim' : 'var') + '">' + (isSim ? 'similar' : 'variation') + ' · ' +
                     (d.dist >= 999 ? 'very different' : d.dist + ' change' + (d.dist === 1 ? '' : 's')) + '</span>';
-                dm = d;
+                dm = mapDiff(d, p.ex);
                 const nt = diffNotes(p.ex, d);
                 notes = '<div class="pa-dn">' + nt.slice(0, 14).map(function (t) { return '<div>• ' + esc(t) + '</div>'; }).join('') +
                     (nt.length > 14 ? '<div>… and ' + (nt.length - 14) + ' more</div>' : '') +
@@ -16038,6 +16249,47 @@ window.paToggle = function (d) {
     box.setAttribute('data-ready', '1');
 };
 
+function listOf(map, min, filter) {
+    return Array.from(map.values()).filter(function (e) { return e.total >= min && (!filter || filter(e)); })
+        .sort(function (a, b) { return b.total - a.total || (a.label < b.label ? -1 : 1); });
+}
+
+function groupedEntries(orderList, parts) {
+    const map = PA.view === 'sig' ? PA.agg.partSig : PA.agg.part;
+    const by = new Map();
+    map.forEach(function (e) {
+        if (e.total < PA.min || parts.indexOf(e.part) < 0 || orderList.indexOf(e.grp) < 0) return;
+        let g = by.get(e.grp);
+        if (!g) { g = {}; by.set(e.grp, g); }
+        (g[e.part] = g[e.part] || []).push(e);
+    });
+    const out = [];
+    orderList.forEach(function (code) {
+        const g = by.get(code);
+        if (!g) return;
+        const blocks = [];
+        parts.forEach(function (p) {
+            if (g[p]) blocks.push({ part: p, list: g[p].sort(function (a, b) { return a.N - b.N || b.total - a.total; }) });
+        });
+        out.push({ code: code, blocks: blocks });
+    });
+    return out;
+}
+
+function groupSection(title, note, orderList, parts) {
+    const ge = groupedEntries(orderList, parts);
+    let s = '<h3 class="pa-h">' + title + '</h3><p class="pa-note">' + note + '</p>';
+    if (!ge.length) return s + '<div class="pa-empty small">Nothing has been seen ' + PA.min + ' or more times here yet. Lower the “seen” number above.</div>';
+    ge.forEach(function (g) {
+        s += '<h4 class="pa-h4">' + esc(groupLabel(g.code)) + '</h4>';
+        g.blocks.forEach(function (b) {
+            s += '<div class="pa-sub">' + esc(PART_LABEL[b.part]) + '</div>';
+            b.list.forEach(function (e) { e.teach = teachFor(e.grp, e.part, e.N); s += ruleRow('part', e); });
+        });
+    });
+    return s;
+}
+
 function section(title, note, list, kind, limit) {
     let s = '<h3 class="pa-h">' + title + '</h3><p class="pa-note">' + note + '</p>';
     if (!list.length) return s + '<div class="pa-empty small">Nothing has been seen ' + PA.min + ' or more times here yet. Lower the “seen” number above.</div>';
@@ -16046,82 +16298,74 @@ function section(title, note, list, kind, limit) {
     return s;
 }
 
+function openOrder() { return PA.pool === 'lesson' ? ['O1', 'O23', 'O4', 'O5'] : ['O1', 'O2', 'O3', 'O4', 'O5']; }
+function endOrder() { return PA.pool === 'lesson' ? ['E14', 'E23', 'E5'] : ['E1', 'E2', 'E3', 'E4', 'E5']; }
+
 function renderRules() {
     const el = $('pa-tab-rules');
     if (!PA.agg) { el.innerHTML = '<div class="pa-empty">Nothing scanned yet. Go to step 1, tick your folders and press Scan.</div>'; return; }
     PA.reg = [];
     const A = PA.agg, P = PA.parsed, T = A.totals;
 
-    let h = '<div class="pa-controls">' +
-        '<label>Group words by<select onchange="paSet(\'mode\',this.value)">' + opt('class', 'ንባብ class (smart guess + my corrections)', PA.mode) + opt('order', 'Ending letter order only (exact, no guessing)', PA.mode) + '</select></label>' +
-        '<label>Line shapes<select onchange="paSet(\'lineView\',this.value)">' + opt('runs', 'Class runs  (e.g. ተጣይ ×5 → ወዳቂ ×2)', PA.lineView) + opt('exact', 'Classes + word lengths (strictest)', PA.lineView) + '</select></label>' +
-        '<label>Word rules<select onchange="paSet(\'wordView\',this.value)">' + opt('pos', 'Class + length + place in line', PA.wordView) + opt('plain', 'Class + length only', PA.wordView) + '</select></label>' +
+    let h = '<details class="pa-how"><summary>How the analyzer reads a house</summary><ol>' +
+        '<li><b>Split.</b> Each line is a house. Houses are numbered 1 to 5 inside a stanza. The opening is the first few words, the house-ending is the rest (the same cut as the Splitter, adjustable per line in step 3).</li>' +
+        '<li><b>Base and receiver.</b> The opening = base (first word) + receiver (the rest of the opening). The house-ending = base (all but the last word) + receiver (the last word).</li>' +
+        '<li><b>Count.</b> The letters of every part are counted. The teacher’s rules work on these counts.</li>' +
+        '<li><b>Learn.</b> For every part the analyzer records which miliket was written for that letter count. Houses 2 and 3 are pooled (2 = 3), the endings of houses 1 and 4 are pooled, house 5 stands alone.</li>' +
+        '<li><b>Check.</b> Your data is tested against the teacher’s rules (below).</li>' +
+        '<li><b>Write.</b> New text is written from the closest learned pattern: a matching whole house first, then the same part with the same word lengths, then the same letter count, then single letters.</li></ol></details>';
+
+    h += '<div class="pa-controls">' +
+        '<label>Houses<select onchange="paSet(\'pool\',this.value)">' + opt('lesson', 'Teacher’s grouping (2 = 3, ends of 1 and 4 pooled)', PA.pool) + opt('separate', 'Every house on its own', PA.pool) + '</select></label>' +
+        '<label>Part rules<select onchange="paSet(\'view\',this.value)">' + opt('count', 'By letter count (teacher’s way)', PA.view) + opt('sig', 'By letter count + word lengths (strict)', PA.view) + '</select></label>' +
         '<label>“Variation” = more than<input type="number" min="0" max="50" value="' + PA.varMax + '" onchange="paSet(\'varMax\',this.value)"> changes</label>' +
         '<label>Only rules seen ≥<input type="number" min="1" max="99" value="' + PA.min + '" onchange="paSet(\'min\',this.value)"></label>' +
         '<label>Rule is solid at ≥ %<input type="number" min="50" max="100" value="' + PA.thr + '" onchange="paSet(\'thr\',this.value)"></label>' +
         '<button class="pa-btn" type="button" onclick="paCopyRules()">📋 Copy rules as text</button></div>';
 
-    const ex2 = Array.from(A.exact.values()).filter(function (e) { return e.total >= 2; });
-    const ex2ok = ex2.filter(function (e) { return breakdown(e).ok >= PA.thr; }).length;
-    const w2 = Array.from(A.word.values()).filter(function (e) { return e.total >= 2; });
-    const w2ok = w2.filter(function (e) { return breakdown(e).ok >= PA.thr; }).length;
-    h += '<div class="pa-stats">' + stat(P.pieces, 'pieces read') + stat(T.lines, 'lines') + stat(T.words, 'words') + stat(T.cols, 'letters') +
-        stat(ex2.length, 'line shapes seen 2+ times (strict)') + stat(ex2ok + ' / ' + ex2.length, 'of those use the same or a similar miliket') +
-        stat(w2.length, 'word templates seen 2+ times') + stat(w2ok + ' / ' + w2.length, 'of those use the same or a similar miliket') + '</div>';
+    const pc = Array.from(A.part.values()).filter(function (e) { return e.total >= 2; });
+    const pcOk = pc.filter(function (e) { return breakdown(e).ok >= PA.thr; }).length;
+    const okChecks = A.checks.filter(function (c) { return !c.info && c.ok; }).length;
+    const nChecks = A.checks.filter(function (c) { return !c.info; }).length;
+    h += '<div class="pa-stats">' + stat(P.pieces, 'pieces read') + stat(T.lines, 'houses') + stat(T.words, 'words') + stat(T.letters, 'letters in the four parts') +
+        stat(pc.length, 'part rules seen 2+ times') + stat(pcOk + ' / ' + pc.length, 'of those use the same or a similar miliket') +
+        stat(okChecks + ' / ' + nChecks, 'teacher’s rules your data follows') + '</div>';
     const skipped = [];
-    if (P.images) skipped.push(P.images + ' image piece' + (P.images === 1 ? '' : 's'));
-    if (P.empty) skipped.push(P.empty + ' empty piece' + (P.empty === 1 ? '' : 's'));
-    if (P.failed) skipped.push(P.failed + ' piece' + (P.failed === 1 ? '' : 's') + ' that could not be read');
-    if (P.spaceMili) skipped.push(P.spaceMili + ' space box' + (P.spaceMili === 1 ? '' : 'es') + ' inside lines that carry miliket (ignored; only the first empty box of each line is used)');
+    if (P.images) skipped.push(plural(P.images, 'image piece'));
+    if (P.empty) skipped.push(plural(P.empty, 'empty piece'));
+    if (P.failed) skipped.push(plural(P.failed, 'piece') + ' that could not be read');
+    if (P.skipped) skipped.push(plural(P.skipped, 'box') + ' that were not Ge’ez letters');
+    if (P.spaceMili) skipped.push(plural(P.spaceMili, 'space box') + ' inside houses that carry miliket (ignored; only the first empty box of each house is used)');
     if (skipped.length) h += '<p class="pa-note" style="margin-top:8px">Skipped: ' + skipped.join(', ') + '.</p>';
 
-    const lineNote = 'A line starts at its first empty box and ends at ፤ or ።. “Same” = identical miliket. “Similar” = ' + PA.varMax + ' or fewer boxes differ from the most common pattern. “Variation” = more than ' + PA.varMax + ' boxes differ. Open a row: every difference is listed in words and shown in red in the preview. ';
-    const lineMap = PA.lineView === 'exact' ? A.exact : A.runs;
-    h += section('Line shapes → miliket',
-        lineNote + (PA.lineView === 'exact'
-            ? 'Each row is a line with exactly this sequence of word classes and word lengths (the number after the class = letters).'
-            : 'Each row is a line shape, for example five ተጣይ words and then two ወዳቂ words. If lines of one shape differ a lot, the word lengths probably matter: try “Classes + word lengths”.'),
-        listOf(lineMap, PA.min), 'line', 150);
+    h += '<h3 class="pa-h">Rule checks: your data against the teacher’s rules</h3><p class="pa-note">The same checks as the Splitter’s “Quick checks”, run over everything you scanned, plus a check that houses following the same rule really use the same miliket.</p>' + checksHtml(A.checks);
 
-    const leadList = Array.from(A.lead.values()).filter(function (e) { return e.total >= PA.min; })
-        .sort(function (a, b) { return b.total - a.total || (a.key < b.key ? -1 : 1); });
+    const dnote = ' “Same” = identical miliket. “Similar” = ' + PA.varMax + ' or fewer boxes differ from the most common pattern. “Variation” = more. Open a row to see every difference listed in words and shown in red.';
+    h += groupSection('Openings → miliket',
+        'Opening = base (መደብ) + receiver (ተቀባይ). Each row is a part with this many letters.' + dnote + (PA.view === 'sig' ? ' Strict view: rows are split by word lengths too.' : ''),
+        openOrder(), ['ob', 'or']);
+    h += groupSection('House-endings → miliket',
+        'House-ending = base (መደብ) + receiver (ተቀባይ). The teacher’s receiver table (4 to 7 letters) applies to the endings of houses 1 and 4.' + dnote,
+        endOrder(), ['eb', 'er']);
+
+    h += section('Whole-house shapes → miliket (strict)',
+        'A whole house with exactly this house group and these word lengths. When one of these has been seen, the analyzer writes new houses of the same shape straight from it.' + dnote,
+        listOf(A.line, PA.min), 'line', 120);
+
+    const leadList = listOf(A.lead, PA.min, function (e) { return e.key.split('|').length === 3; });
     h += section('Line start (first empty box) → miliket',
-        'The miliket on the empty box before the first word of a line, by the class and length of that first word.',
-        leadList, 'col', 80);
+        'The miliket on the empty box before the first word of a house, by the opening group and the length of the base.', leadList, 'col', 80);
 
-    const wordMap = PA.wordView === 'pos' ? A.wordPos : A.word;
-    h += section('Word templates → miliket',
-        'The miliket pattern a single word gets, by its class and number of letters' + (PA.wordView === 'pos' ? ' and where it stands in the line.' : '.') + ' Differences between variants are listed and shown in red, like for line shapes.',
-        listOf(wordMap, PA.min), 'word', 150);
+    const tailList = listOf(A.tail, PA.min, function (e) { return e.key.split('|').length === 4; });
+    h += section('Closing mark → miliket',
+        'The miliket written on the ። ፤ ፣ mark that ends a house, by the ending group and the receiver length.', tailList, 'col', 60);
 
-    const colList = Array.from(A.col.values()).filter(function (e) { return e.total >= PA.min; })
+    const colList = Array.from(A.letter.values()).filter(function (e) { return e.total >= PA.min; })
         .sort(function (a, b) { return a.key < b.key ? -1 : 1; });
     h += section('Letter rules → miliket',
-        'The miliket most often written on a letter, by its word class and how far it is from the end of the word. These fill the gaps when no whole word has been seen before.',
+        'The miliket most often written on a letter, by its part and how far it is from the end of the part. Used only when no whole part has been seen with that letter count.',
         colList, 'col', 120);
 
-    const tailList = Array.from(A.tail.values()).filter(function (e) { return e.key.indexOf('|') !== -1 && e.total >= PA.min; })
-        .sort(function (a, b) { return b.total - a.total; });
-    h += section('Closing mark → miliket', 'The miliket written on the ። ፤ ፡ mark that ends a line, by the class of the last word.', tailList, 'tail', 60);
-
-    if (PA.mode === 'class') {
-        const rev = Array.from(A.uncertain.entries()).sort(function (a, b) { return b[1].n - a[1].n; }).slice(0, 60);
-        h += '<h3 class="pa-h">Words to double check</h3><p class="pa-note">The class of a word is a guess from its ending and shape (verb or noun cannot be told for sure from spelling alone, and context can change it). Fix the class here and every rule above updates. Your corrections are remembered in this browser.</p>';
-        if (rev.length) {
-            h += '<div class="pa-review">' + rev.map(function (kv) {
-                return '<div class="pa-rv"><span class="pa-rv-w">' + esc(kv[0]) + '</span><span class="pa-rv-n">×' + kv[1].n + '</span>' + classSelect(kv[0], infoOf(kv[0]).cls) + '</div>';
-            }).join('') + '</div>';
-        } else {
-            h += '<div class="pa-empty small">No unsure words left.</div>';
-        }
-        const mine = Object.keys(dict);
-        if (mine.length) {
-            h += '<details class="pa-rule" style="margin-top:12px"><summary><span>My corrections</span><span class="pa-cnt">' + mine.length + ' word' + (mine.length === 1 ? '' : 's') + '</span></summary><div class="pa-detail"><div class="pa-review">' +
-                mine.sort().map(function (w) {
-                    return '<div class="pa-rv"><span class="pa-rv-w">' + esc(w) + '</span>' + classSelect(w, dict[w]) + '<button class="pa-del" type="button" data-w="' + esc(w) + '" onclick="paDelWord(this)" title="Remove my correction">✕</button></div>';
-                }).join('') + '</div></div></details>';
-        }
-    }
     el.innerHTML = h;
 }
 
@@ -16137,187 +16381,319 @@ window.paSet = function (k, v) {
     else if (k === 'thr') PA.thr = Math.min(100, Math.max(50, parseInt(v, 10) || 80));
     else if (k === 'varMax') { const n = parseInt(v, 10); PA.varMax = isNaN(n) ? 2 : Math.max(0, n); }
     else PA[k] = v;
-    if (k === 'mode' && PA.parsed) aggregate();
+    if (k === 'pool' && PA.parsed) { aggregate(); PA.test = null; PA.testLines = null; }
     refreshRules();
-    if (k === 'mode' && PA.test) runTest();
+    if (k === 'pool' && PA.testText.trim()) runTest(true);
 };
-
-function dictChanged() {
-    saveDict();
-    infoCache.clear();
-    if (PA.parsed) aggregate();
-    refreshRules();
-    if (PA.test || PA.testText) runTest();
-}
-window.paSetClass = function (sel) { dict[sel.getAttribute('data-w')] = sel.value; dictChanged(); };
-window.paDelWord = function (btn) { delete dict[btn.getAttribute('data-w')]; dictChanged(); };
 
 window.paCopyRules = async function () {
     if (!PA.agg) return;
     const A = PA.agg, out = [];
-    function block(title, list, diffOn) {
-        out.push('', '=== ' + title + ' ===');
-        if (!list.length) { out.push('(none)'); return; }
-        list.forEach(function (e) {
-            if (diffOn) {
-                const b = breakdown(e);
-                out.push('', '• ' + e.label + '   [seen ' + e.total + '×: ' + b.pSame + '% same, ' + b.pSim + '% similar, ' + b.pVar + '% variation]');
-            } else {
-                out.push('', '• ' + e.label + '   [seen ' + e.total + '×, ' + e.share + '% same, ' + e.sorted.length + ' variant' + (e.sorted.length === 1 ? '' : 's') + ']');
+    function entryLines(e, diffOn) {
+        if (diffOn) {
+            const b = breakdown(e);
+            out.push('', '• ' + e.label + '   [seen ' + e.total + '×: ' + b.pSame + '% same, ' + b.pSim + '% similar, ' + b.pVar + '% variation]');
+        } else {
+            out.push('', '• ' + e.label + '   [seen ' + e.total + '×, ' + e.share + '% same, ' + plural(e.sorted.length, 'variant') + ']');
+        }
+        if (e.teach) out.push('    ' + e.teach);
+        e.sorted.slice(0, 3).forEach(function (p, idx) {
+            let tag = '', notes = [];
+            if (diffOn && idx > 0) {
+                const d = diffKeys(e.sorted[0].ex.lk, p.ex.lk, e.sorted[0].ex.lch);
+                tag = ' [' + (d.dist <= PA.varMax ? 'similar' : 'variation') + ', ' + (d.dist >= 999 ? 'very different' : plural(d.dist, 'change')) + ']';
+                notes = diffNotes(p.ex, d).slice(0, 8);
             }
-            e.sorted.slice(0, 3).forEach(function (p, idx) {
-                let tag = '', notes = [];
-                if (diffOn && idx > 0) {
-                    const d = diffKeys(e.sorted[0].ex.keys, p.ex.keys, e.sorted[0].ex.chars);
-                    tag = ' [' + (d.dist <= PA.varMax ? 'similar' : 'variation') + ', ' + (d.dist >= 999 ? 'very different' : d.dist + ' change' + (d.dist === 1 ? '' : 's')) + ']';
-                    notes = diffNotes(p.ex, d).slice(0, 8);
-                }
-                out.push('    ' + Math.round(p.n * 100 / e.total) + '% (' + p.n + ')' + tag + ': ' + plainDescribe(p.ex));
-                notes.forEach(function (t) { out.push('        ~ ' + t); });
+            out.push('    ' + Math.round(p.n * 100 / e.total) + '% (' + p.n + ')' + tag + ': ' + plainDescribe(p.ex));
+            notes.forEach(function (t) { out.push('        ~ ' + t); });
+        });
+    }
+    function groups(title, order, parts) {
+        out.push('', '=== ' + title + ' ===');
+        const ge = groupedEntries(order, parts);
+        if (!ge.length) { out.push('(none)'); return; }
+        ge.forEach(function (g) {
+            out.push('', '## ' + groupLabel(g.code));
+            g.blocks.forEach(function (b) {
+                out.push('', '# ' + PART_LABEL[b.part]);
+                b.list.forEach(function (e) { e.teach = teachFor(e.grp, e.part, e.N); entryLines(e, true); });
             });
         });
     }
-    out.push('Miliket pattern rules — grouped by ' + (PA.mode === 'class' ? 'ንባብ class' : 'ending letter order') + ', from ' + PA.parsed.folderNames.join(', '));
-    out.push('Row numbers: R1 is the row nearest the letter, R2 the row above it, and so on. A line starts at its first empty box (▢) and ends at ፤ or ።.');
+    function flat(title, list, diffOn) {
+        out.push('', '=== ' + title + ' ===');
+        if (!list.length) { out.push('(none)'); return; }
+        list.forEach(function (e) { e.teach = ''; entryLines(e, diffOn); });
+    }
+    out.push('Miliket pattern rules from ' + PA.parsed.folderNames.join(', '));
+    out.push('Each house is split into opening (base + receiver) and house-ending (base + receiver); rules are by letter count of each part.');
+    out.push('Houses: ' + (PA.pool === 'lesson' ? 'teacher’s grouping (2 = 3, endings of 1 and 4 pooled)' : 'every house on its own') + '.   Part rules: ' + (PA.view === 'sig' ? 'by letter count + word lengths' : 'by letter count') + '.');
+    out.push('Row numbers: R1 is the row nearest the letter, R2 the row above it, and so on. ▢ = the first empty box of a house.');
     out.push('Similar = ' + PA.varMax + ' or fewer boxes differ from the most common pattern. Variation = more.');
-    block(PA.lineView === 'exact' ? 'Line shapes (classes + word lengths)' : 'Line shapes (class runs)', listOf(PA.lineView === 'exact' ? A.exact : A.runs, PA.min), true);
-    block('Line start (first empty box)', Array.from(A.lead.values()).filter(function (e) { return e.total >= PA.min; }).sort(function (a, b) { return b.total - a.total; }), false);
-    block('Word templates', listOf(PA.wordView === 'pos' ? A.wordPos : A.word, PA.min), true);
-    block('Letter rules', Array.from(A.col.values()).filter(function (e) { return e.total >= PA.min; }).sort(function (a, b) { return a.key < b.key ? -1 : 1; }), false);
-    block('Closing mark', Array.from(A.tail.values()).filter(function (e) { return e.key.indexOf('|') !== -1 && e.total >= PA.min; }), false);
+    out.push('', '=== Rule checks (your data against the teacher’s rules) ===');
+    A.checks.forEach(function (c) {
+        out.push((c.info ? '[i] ' : (c.ok ? '[ok] ' : '[!] ')) + c.text);
+        (c.bad || []).slice(0, 15).forEach(function (t) { out.push('      - ' + t); });
+        if ((c.bad || []).length > 15) out.push('      - … and ' + (c.bad.length - 15) + ' more');
+    });
+    groups('Openings', openOrder(), ['ob', 'or']);
+    groups('House-endings', endOrder(), ['eb', 'er']);
+    flat('Whole-house shapes', listOf(A.line, PA.min), true);
+    flat('Line start', listOf(A.lead, PA.min, function (e) { return e.key.split('|').length === 3; }), false);
+    flat('Closing mark', listOf(A.tail, PA.min, function (e) { return e.key.split('|').length === 4; }), false);
+    flat('Letter rules', Array.from(A.letter.values()).filter(function (e) { return e.total >= PA.min; }).sort(function (a, b) { return a.key < b.key ? -1 : 1; }), false);
     try { await navigator.clipboard.writeText(out.join('\n')); showToast('Rules copied as text.', 'success'); }
     catch (e) { alert('Clipboard access denied.'); }
 };
 
-/* ------------------------------------------------------------------
+/* ==================================================================
    step 3: test a piece
------------------------------------------------------------------- */
+================================================================== */
 function tokenizeInput(text) {
+    const s = String(text || '').normalize('NFC').replace(/፡፡/g, '።');
     const out = [];
-    String(text || '').normalize('NFC').split(/\r?\n/).forEach(function (chunk) {
-        let words = [], cur = [];
-        const flush = function () { if (cur.length) { words.push({ text: cur.join(''), letters: cur }); cur = []; } };
-        const close = function (tail) { flush(); if (words.length || tail) out.push({ words: words, tail: tail, brAfter: false }); words = []; };
-        for (const ch of chunk) {
-            if (/\s/.test(ch) || /[\u200B-\u200D\u2060\uFEFF]/.test(ch)) flush();
-            else if (PUNCT_RE.test(ch)) close(ch);
-            else cur.push(ch);
+    let words = [], cur = [];
+    function flush() {
+        if (cur.length) { words.push({ text: cur.join(''), cols: cur.map(function (ch) { return { ch: ch }; }) }); cur = []; }
+    }
+    function close(tail) {
+        flush();
+        if (words.length) out.push({ words: words, tail: tail || '', brAfter: false });
+        words = [];
+    }
+    for (const ch of s) {
+        if (END_RE.test(ch)) close(ch);
+        else if (ch === '\n' || ch === '\r') {
+            flush();
+            if (words.length) close('');
+            if (out.length) out[out.length - 1].brAfter = true;
         }
-        close('');
-        if (out.length) out[out.length - 1].brAfter = true;
-    });
+        else if (LETTER_RE.test(ch)) cur.push(ch);
+        else flush();
+    }
+    close('');
     return out;
 }
 
-function predictLine(L) {
+function levelPick(A, g, p, pi) {
+    let e = A.partSig.get(g + '|' + p + '|' + pi.sig);
+    if (e) return { e: e, level: 'sig' };
+    e = A.part.get(g + '|' + p + '|' + pi.N);
+    if (e) return { e: e, level: 'count' };
+    e = A.partAny.get(p + '|' + pi.N);
+    if (e) return { e: e, level: 'any' };
+    return null;
+}
+
+function predictLine(L, i) {
     const A = PA.agg;
-    const grps = L.words.map(function (w) { return grpOf(w.text); });
-    const chars = [' '];                                   // box 1 = the first empty box of the line
-    L.words.forEach(function (w, i) { if (i) chars.push(' '); w.letters.forEach(function (c) { chars.push(c); }); });
-    if (L.tail) chars.push(L.tail);
-
-    const exactKey = L.words.map(function (w, i) { return grps[i].code + w.letters.length; }).join(' ') + (L.tail ? ' ' + L.tail : '');
-    const runs = [];
-    grps.forEach(function (g) {
-        const last = runs[runs.length - 1];
-        if (last && last.code === g.code) last.n++; else runs.push({ code: g.code, label: g.label, n: 1 });
+    const h = PA.testH[i] != null ? PA.testH[i] : (i % 5) + 1;
+    const cw = cutWords(L.words, h, PA.testCut[i]);
+    const oG = groupOpen(h), eG = groupEnd(h);
+    const parts = {};
+    PART_ORDER.forEach(function (p) {
+        const ws = cw.parts[p];
+        if (!ws.length) { parts[p] = null; return; }
+        const lens = ws.map(wlen);
+        parts[p] = { words: ws, N: sum(lens), sig: lens.join('-'), lk: null, level: 'none', n: 0, share: 0, alts: 0 };
     });
-    const shape = runs.map(function (r) { return r.label + ' ×' + r.n; }).join('  →  ') + (L.tail ? '  ' + L.tail : '');
+    const lens = L.words.map(wlen), total = sum(lens);
+    const res = { h: h, c: cw.c, n: cw.n, words: L.words, parts: parts, tail: L.tail, brAfter: L.brAfter, oG: oG, eG: eG, whole: false, lead: null, tailInfo: null };
 
-    const res = { words: [], keys: null, chars: chars, tail: L.tail, brAfter: L.brAfter, shape: shape, lead: null };
+    const lineKey = oG + '|' + eG + '|' + lens.join('-') + '|' + L.tail;
+    const whole = A.line.get(lineKey);
+    let leadKey = EMPTY, tailKey = EMPTY;
 
-    const whole = A.exact.get(exactKey);
-    if (whole && whole.sorted[0].ex.keys.length === chars.length) {
-        res.keys = whole.sorted[0].ex.keys.slice();
-        res.lead = { level: 'line', n: whole.total, share: whole.share };
-        L.words.forEach(function (w, i) {
-            res.words.push({ text: w.text, grp: grps[i], level: 'line', n: whole.total, share: whole.share, alts: whole.sorted.length - 1 });
+    if (whole && whole.sorted[0].ex.lk.length === 1 + total + (L.tail ? 1 : 0)) {
+        const lk = whole.sorted[0].ex.lk;
+        res.whole = true;
+        leadKey = lk[0];
+        if (L.tail) tailKey = lk[lk.length - 1];
+        let off = 1;
+        PART_ORDER.forEach(function (p) {
+            const pi = parts[p];
+            if (!pi) return;
+            pi.lk = lk.slice(off, off + pi.N); off += pi.N;
+            pi.level = 'line'; pi.n = whole.total; pi.share = whole.share; pi.alts = whole.sorted.length - 1;
         });
-        return res;
-    }
-
-    const keys = [];
-    const le = L.words.length ? (A.lead.get('L|' + grps[0].code + '|' + L.words[0].letters.length) || A.lead.get('L|' + grps[0].code)) : null;
-    if (le) { keys.push(le.sorted[0].pat); res.lead = { level: 'lead', n: le.total, share: le.share }; }
-    else { keys.push(EMPTY); res.lead = { level: 'none', n: 0, share: 0 }; }
-
-    L.words.forEach(function (w, i) {
-        const g = grps[i], len = w.letters.length;
-        const pos = L.words.length === 1 ? 'only' : (i === 0 ? 'first' : (i === L.words.length - 1 ? 'last' : 'mid'));
-        let e = A.wordPos.get(g.code + '|' + len + '|' + pos), level = 'wordpos', wkeys, n, share, alts;
-        if (!e) { e = A.word.get(g.code + '|' + len); level = 'word'; }
-        if (e) {
-            wkeys = e.sorted[0].ex.keys.slice(); n = e.total; share = e.share; alts = e.sorted.length - 1;
-        } else {
-            level = 'letters'; wkeys = []; let hit = 0, nn = 0, sh = 0;
-            for (let j = 0; j < len; j++) {
-                const ce = A.col.get(g.code + '|e' + Math.min(len - 1 - j, 6));
-                if (ce) { wkeys.push(ce.sorted[0].pat); hit++; nn += ce.total; sh += ce.share; } else wkeys.push(EMPTY);
+        res.lead = { level: 'line', n: whole.total, share: whole.share };
+        if (L.tail) res.tailInfo = { level: 'line', n: whole.total, share: whole.share };
+    } else {
+        PART_ORDER.forEach(function (p) {
+            const pi = parts[p];
+            if (!pi) return;
+            const g = (p === 'ob' || p === 'or') ? oG : eG;
+            const hit = levelPick(A, g, p, pi);
+            if (hit) {
+                pi.lk = hit.e.sorted[0].ex.lk.slice();
+                pi.level = hit.level; pi.n = hit.e.total; pi.share = hit.e.share; pi.alts = hit.e.sorted.length - 1;
+                return;
             }
-            if (!hit) level = 'none';
-            n = hit ? Math.round(nn / hit) : 0; share = hit ? Math.round(sh / hit) : 0; alts = 0;
+            const lk = []; let got = 0, nn = 0, sh = 0;
+            for (let j = 0; j < pi.N; j++) {
+                const ce = A.letter.get(p + '|e' + Math.min(pi.N - 1 - j, 6));
+                if (ce) { lk.push(ce.sorted[0].pat); got++; nn += ce.total; sh += ce.share; } else lk.push(EMPTY);
+            }
+            pi.lk = lk;
+            pi.level = got ? 'letters' : 'none';
+            pi.n = got ? Math.round(nn / got) : 0; pi.share = got ? Math.round(sh / got) : 0;
+        });
+
+        const obN = parts.ob.N;
+        const le = A.lead.get('L|' + oG + '|' + obN) || A.lead.get('L|' + oG) || A.lead.get('L');
+        if (le) { leadKey = le.sorted[0].pat; res.lead = { level: 'count', n: le.total, share: le.share }; }
+        else res.lead = { level: 'none', n: 0, share: 0 };
+
+        if (L.tail) {
+            const erN = parts.er ? parts.er.N : 0;
+            const te = A.tail.get('T|' + L.tail + '|' + eG + '|' + erN) || A.tail.get('T|' + L.tail + '|' + eG) || A.tail.get('T|' + L.tail);
+            if (te) { tailKey = te.sorted[0].pat; res.tailInfo = { level: 'count', n: te.total, share: te.share }; }
+            else res.tailInfo = { level: 'none', n: 0, share: 0 };
         }
-        if (i) keys.push(SPACE);
-        wkeys.forEach(function (k) { keys.push(k); });
-        res.words.push({ text: w.text, grp: g, level: level, n: n, share: share, alts: alts });
-    });
-    if (L.tail) {
-        const lastG = grps[grps.length - 1];
-        const te = (lastG && A.tail.get('P' + L.tail + '|' + lastG.code)) || A.tail.get('P' + L.tail);
-        keys.push(te ? te.sorted[0].pat : EMPTY);
     }
-    res.keys = keys;
+
+    const keys = [leadKey], chars = [' '];
+    let wi = 0;
+    PART_ORDER.forEach(function (p) {
+        const pi = parts[p];
+        if (!pi) return;
+        let off = 0;
+        pi.words.forEach(function (w) {
+            if (wi > 0) { keys.push(SPACE); chars.push(' '); }
+            wi++;
+            for (let j = 0; j < w.cols.length; j++) { keys.push(pi.lk[off]); chars.push(w.cols[j].ch); off++; }
+        });
+    });
+    if (L.tail) { keys.push(tailKey); chars.push(L.tail); }
+    res.keys = keys; res.chars = chars;
     return res;
+}
+
+function recompute() {
+    if (!PA.testLines) return;
+    PA.test = { lines: PA.testLines.map(function (L, i) { return predictLine(L, i); }) };
+}
+
+function li(st, label, txt) { return '<li class="' + st + '"><b>' + esc(label) + '</b> ' + esc(txt) + '</li>'; }
+
+function adviceFor(L, i, lines) {
+    const oa = [], ea = [], h = L.h;
+    const orc = L.parts.or ? L.parts.or.N : 0, erc = L.parts.er ? L.parts.er.N : 0;
+    const shapeTxt = (L.parts.ob ? L.parts.ob.N : 0) + ' + ' + orc;
+    if (h === 1) {
+        if (L.parts.ob.words[0].text === 'ሰላም') {
+            oa.push(li(RULE3[orc] ? 'ok' : 'warn', 'Receiver has ' + orc + ' letters.', RULE3[orc] || 'This length is not covered in the lessons. Ask your teacher.'));
+            oa.push(li('info', 'Tip', 'The receiver’s class makes no difference here. Learn Tsenatsel and Kum/Maregd as two tracks.'));
+        } else oa.push(li('warn', 'Base is not ሰላም.', 'The lessons only give the length table for ሰላም. Ask your teacher.'));
+    } else if (h === 2 || h === 3) {
+        const other = h === 2 ? 3 : 2;
+        let partner = null;
+        lines.forEach(function (M, j) { if (!partner && j !== i && Math.floor(j / 5) === Math.floor(i / 5) && M.h === other) partner = M; });
+        oa.push(li('ok', 'Rule: 2 = 3.', 'Shape ' + shapeTxt + '. House ' + other + ' is identical in method' +
+            (partner ? ' (its shape is ' + partner.parts.ob.N + ' + ' + (partner.parts.or ? partner.parts.or.N : 0) + ')' : '') + '. You can swap them.'));
+    } else if (h === 4) {
+        oa.push(li('warn', 'Mansha (ማንሻ).', 'Related to house 1’s opening but never “the same”. The cut point is not given in the lessons. Try the cut selector, then ask your teacher.'));
+    } else if (h === 5) {
+        oa.push(li('info', 'House 5 is its own path.', 'Its opening sometimes resembles houses 2/3 or 1, but treat it separately.'));
+    } else oa.push(li('warn', 'Outside the 5-house frame.', 'No rule available.'));
+
+    if (h === 1 || h === 4) {
+        const m = RULE4[erc];
+        ea.push(li(m ? 'ok' : 'warn', 'Receiver has ' + erc + ' letters.', m ? 'Imitate ' + m + '. The base length and the receiver’s class don’t matter.' : 'This length is not in the receiver table (4 to 7). Ask your teacher.'));
+        ea.push(li('info', 'Rule', 'The endings of house 1 and house 4 follow the same pattern. Check by ear whether one stamps (ይረግጣል) and the other doesn’t.'));
+    } else if (h === 2 || h === 3) {
+        const m = RULE4[erc];
+        ea.push(li('info', 'Inference.', 'The lessons teach the receiver table for house 1. If it applies here: ' + (m ? 'imitate ' + m + '.' : 'a ' + erc + '-letter receiver is not in the table.') + ' Confirm with your teacher.'));
+    } else if (h === 5) {
+        ea.push(li('info', 'House 5 ending is unique.', 'No table applies. Learn it directly.'));
+    } else ea.push(li('warn', 'Outside the 5-house frame.', 'No rule available.'));
+    return { oa: oa, ea: ea };
+}
+
+function partBlock(cls, tag, pi) {
+    if (!pi) return '<div class="pa-blk"><div class="pa-blk-t">' + esc(tag) + '</div><div class="pa-blk-n">none</div></div>';
+    const lv = LEVEL[pi.level];
+    const sup = pi.n ? pi.n + ' seen · ' + pi.share + '% same' + (pi.alts ? ' · ' + plural(pi.alts, 'other') : '') : '';
+    return '<div class="pa-blk ' + cls + '"><div class="pa-blk-t">' + esc(tag) + '</div>' +
+        '<div class="pa-blk-w">' + pi.words.map(function (w) { return esc(w.text); }).join(' &nbsp; ') + '</div>' +
+        '<div class="pa-blk-n"><span>' + plural(pi.N, 'letter') + '</span><span class="pa-badge ' + lv.cls + '">' + lv.text + '</span><span>' + sup + '</span></div></div>';
 }
 
 function renderTest() {
     const el = $('pa-tab-test');
     if (!PA.agg) { el.innerHTML = '<div class="pa-empty">Scan some folders first (step 1). The tester writes miliket using what was learned there.</div>'; return; }
-    el.innerHTML = '<p class="pa-note">Paste or type Ge’ez text. Put each row on its own line if you want line breaks in the piece. Lines end at ። ፤ ፡ like the slide builder, and every line gets its first empty box too. The miliket is written from the patterns learned in step 1: a matching whole line first, then a matching word, then individual letters.</p>' +
-        '<textarea id="pa-test-input" spellcheck="false" placeholder="ወይቤሎ እግዚእ ኢየሱስ ለናትናኤል።">' + esc(PA.testText) + '</textarea>' +
+    el.innerHTML = '<p class="pa-note">Paste or type a መልክዕ. Every ፤ ። ፣ ends a house, and houses are numbered 1 to 5 in order (you can change the house number and the opening cut per line below). The text is split like in the Splitter, then the miliket is written from the patterns learned in step 1.</p>' +
+        '<textarea id="pa-test-input" spellcheck="false" placeholder="ሰላም ለኲልያቲክሙ እለ ዕሩያን በአካል፤ …">' + esc(PA.testText) + '</textarea>' +
         '<div class="pa-actions"><button class="pa-btn gold" type="button" onclick="paRunTest()">▶ Write the miliket</button></div>' +
         '<div id="pa-test-out"></div>';
-    if (PA.testText.trim()) runTest();
+    if (PA.testText.trim()) {
+        if (!PA.testLines) runTest(true); else { recompute(); renderTestOut(); }
+    }
 }
 
-function runTest() {
+function runTest(keepText) {
     if (!PA.agg) return;
     const ta = $('pa-test-input');
-    if (ta) PA.testText = ta.value;
+    if (ta && !keepText) PA.testText = ta.value;
+    else if (ta && keepText && !PA.testText) PA.testText = ta.value;
     const out = $('pa-test-out');
     if (!out) return;
     const lines = tokenizeInput(PA.testText);
-    if (!lines.length) { out.innerHTML = '<div class="pa-empty small">Type some Ge’ez text first.</div>'; PA.test = null; return; }
-    PA.test = { lines: lines.map(predictLine) };
+    if (!lines.length) { out.innerHTML = '<div class="pa-empty small">Type some Ge’ez text first.</div>'; PA.test = null; PA.testLines = null; return; }
+    PA.testLines = lines; PA.testH = {}; PA.testCut = {};
+    recompute();
     renderTestOut();
 }
-window.paRunTest = runTest;
+window.paRunTest = function () { runTest(false); };
+
+window.paTestSet = function (i, what, v) {
+    const n = parseInt(v, 10);
+    if (what === 'h') { PA.testH[i] = n; delete PA.testCut[i]; }
+    else PA.testCut[i] = n;
+    recompute();
+    renderTestOut();
+};
 
 function renderTestOut() {
     const out = $('pa-test-out');
     const T = PA.test;
     if (!out || !T) return;
-    const cnt = { line: 0, wordpos: 0, word: 0, letters: 0, none: 0 };
-    T.lines.forEach(function (L) { L.words.forEach(function (w) { cnt[w.level]++; }); });
-    let h = '<div class="pa-stats">';
-    Object.keys(LEVEL).forEach(function (k) { if (cnt[k]) h += stat(cnt[k], 'word' + (cnt[k] === 1 ? '' : 's') + ' · ' + LEVEL[k].text); });
-    h += '</div>';
-    if (cnt.none || cnt.letters) h += '<p class="pa-note" style="margin-top:8px">Words marked “letter rules only” or “no data” have no matching example in the folders you scanned, so treat their miliket as a rough guess.</p>';
+    const lines = T.lines;
 
-    T.lines.forEach(function (L, li) {
-        h += '<div class="pa-line"><div class="pa-line-h">Line ' + (li + 1) + ' · ' + esc(L.shape) + '</div>' +
-            '<table class="pa-table"><tr><th>Word</th><th>' + (PA.mode === 'class' ? 'ንባብ class' : 'Ending order') + '</th><th>Miliket came from</th><th>Support</th></tr>';
-        if (L.lead) {
-            const ll = L.lead.level === 'line' ? LEVEL.line : (L.lead.level === 'lead' ? { text: 'line-start rule', cls: 'info' } : LEVEL.none);
-            h += '<tr><td class="w">▢</td><td>first empty box</td><td><span class="pa-badge ' + ll.cls + '">' + ll.text + '</span></td><td class="s">' + (L.lead.n ? L.lead.n + ' seen · ' + L.lead.share + '% same' : '—') + '</td></tr>';
-        }
-        L.words.forEach(function (w) {
-            const lv = LEVEL[w.level];
-            const cls = PA.mode === 'class' ? chip(w.grp.label, w.grp.color) + ' ' + classSelect(w.text, infoOf(w.text).cls) : chip(w.grp.label, w.grp.color);
-            const sup = w.n ? w.n + ' seen · ' + w.share + '% same' + (w.alts ? ' · ' + w.alts + ' other' + (w.alts === 1 ? '' : 's') : '') : '—';
-            h += '<tr><td class="w">' + esc(w.text) + '</td><td>' + cls + '</td><td><span class="pa-badge ' + lv.cls + '">' + lv.text + '</span></td><td class="s">' + sup + '</td></tr>';
-        });
-        h += '</table>' + previewHtml({ keys: L.keys, chars: L.chars }, 0.42) + '</div>';
+    const cnt = { line: 0, sig: 0, count: 0, any: 0, letters: 0, none: 0 };
+    lines.forEach(function (L) { PART_ORDER.forEach(function (p) { if (L.parts[p]) cnt[L.parts[p].level]++; }); });
+    let h = '<div class="pa-stats">';
+    Object.keys(LEVEL).forEach(function (k) { if (cnt[k]) h += stat(cnt[k], plural(cnt[k], 'part').replace(/^\d+ /, '') + ' · ' + LEVEL[k].text); });
+    h += '</div>';
+    if (cnt.none || cnt.letters) h += '<p class="pa-note" style="margin-top:8px">Parts marked “letter rules only” or “no data” have no matching example in the folders you scanned, so treat their miliket as a rough guess.</p>';
+
+    const recs = lines.map(function (L, i) {
+        const parts = {};
+        PART_ORDER.forEach(function (p) { parts[p] = L.parts[p] ? { N: L.parts[p].N, words: L.parts[p].words } : null; });
+        return { unit: 'test', piece: 'Your text', where: 'line ' + (i + 1), h: L.h, stanza: Math.floor(i / 5) + 1, parts: parts };
+    });
+    h += '<h3 class="pa-h" style="margin-top:14px">Quick checks</h3>' + checksHtml(runChecks(recs, false));
+
+    lines.forEach(function (L, i) {
+        const adv = adviceFor(L, i, lines);
+        const hopts = [1, 2, 3, 4, 5].map(function (k) { return '<option value="' + k + '"' + (k === L.h ? ' selected' : '') + '>' + k + '</option>'; }).join('');
+        const copts = L.n > 1
+            ? Array.from({ length: L.n - 1 }, function (_, k) { return k + 1; }).map(function (k) { return '<option value="' + k + '"' + (k === L.c ? ' selected' : '') + '>' + k + '</option>'; }).join('')
+            : '<option>1</option>';
+        const oShape = (L.parts.ob ? L.parts.ob.N : 0) + ' + ' + (L.parts.or ? L.parts.or.N : 0);
+        const eShape = (L.parts.eb ? L.parts.eb.N : 0) + ' + ' + (L.parts.er ? L.parts.er.N : 0);
+        const leadTxt = L.lead && L.lead.n ? ' · line start: ' + L.lead.n + ' seen' : '';
+        h += '<div class="pa-hcard"><div class="pa-hhead"><b>House ' + L.h + '</b><span class="pa-fproj">line ' + (i + 1) + (L.whole ? ' · written from a whole-house rule' : '') + leadTxt + '</span>' +
+            '<label>House <select onchange="paTestSet(' + i + ',\'h\',this.value)">' + hopts + '</select></label>' +
+            '<label>Opening is the first <select onchange="paTestSet(' + i + ',\'c\',this.value)">' + copts + '</select> word(s)</label></div>' +
+            '<div class="pa-hline">' + L.words.map(function (w) { return esc(w.text); }).join(' ') + esc(L.tail || '') + '</div>' +
+            '<div class="pa-cols2"><div class="pa-col"><h5>Opening <small>መደብ + ተቀባይ</small></h5>' +
+            partBlock('b', 'Base · መደብ', L.parts.ob) + partBlock('r', 'Receiver · ተቀባይ', L.parts.or) +
+            '<div class="pa-eq">' + oShape + '</div><ul class="pa-adv">' + adv.oa.join('') + '</ul></div>' +
+            '<div class="pa-col"><h5>House-ending <small>ቤት መምቻ</small></h5>' +
+            partBlock('b', 'Base · መደብ', L.parts.eb) + partBlock('r', 'Receiver · ተቀባይ', L.parts.er) +
+            '<div class="pa-eq">' + eShape + '</div><ul class="pa-adv">' + adv.ea.join('') + '</ul></div></div>' +
+            previewHtml({ keys: L.keys, chars: L.chars }, 0.42) + '</div>';
     });
     h += '<div class="pa-actions"><button class="pa-btn green" type="button" onclick="paCopyHtml()">📋 Copy piece HTML (for “Paste HTML” in the editor)</button>' +
         '<button class="pa-btn" type="button" onclick="paCreatePiece()">＋ Create as a new piece in this folder</button></div>';
@@ -16362,9 +16738,9 @@ window.paCreatePiece = async function () {
     showToast('Created “' + piece.name + '” in “' + folder.name + '”.', 'success');
 };
 
-/* ------------------------------------------------------------------
+/* ==================================================================
    open / close / tabs
------------------------------------------------------------------- */
+================================================================== */
 window.paTab = function (tab) {
     PA.tab = tab;
     document.querySelectorAll('#pa-overlay .pa-tabs button').forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-tab') === tab); });
@@ -16401,7 +16777,7 @@ document.addEventListener('keydown', function (e) {
 });
 
 /* test hook (harmless in the app) */
-window.__pa = { PA: PA, parsePiece: parsePiece, aggregate: aggregate, predictLine: predictLine, tokenizeInput: tokenizeInput, buildCols: buildCols, infoOf: infoOf, pieceHtml: pieceHtml, runTest: runTest, listFolders: listFolders, diffKeys: diffKeys, keyDist: keyDist };
+window.__pa = { PA: PA, parsePiece: parsePiece, aggregate: aggregate, predictLine: predictLine, tokenizeInput: tokenizeInput, buildCols: buildCols, pieceHtml: pieceHtml, runTest: runTest, listFolders: listFolders, diffKeys: diffKeys, keyDist: keyDist, cutWords: cutWords, defCut: defCut, runChecks: runChecks };
 })();
 </script>
 </body>
