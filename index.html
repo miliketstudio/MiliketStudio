@@ -4696,6 +4696,59 @@ function applyOrderFrom(target, source) {
     });
 }
 
+// --- Translation safety helpers ---
+function findLivePieceById(id) {
+    if (!id) return null;
+    const names = Object.keys(appData || {}).filter(k => k !== '_lastSaved');
+    for (const pn of names) {
+        for (const folder of (appData[pn].folders || [])) {
+            for (const piece of (folder.pieces || [])) {
+                if (piece.id === id) return piece;
+            }
+        }
+    }
+    return null;
+}
+
+// true if piece a's translation should replace piece b's
+function translationBeats(a, b) {
+    const aT = new Date(a.translationModified || 0).getTime();
+    const bT = new Date(b.translationModified || 0).getTime();
+    if (aT !== bT) return aT > bT;
+    return !!(a.translation || '').trim() && !(b.translation || '').trim();
+}
+
+// newest piece wins, but a newer translation is never lost
+function mergePieceRecords(cloudP, localP) {
+    const localWins = new Date(localP.lastModified || 0) >= new Date(cloudP.lastModified || 0);
+    const winner = localWins ? localP : cloudP;
+    const loser = localWins ? cloudP : localP;
+    if (translationBeats(loser, winner)) {
+        return Object.assign({}, winner, {
+            translation: loser.translation || '',
+            translationModified: loser.translationModified || ''
+        });
+    }
+    return winner;
+}
+
+// copies newer translations from what is already stored in IndexedDB into this tab's copy
+function rescueTranslationsFrom(stored) {
+    const byId = new Map();
+    Object.keys(stored).filter(k => k !== '_lastSaved').forEach(pn => {
+        ((stored[pn] || {}).folders || []).forEach(f => (f.pieces || []).forEach(p => { if (p.id) byId.set(p.id, p); }));
+    });
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(pn => {
+        (appData[pn].folders || []).forEach(f => (f.pieces || []).forEach(p => {
+            const s = p.id && byId.get(p.id);
+            if (s && translationBeats(s, p)) {
+                p.translation = s.translation || '';
+                p.translationModified = s.translationModified || '';
+            }
+        }));
+    });
+}
+
 // --- Compression helpers ---
 function compressForCloud(visualData) {
     if (!visualData) return '';
@@ -4732,6 +4785,7 @@ function buildIndexData() {
                     content: piece.content || '',
                     translation: piece.translation || '',
                     transliteration: piece.transliteration || '',
+                    translationModified: piece.translationModified || '',
                     lastModified: piece.lastModified || ''
                 }))
             }))
@@ -4795,9 +4849,7 @@ function mergeIndexes(cloudIndex, localIndex, deletingIds, deletingFolderKeys, d
             (cloudFolder.pieces || []).forEach(p => pieceById.set(p.id, p));
             (localFolder.pieces || []).forEach(p => {
                 const existing = pieceById.get(p.id);
-                if (!existing || new Date(p.lastModified || 0) >= new Date(existing.lastModified || 0)) {
-                    pieceById.set(p.id, p);
-                }
+                pieceById.set(p.id, existing ? mergePieceRecords(existing, p) : p);
             });
 
             // Keep the local device's own name/casing — it's the one actively saving.
@@ -4884,9 +4936,15 @@ async function idbSet(key, value) {
 function saveData() {
     if (_adminView) return;
     if (!idb) { console.warn('saveData called before IndexedDB was ready; change not persisted'); return; }
-    idbSet('miliket_data', appData)
-        .then(() => studioChannel.postMessage({ type: 'data_updated' }))
-        .catch(e => console.error('IDB save failed', e));
+        const tx = idb.transaction(DB_STORE, 'readwrite');
+    const store = tx.objectStore(DB_STORE);
+    const getReq = store.get('miliket_data');
+    getReq.onsuccess = () => {
+        if (getReq.result) rescueTranslationsFrom(getReq.result);
+        store.put(appData, 'miliket_data');
+    };
+    tx.oncomplete = () => studioChannel.postMessage({ type: 'data_updated' });
+    tx.onerror = () => console.error('IDB save failed', tx.error);
 }
 
 // --- Sync status ---
@@ -6139,9 +6197,11 @@ async function runBatchTranslationWithFilter(filterFn) {
             const translatedText = String(result?.translated_text || '').trim();
 
             const item = pieceById.get(id);
+            if (item) { const live = findLivePieceById(item.piece.id); if (live) item.piece = live; }
             if (!item || !translatedText) return;
 
             item.piece.translation = translatedText;
+            item.piece.translationModified = new Date().toISOString();
             item.piece.lastModified = new Date().toISOString();
 
             if (item.piece.id) markPieceDirty(item.piece.id);
@@ -6479,12 +6539,14 @@ function applyBatchTranslationResults(translations) {
 
     translations.forEach(result => {
         const item = itemsById.get(String(result.id));
+        if (item) { const live = findLivePieceById(item.piece.id); if (live) item.piece = live; }
 
         if (!item || !result.translated_text) {
             return;
         }
 
         item.piece.translation = result.translated_text;
+        item.piece.translationModified = new Date().toISOString();
         item.piece.lastModified = new Date().toISOString();
 
         if (item.piece.id) {
@@ -7031,7 +7093,13 @@ function closeTranslationModal() {
     const input = document.getElementById('tm-input');
     const val = input.value;
     const safeVal = (input.disabled && !val.trim()) ? _lastKnownGoodTranslation : val;
-    appData[currentUser].folders[currentFolder].pieces[_translatingIndex].translation = safeVal;
+    (function () {
+        const tp = appData[currentUser].folders[currentFolder].pieces[_translatingIndex];
+        if ((tp.translation || '') !== safeVal) {
+            tp.translation = safeVal;
+            tp.translationModified = new Date().toISOString();
+        }
+    })();
     (function () {
         const p = appData[currentUser].folders[currentFolder].pieces[_translatingIndex];
         const tl = document.getElementById('tm-translit-input');
