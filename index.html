@@ -15662,14 +15662,15 @@ function parsePiece(piece, f, parsed) {
     let words = [], w = null, n = 0, firstRows = null, lead = EMPTY, leadSeen = false, prevColon = false;
 
     function pushWord() {
-        if (w && w.cols.length) words.push({ text: w.cols.map(function (c) { return c.ch; }).join(''), cols: w.cols });
+        if (w && w.cols.length) words.push({ text: w.cols.map(function (c) { return c.ch; }).join(''), cols: w.cols, lead: w.lead || EMPTY });
         w = null;
     }
     function endLine(tail) {
         pushWord();
         if (words.length) {
             n++;
-            parsed.lines.push({ pid: pid, piece: pieceName, folder: f.name, n: n, lead: lead, words: words, tail: tail });
+            if (leadSeen && lead !== EMPTY) parsed.spaceMili++;
+            parsed.lines.push({ pid: pid, piece: pieceName, folder: f.name, n: n, words: words, tail: tail });
             words = []; lead = EMPTY; leadSeen = false;
         }
         // a row break with nothing before it keeps the empty box it just saw: that box belongs to the NEXT line
@@ -15681,7 +15682,8 @@ function parsePiece(piece, f, parsed) {
         const col = parseColumn(node, parsed);
         if (firstRows === null) firstRows = col.rows;
         if (col.space) {
-            if (!leadSeen && !w && !words.length) { leadSeen = true; lead = col.key; }   // first empty box of the line
+            pushWord();
+            if (!leadSeen) { leadSeen = true; lead = col.key; }   // first empty box of the line
             else if (col.key !== EMPTY) parsed.spaceMili++;                              // a later space carrying miliket (ignored)
             pushWord();
             continue;
@@ -15696,7 +15698,7 @@ function parsePiece(piece, f, parsed) {
         if (END_RE.test(ch)) { endLine({ ch: ch, key: col.key }); continue; }
         if (SEP_RE.test(ch)) { pushWord(); continue; }
         if (!LETTER_RE.test(ch.charAt(0))) { parsed.skipped++; continue; }
-        if (!w) w = { cols: [] };
+        if (!w) { w = { cols: [], lead: leadSeen ? lead : EMPTY }; lead = EMPTY; leadSeen = false; }
         w.cols.push({ ch: ch, key: col.key });
     }
     endLine(null);
@@ -15710,28 +15712,34 @@ function parsePiece(piece, f, parsed) {
 ================================================================== */
 function partInfo(ws, where) {
     const keys = [], chars = [], lk = [], lch = [], idx = [], wl = [];
-    ws.forEach(function (w, wi) {
-        if (wi) { keys.push(SPACE); chars.push(' '); }
+    const ld = [], ln = [], lc = [], lw = [];      // ld = empty box before each word, ln/lc/lw = letters only
+    ws.forEach(function (w) {
+        const lead = w.lead || EMPTY;
+        idx.push(keys.length); keys.push(lead); chars.push(' ');
+        lk.push(lead); lch.push(' '); wl.push({ w: w.text, p: -1 });
+        ld.push(lead);
         w.cols.forEach(function (c, ci) {
             idx.push(keys.length); keys.push(c.key); chars.push(c.ch);
             lk.push(c.key); lch.push(c.ch); wl.push({ w: w.text, p: ci });
+            ln.push(c.key); lc.push(c.ch); lw.push({ w: w.text, p: ci });
         });
     });
     return {
-        words: ws, N: lk.length, sig: ws.map(wlen).join('-'), pat: lk.join('¦'),
-        ex: { keys: keys, chars: chars, lk: lk, lch: lch, idx: idx, wl: wl, where: where }
+        words: ws, N: ln.length, sig: ws.map(wlen).join('-'), pat: lk.join('¦'),
+        ex: { keys: keys, chars: chars, lk: lk, lch: lch, idx: idx, wl: wl, ld: ld, ln: ln, lc: lc, lw: lw, where: where }
     };
 }
 
-function singleEx(key, ch, kind, where) {
-    return { keys: [key], chars: [ch], lk: [key], lch: [ch], idx: [0], wl: [{ w: '', p: kind }], where: where };
+function singleEx(key, ch, kind, where, wtxt) {
+    return { keys: [key], chars: [ch], lk: [key], lch: [ch], idx: [0], wl: [{ w: wtxt || '', p: kind }], where: where };
 }
 
 function lineEx(line, where) {
     const keys = [], chars = [], lk = [], lch = [], idx = [], wl = [];
-    idx.push(0); keys.push(line.lead || EMPTY); chars.push(' '); lk.push(line.lead || EMPTY); lch.push(' '); wl.push({ w: '', p: -1 });
-    line.words.forEach(function (w, wi) {
-        if (wi) { keys.push(SPACE); chars.push(' '); }
+    line.words.forEach(function (w) {
+        const lead = w.lead || EMPTY;
+        idx.push(keys.length); keys.push(lead); chars.push(' ');
+        lk.push(lead); lch.push(' '); wl.push({ w: w.text, p: -1 });
         w.cols.forEach(function (c, ci) {
             idx.push(keys.length); keys.push(c.key); chars.push(c.ch);
             lk.push(c.key); lch.push(c.ch); wl.push({ w: w.text, p: ci });
@@ -15874,18 +15882,25 @@ function aggregate() {
             bump(A.partAny, p + '|' + pi.N, short, pi.pat, function () { return pi.ex; }, { part: p, N: pi.N });
             for (let j = 0; j < pi.N; j++) {
                 const fe = Math.min(pi.N - 1 - j, 6);
-                bump(A.letter, p + '|e' + fe, PART_SHORT[p] + ' · ' + FROM_END[fe], pi.ex.lk[j], function () {
-                    return { keys: [pi.ex.lk[j]], chars: [pi.ex.lch[j]], lk: [pi.ex.lk[j]], lch: [pi.ex.lch[j]], idx: [0], wl: [pi.ex.wl[j]], where: where };
+                bump(A.letter, p + '|e' + fe, PART_SHORT[p] + ' · ' + FROM_END[fe], pi.ex.ln[j], function () {
+                    return { keys: [pi.ex.ln[j]], chars: [pi.ex.lc[j]], lk: [pi.ex.ln[j]], lch: [pi.ex.lc[j]], idx: [0], wl: [pi.ex.lw[j]], where: where };
                 }, { part: p });
             }
         });
 
-        // the first empty box of the line
-        const obN = rec.parts.ob.N, leadKey = line.lead || EMPTY;
-        const mkL = function () { return singleEx(leadKey, ' ', -1, where); };
-        bump(A.lead, 'L|' + rec.oG + '|' + obN, groupLabel(rec.oG) + ' · line start before a ' + plural(obN, 'letter') + ' base', leadKey, mkL, { grp: rec.oG });
-        bump(A.lead, 'L|' + rec.oG, groupLabel(rec.oG) + ' · line start', leadKey, mkL, { grp: rec.oG });
-        bump(A.lead, 'L', 'Line start (any house)', leadKey, mkL, { grp: '' });
+        // the empty box in front of every word
+        PART_ORDER.forEach(function (p) {
+            const pi = rec.parts[p];
+            if (!pi) return;
+            const g = (p === 'ob' || p === 'or') ? rec.oG : rec.eG;
+            pi.words.forEach(function (w, k) {
+                const wi2 = Math.min(k, 2), key2 = w.lead || EMPTY;
+                const nth = wi2 === 2 ? 'word 3 or later' : 'word ' + (wi2 + 1);
+                const mkL = function () { return singleEx(key2, ' ', -1, where, w.text); };
+                bump(A.lead, 'L|' + g + '|' + p + '|' + wi2, groupLabel(g) + ' · ' + PART_SHORT[p] + ' · empty box before ' + nth, key2, mkL, { grp: g, part: p });
+                bump(A.lead, 'L|' + p + '|' + wi2, PART_SHORT[p] + ' · empty box before ' + nth + ' (any house)', key2, mkL, { part: p });
+            });
+        });
 
         // the closing mark
         if (line.tail) {
@@ -16119,7 +16134,7 @@ function plainDescribe(ex) {
     ex.lk.forEach(function (k, i) {
         if (k === EMPTY) return;
         const w = ex.wl[i] || {};
-        out.push((w.p === -1 ? '▢ line start' : ex.lch[i]) + ' → ' + describeKey(k));
+        out.push((w.p === -1 ? '▢ before “' + (w.w || '') + '”' : ex.lch[i]) + ' → ' + describeKey(k));
     });
     return out.length ? out.join('   ·   ') : '(no miliket)';
 }
@@ -16127,7 +16142,7 @@ function plainDescribe(ex) {
 function boxName(ex, i) {
     const w = ex.wl[i];
     if (!w) return 'box ' + (i + 1);
-    if (w.p === -1) return 'Line start ▢ (the empty box before the first word)';
+    if (w.p === -1) return 'the empty box before “' + (w.w || 'the word') + '”';
     if (w.p === -2) return 'the closing mark “' + ex.lch[i] + '”';
     return '“' + ex.lch[i] + '” in “' + w.w + '” (letter ' + (w.p + 1) + ')';
 }
@@ -16379,7 +16394,7 @@ function renderRules() {
         '<li><b>Split.</b> Each line is a house. Houses are numbered 1 to 5 inside a stanza. The opening is the first few words, the house-ending is the rest (the same cut as the Splitter, adjustable per line in step 3).</li>' +
         '<li><b>Base and receiver.</b> The opening = base (first word) + receiver (the rest of the opening). The house-ending = base (all but the last word) + receiver (the last word).</li>' +
         '<li><b>Count.</b> The letters of every part are counted. The teacher’s rules work on these counts.</li>' +
-        '<li><b>Learn.</b> For every part the analyzer records which miliket was written for that letter count. Houses 2 and 3 are pooled (2 = 3), the endings of houses 1 and 4 are pooled, house 5 stands alone.</li>' +
+        '<li><b>Learn.</b> For every part the analyzer records which miliket was written for that letter count, including the miliket in the empty box in front of each word. Houses 2 and 3 are pooled (2 = 3), the endings of houses 1 and 4 are pooled, house 5 stands alone.</li>' +
         '<li><b>Check.</b> Your data is tested against the teacher’s rules (below).</li>' +
         '<li><b>Write.</b> New text is written from the closest learned pattern: a matching whole house first, then the same part with the same word lengths, then the same letter count, then single letters.</li></ol></details>';
 
@@ -16403,7 +16418,7 @@ function renderRules() {
     if (P.empty) skipped.push(plural(P.empty, 'empty piece'));
     if (P.failed) skipped.push(plural(P.failed, 'piece') + ' that could not be read');
     if (P.skipped) skipped.push(plural(P.skipped, 'box') + ' that were not Ge’ez letters');
-    if (P.spaceMili) skipped.push(plural(P.spaceMili, 'space box') + ' inside houses that carry miliket (ignored; only the first empty box of each house is used)');
+    if (P.spaceMili) skipped.push(plural(P.spaceMili, 'extra empty box') + ' with miliket (a second empty box in a row, or one right before the closing mark), ignored');
     if (skipped.length) h += '<p class="pa-note" style="margin-top:8px">Skipped: ' + skipped.join(', ') + '.</p>';
 
     h += '<h3 class="pa-h">Rule checks: your data against the teacher’s rules</h3><p class="pa-note">The same checks as the Splitter’s “Quick checks”, run over everything you scanned, plus a check that houses following the same rule really use the same miliket.</p>' + checksHtml(A.checks);
@@ -16420,9 +16435,9 @@ function renderRules() {
         'A whole house with exactly this house group and these word lengths. When one of these has been seen, the analyzer writes new houses of the same shape straight from it.' + dnote,
         listOf(A.line, PA.min), 'line', 120);
 
-    const leadList = listOf(A.lead, PA.min, function (e) { return e.key.split('|').length === 3; });
-    h += section('Line start (first empty box) → miliket',
-        'The miliket on the empty box before the first word of a house, by the opening group and the length of the base.', leadList, 'col', 80);
+    const leadList = listOf(A.lead, PA.min, function (e) { return e.key.split('|').length === 4; });
+    h += section('Empty box before every word → miliket',
+        'The miliket written in the empty box in front of a word (it ties that word to the one before it), by house group, part and word position. Used when a part has no matching example.', leadList, 'col', 80);
 
     const tailList = listOf(A.tail, PA.min, function (e) { return e.key.split('|').length === 4; });
     h += section('Closing mark → miliket',
@@ -16496,7 +16511,7 @@ window.paCopyRules = async function () {
     out.push('Miliket pattern rules from ' + PA.parsed.folderNames.join(', '));
     out.push('Each house is split into opening (base + receiver) and house-ending (base + receiver); rules are by letter count of each part.');
     out.push('Houses: ' + (PA.pool === 'lesson' ? 'teacher’s grouping (2 = 3, endings of 1 and 4 pooled)' : 'every house on its own') + '.   Part rules: ' + (PA.view === 'sig' ? 'by letter count + word lengths' : 'by letter count') + '.');
-    out.push('Row numbers: R1 is the row nearest the letter, R2 the row above it, and so on. ▢ = the first empty box of a house.');
+    out.push('Row numbers: R1 is the row nearest the letter, R2 the row above it, and so on. ▢ = the empty box in front of a word.');
     out.push('Similar = ' + PA.varMax + ' or fewer boxes differ from the most common pattern. Variation = more.');
     out.push('', '=== Rule checks (your data against the teacher’s rules) ===');
     A.checks.forEach(function (c) {
@@ -16553,6 +16568,17 @@ function levelPick(A, g, p, pi) {
     return null;
 }
 
+// empty box (with its miliket) in front of every word of a part:
+// copied from the matching example, otherwise learned by word position
+function fitLeads(A, g, p, pi, exLeads) {
+    return pi.words.map(function (w, k) {
+        if (exLeads && k < exLeads.length) return exLeads[k];
+        const wi2 = Math.min(k, 2);
+        const le = A.lead.get('L|' + g + '|' + p + '|' + wi2) || A.lead.get('L|' + p + '|' + wi2);
+        return le ? le.sorted[0].pat : EMPTY;
+    });
+}
+
 function predictLine(L, i) {
     const A = PA.agg;
     const h = PA.testH[i] != null ? PA.testH[i] : (i % 5) + 1;
@@ -16570,21 +16596,25 @@ function predictLine(L, i) {
 
     const lineKey = oG + '|' + eG + '|' + lens.join('-') + '|' + L.tail;
     const whole = A.line.get(lineKey);
-    let leadKey = EMPTY, tailKey = EMPTY;
+    let tailKey = EMPTY;
 
-    if (whole && whole.sorted[0].ex.lk.length === 1 + total + (L.tail ? 1 : 0)) {
+    if (whole && whole.sorted[0].ex.lk.length === L.words.length + total + (L.tail ? 1 : 0)) {
         const lk = whole.sorted[0].ex.lk;
         res.whole = true;
-        leadKey = lk[0];
+        // every word's empty box is read below, together with its letters
         if (L.tail) tailKey = lk[lk.length - 1];
-        let off = 1;
+        let off = 0;
         PART_ORDER.forEach(function (p) {
             const pi = parts[p];
             if (!pi) return;
-            pi.lk = lk.slice(off, off + pi.N); off += pi.N;
+            pi.ld = []; pi.lk = [];
+            pi.words.forEach(function (wd) {
+                pi.ld.push(lk[off++]);
+                for (let j = 0; j < wd.cols.length; j++) pi.lk.push(lk[off++]);
+            });
             pi.level = 'line'; pi.n = whole.total; pi.share = whole.share; pi.alts = whole.sorted.length - 1;
         });
-        res.lead = { level: 'line', n: whole.total, share: whole.share };
+        // (the empty boxes are part of each part's rule now, so there is no separate line-start rule)
         if (L.tail) res.tailInfo = { level: 'line', n: whole.total, share: whole.share };
     } else {
         PART_ORDER.forEach(function (p) {
@@ -16593,7 +16623,8 @@ function predictLine(L, i) {
             const g = (p === 'ob' || p === 'or') ? oG : eG;
             const hit = levelPick(A, g, p, pi);
             if (hit) {
-                pi.lk = hit.e.sorted[0].ex.lk.slice();
+                pi.lk = hit.e.sorted[0].ex.ln.slice();
+                pi.ld = fitLeads(A, g, p, pi, hit.e.sorted[0].ex.ld);
                 pi.level = hit.level; pi.n = hit.e.total; pi.share = hit.e.share; pi.alts = hit.e.sorted.length - 1;
                 return;
             }
@@ -16603,14 +16634,12 @@ function predictLine(L, i) {
                 if (ce) { lk.push(ce.sorted[0].pat); got++; nn += ce.total; sh += ce.share; } else lk.push(EMPTY);
             }
             pi.lk = lk;
+            pi.ld = fitLeads(A, g, p, pi, null);
             pi.level = got ? 'letters' : 'none';
             pi.n = got ? Math.round(nn / got) : 0; pi.share = got ? Math.round(sh / got) : 0;
         });
 
-        const obN = parts.ob.N;
-        const le = A.lead.get('L|' + oG + '|' + obN) || A.lead.get('L|' + oG) || A.lead.get('L');
-        if (le) { leadKey = le.sorted[0].pat; res.lead = { level: 'count', n: le.total, share: le.share }; }
-        else res.lead = { level: 'none', n: 0, share: 0 };
+                // the empty box in front of every word was filled in above, part by part
 
         if (L.tail) {
             const erN = parts.er ? parts.er.N : 0;
@@ -16620,14 +16649,14 @@ function predictLine(L, i) {
         }
     }
 
-    const keys = [leadKey], chars = [' '];
+    const keys = [], chars = [];
     let wi = 0;
     PART_ORDER.forEach(function (p) {
         const pi = parts[p];
         if (!pi) return;
         let off = 0;
-        pi.words.forEach(function (w) {
-            if (wi > 0) { keys.push(SPACE); chars.push(' '); }
+        pi.words.forEach(function (w, k) {
+            keys.push(pi.ld[k]); chars.push(' ');
             wi++;
             for (let j = 0; j < w.cols.length; j++) { keys.push(pi.lk[off]); chars.push(w.cols[j].ch); off++; }
         });
