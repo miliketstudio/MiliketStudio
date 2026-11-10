@@ -923,6 +923,14 @@
 
         /* Drag-and-drop reordering */
         .studio-card.drag-over { outline: 2px solid #3a9ad1; background: rgba(58,154,209,0.07); }
+
+        /* Project folders (Projects page) */
+        .project-group-card {
+            border-style: dashed;
+            border-color: var(--gold);
+            background: linear-gradient(rgba(184,134,11,0.07), rgba(184,134,11,0.07)), var(--card-bg);
+        }
+        #projects-group-bar .plain-back-btn { margin-right: 6px; }
         .studio-card.dragging  { opacity: 0.45; outline: 2px solid #3a9ad1; cursor: grabbing; }
 
         #hairSpaceBtn {
@@ -2294,6 +2302,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
             <h2>Your Projects</h2>
             <button class="studio-add-btn" onclick="createProject()">＋ New Project</button>
         </div>
+        <div id="projects-group-bar" class="breadcrumb-bar" style="display:none;"></div>
         <div id="projects-grid" class="studio-grid"></div>
         <div class="transfer-row">
             <button class="transfer-btn" style="background:#27ae60;" onclick="exportAllData()">💾 Export Data</button>
@@ -4978,6 +4987,7 @@ async function saveAndSync() {
 
 // --- Studio page navigation ---
 function goToProjectsFromLogo() {
+    _openProjectGroup = null;
     if (!currentUser) { showStudioPage('page-welcome'); return; }
     showStudioPage('page-projects');
     renderProjects();
@@ -5095,10 +5105,12 @@ function renderProjects() {
     grid.innerHTML = '';
     const keys = Object.keys(appData).filter(k => k !== '_lastSaved');
     if (!keys.length) {
+        _openProjectGroup = null; updateProjectGroupBar();
         grid.innerHTML = '<div class="empty-state"><div class="empty-icon">☦</div><p>No projects yet. Create one to get started.</p></div>';
         return;
     }
-    keys.forEach(name => {
+    const visibleKeys = projectGroupVisibleKeys(keys, grid);
+    visibleKeys.forEach(name => {
         const div = document.createElement('div');
         div.className = 'studio-card';
         div.draggable = true;
@@ -5109,6 +5121,7 @@ function renderProjects() {
             <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
             <div class="card-actions">
                 <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameProject(this.closest('.studio-card').dataset.name)">✎ Rename</button>
+                <button class="card-action-btn mov" onclick="event.stopPropagation(); closeCardMenus(); moveProjectToGroup(this.closest('.studio-card').dataset.name)">📁 Folder…</button>
                 <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteProject(this.closest('.studio-card').dataset.name)">× Delete</button>
             </div>
             <div class="card-icon">☦</div>
@@ -5118,6 +5131,284 @@ function renderProjects() {
         attachDragHandlers(div, 'project');
         grid.appendChild(div);
     });
+}
+
+// ============================================================
+// PROJECT FOLDERS: visual grouping of projects only.
+// Never touches appData, pieces, or the cloud project index.
+// Stored on its own: localStorage + a "projectGroups" field on the user doc.
+// ============================================================
+const PROJECT_GROUPS_KEY = 'miliket_project_groups_v1';
+let _projectGroups = { map: {}, updatedAt: 0 };   // map: project name -> folder name
+let _openProjectGroup = null;                     // folder open on the Projects page (null = main page)
+
+(function loadProjectGroupsLocal() {
+    try {
+        const raw = localStorage.getItem(PROJECT_GROUPS_KEY);
+        if (!raw) return;
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.map && typeof parsed.map === 'object') {
+            _projectGroups = { map: parsed.map, updatedAt: Number(parsed.updatedAt) || 0 };
+        }
+    } catch (e) { console.warn('Could not read project folders:', e); }
+})();
+
+function saveProjectGroupsLocal() {
+    if (_adminView) return;
+    try { localStorage.setItem(PROJECT_GROUPS_KEY, JSON.stringify(_projectGroups)); } catch (e) {}
+}
+
+function resetProjectGroupsLocal() {
+    _projectGroups = { map: {}, updatedAt: 0 };
+    _openProjectGroup = null;
+    try { localStorage.removeItem(PROJECT_GROUPS_KEY); } catch (e) {}
+}
+
+function projectGroupsToCloud() {
+    const entries = Object.keys(_projectGroups.map).map(p => ({ project: p, folder: _projectGroups.map[p] }));
+    return { updatedAt: _projectGroups.updatedAt, entries: entries };
+}
+
+function projectGroupsFromCloud(raw) {
+    const map = {};
+    ((raw && raw.entries) || []).forEach(e => { if (e && e.project && e.folder) map[e.project] = e.folder; });
+    return { map: map, updatedAt: Number(raw && raw.updatedAt) || 0 };
+}
+
+async function pushProjectGroups() {
+    if (_adminView) return;
+    const user = firebase.auth().currentUser;
+    if (!user || !navigator.onLine) return;
+    try {
+        await fsdb.collection('users').doc(user.uid).set({ projectGroups: projectGroupsToCloud() }, { merge: true });
+    } catch (e) {
+        console.warn('Could not sync project folders:', e);
+    }
+}
+
+// Newest copy wins. Runs once when the account loads.
+async function syncProjectGroupsOnLoad(cloudDocData) {
+    const cloud = projectGroupsFromCloud(cloudDocData && cloudDocData.projectGroups);
+    if (cloud.updatedAt > _projectGroups.updatedAt) {
+        _projectGroups = cloud;
+        saveProjectGroupsLocal();
+    } else if (_projectGroups.updatedAt > cloud.updatedAt) {
+        pushProjectGroups();
+    }
+}
+
+function commitProjectGroups() {
+    if (_adminView) return;
+    _projectGroups.updatedAt = Date.now();
+    saveProjectGroupsLocal();
+    pushProjectGroups();
+}
+
+function projectGroupOf(name) {
+    return Object.prototype.hasOwnProperty.call(_projectGroups.map, name) ? String(_projectGroups.map[name] || '') : '';
+}
+
+// folder name -> [project names], only for projects that really exist
+function projectGroupMembers() {
+    const members = new Map();
+    Object.keys(appData).filter(k => k !== '_lastSaved').forEach(p => {
+        const g = projectGroupOf(p);
+        if (!g) return;
+        if (!members.has(g)) members.set(g, []);
+        members.get(g).push(p);
+    });
+    return members;
+}
+
+function projectGroupNames() {
+    return Array.from(projectGroupMembers().keys())
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+}
+
+function setProjectGroup(projName, groupName) {
+    if (_adminView) return;
+    if (groupName) _projectGroups.map[projName] = groupName;
+    else delete _projectGroups.map[projName];
+    commitProjectGroups();
+}
+
+function renameProjectInGroups(oldName, newName) {
+    if (_adminView) return;
+    if (Object.prototype.hasOwnProperty.call(_projectGroups.map, oldName)) {
+        _projectGroups.map[newName] = _projectGroups.map[oldName];
+        delete _projectGroups.map[oldName];
+        commitProjectGroups();
+    }
+}
+
+function removeProjectFromGroups(name) {
+    if (_adminView) return;
+    if (Object.prototype.hasOwnProperty.call(_projectGroups.map, name)) {
+        delete _projectGroups.map[name];
+        commitProjectGroups();
+    }
+}
+
+function updateProjectGroupBar() {
+    const bar = document.getElementById('projects-group-bar');
+    if (!bar) return;
+    bar.innerHTML = '';
+    if (!_openProjectGroup) { bar.style.display = 'none'; return; }
+    bar.style.display = '';
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.className = 'plain-back-btn';
+    back.textContent = '← All projects';
+    back.onclick = closeProjectGroup;
+    const label = document.createElement('span');
+    label.textContent = '📂 ' + _openProjectGroup;
+    bar.appendChild(back);
+    bar.appendChild(label);
+}
+
+function buildProjectGroupCard(groupName, count) {
+    const div = document.createElement('div');
+    div.className = 'studio-card project-group-card';
+    div.dataset.group = groupName;
+    div.innerHTML = `
+        <button class="card-menu-btn" onclick="event.stopPropagation(); toggleCardMenu(this)" title="Options">⋮</button>
+        <div class="card-actions">
+            <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renameProjectGroup(this.closest('.studio-card').dataset.group)">✎ Rename</button>
+            <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deleteProjectGroup(this.closest('.studio-card').dataset.group)">× Remove folder</button>
+        </div>
+        <div class="card-icon">📂</div>
+        <div class="card-name">${_escHtml(groupName)}</div>
+        <div class="card-meta">${count} project${count !== 1 ? 's' : ''}</div>`;
+    div.onclick = () => openProjectGroup(groupName);
+    return div;
+}
+
+// Main page: folder cards first, then projects that are not in a folder.
+// Inside a folder: only that folder's projects.
+function projectGroupVisibleKeys(keys, grid) {
+    const members = projectGroupMembers();
+    if (_openProjectGroup && !members.has(_openProjectGroup)) _openProjectGroup = null;
+    updateProjectGroupBar();
+    if (_openProjectGroup) return members.get(_openProjectGroup);
+    projectGroupNames().forEach(g => grid.appendChild(buildProjectGroupCard(g, members.get(g).length)));
+    return keys.filter(k => !projectGroupOf(k));
+}
+
+function openProjectGroup(name) {
+    _openProjectGroup = name;
+    renderProjects();
+}
+
+function closeProjectGroup() {
+    _openProjectGroup = null;
+    renderProjects();
+}
+
+async function askNewProjectGroupName() {
+    const existing = projectGroupNames();
+    const name = await studioPrompt({
+        title: 'New Folder',
+        message: 'Name the folder that will hold this project.',
+        icon: '📁',
+        placeholder: 'Folder name',
+        confirmLabel: 'Create',
+        validate: v => v.trim().length > 60 ? 'Please keep the folder name under 60 characters.' : ''
+    });
+    if (name === null) return null;
+    const trimmed = name.trim();
+    // typing the name of an existing folder just uses that folder
+    const match = existing.find(g => g.toLowerCase() === trimmed.toLowerCase());
+    return match || trimmed;
+}
+
+async function moveProjectToGroup(projName) {
+    if (_adminView) { alert('Admin view is read-only, so folders cannot be changed here.'); return; }
+    const current = projectGroupOf(projName);
+    const members = projectGroupMembers();
+    const groups = projectGroupNames();
+    let target = null;   // folder name, or '' = take out of its folder
+
+    if (!groups.length && !current) {
+        target = await askNewProjectGroupName();
+        if (target === null) return;
+    } else {
+        const options = groups.map(g => ({
+            value: 'g:' + g,
+            label: g,
+            sub: members.get(g).length + ' project' + (members.get(g).length === 1 ? '' : 's')
+        }));
+        options.push({ value: '__new__', label: '＋ Create new folder…' });
+        if (current) options.push({ value: '__none__', label: '⤺ Take out of folder (back to main page)' });
+
+        const picked = await studioChoose({
+            title: 'Put Project in a Folder',
+            message: 'Choose a folder for "' + projName + '". This only organizes the Projects page. Nothing inside the project changes.',
+            icon: '📁',
+            confirmLabel: 'Select',
+            selected: current ? 'g:' + current : null,
+            options: options
+        });
+        if (picked === null) return;
+        if (picked === '__new__') {
+            target = await askNewProjectGroupName();
+            if (target === null) return;
+        } else if (picked === '__none__') {
+            target = '';
+        } else {
+            target = picked.slice(2);
+        }
+    }
+
+    if (target === current) return;
+    setProjectGroup(projName, target);
+    renderProjects();
+    showToast(target
+        ? 'Moved "' + projName + '" into "' + target + '".'
+        : 'Moved "' + projName + '" back to the main page.', 'success');
+}
+
+async function renameProjectGroup(oldName) {
+    if (_adminView) { alert('Admin view is read-only, so folders cannot be changed here.'); return; }
+    const newName = await studioPrompt({
+        title: 'Rename Folder',
+        icon: '📂',
+        defaultValue: oldName,
+        confirmLabel: 'Rename',
+        validate: v => {
+            const t = v.trim().toLowerCase();
+            if (v.trim().length > 60) return 'Please keep the folder name under 60 characters.';
+            return (t !== oldName.toLowerCase() && projectGroupNames().some(g => g.toLowerCase() === t))
+                ? 'A folder with that name already exists.' : '';
+        }
+    });
+    if (!newName || !newName.trim()) return;
+    const trimmed = newName.trim();
+    if (trimmed === oldName) return;
+    Object.keys(_projectGroups.map).forEach(p => {
+        if (_projectGroups.map[p] === oldName) _projectGroups.map[p] = trimmed;
+    });
+    if (_openProjectGroup === oldName) _openProjectGroup = trimmed;
+    commitProjectGroups();
+    renderProjects();
+}
+
+async function deleteProjectGroup(name) {
+    if (_adminView) { alert('Admin view is read-only, so folders cannot be changed here.'); return; }
+    const count = (projectGroupMembers().get(name) || []).length;
+    const ok = await studioConfirm({
+        title: 'Remove Folder?',
+        message: 'The folder "' + name + '" will be removed and its ' + count + ' project' + (count === 1 ? '' : 's') + ' will go back to the main Projects page.\n\nNo projects, folders or pieces are deleted.',
+        icon: '📂',
+        confirmLabel: 'Remove Folder',
+        tone: 'warning'
+    });
+    if (!ok) return;
+    Object.keys(_projectGroups.map).forEach(p => {
+        if (_projectGroups.map[p] === name) delete _projectGroups.map[p];
+    });
+    if (_openProjectGroup === name) _openProjectGroup = null;
+    commitProjectGroups();
+    renderProjects();
 }
 
 function openProject(name) {
@@ -5145,6 +5436,7 @@ async function createProject() {
     // clear the tombstone so the new project isn't dropped from the cloud merge.
     _deletedProjectNames.delete(trimmed);
     appData[trimmed] = { folders: [] };
+    if (_openProjectGroup) setProjectGroup(trimmed, _openProjectGroup);
     saveAndSync();
     renderProjects();
 }
@@ -5170,6 +5462,7 @@ async function renameProject(oldName) {
     // Without the tombstone the merge resurrects the old project next to the new one.
     _deletedProjectNames.delete(trimmed);   // renaming back to a just-renamed name
     _deletedProjectNames.add(oldName);
+    renameProjectInGroups(oldName, trimmed);
     markOrderDirty();                       // keep the renamed project in its slot in the cloud order
     saveAndSync();
     renderProjects();
@@ -5189,6 +5482,7 @@ function deleteProject(name) {
             (f.pieces || []).forEach(p => { if (p.id && !usedElsewhere.has(p.id)) markPieceDeleted(p.id); });
         });
         _deletedProjectNames.add(name);
+        removeProjectFromGroups(name);
         delete appData[name];
         if (currentUser === name) { currentUser = null; currentFolder = null; currentPiece = null; _editorPieceId = null; }
         saveAndSync();
@@ -11440,6 +11734,7 @@ async function loadFromFirestore(uid) {
             return;
         }
 
+        try { await syncProjectGroupsOnLoad(doc.data()); } catch (e) { console.warn('Project folder sync skipped:', e); }
         const cloudIndex = doc.data().index || {};
         const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
         const pieceMap = {};
@@ -11676,6 +11971,7 @@ async function logOut() {
         // loadFromFirestore() needs to correctly detect a real cloud/local conflict
         // the next time someone logs into this same account on this device.
         localStorage.removeItem('miliket_last_saved');
+        resetProjectGroupsLocal();
         showStudioPage('page-welcome');
     })();
 }
@@ -11909,6 +12205,7 @@ async function startAdminView() {
         if (!doc.exists) { adminViewOverlay('That account has no data.', true); return; }
 
         const data = doc.data() || {};
+        _projectGroups = projectGroupsFromCloud(data.projectGroups);
         const cloudIndex = data.index || {};
         const pieceSnaps = await fsdb.collection('users').doc(uid).collection('pieces').get();
         const pieceMap = {};
