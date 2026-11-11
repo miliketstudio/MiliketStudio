@@ -5110,6 +5110,7 @@ function renderProjects() {
         return;
     }
     const visibleKeys = projectGroupVisibleKeys(keys, grid);
+    Promise.resolve().then(() => applyProjectGroupOrder(grid));
     visibleKeys.forEach(name => {
         const div = document.createElement('div');
         div.className = 'studio-card';
@@ -5148,7 +5149,7 @@ let _openProjectGroup = null;                     // folder open on the Projects
         if (!raw) return;
         const parsed = JSON.parse(raw);
         if (parsed && parsed.map && typeof parsed.map === 'object') {
-            _projectGroups = { map: parsed.map, updatedAt: Number(parsed.updatedAt) || 0 };
+            _projectGroups = { map: parsed.map, order: (parsed.order && typeof parsed.order === 'object') ? parsed.order : {}, updatedAt: Number(parsed.updatedAt) || 0 };
         }
     } catch (e) { console.warn('Could not read project folders:', e); }
 })();
@@ -5166,13 +5167,17 @@ function resetProjectGroupsLocal() {
 
 function projectGroupsToCloud() {
     const entries = Object.keys(_projectGroups.map).map(p => ({ project: p, folder: _projectGroups.map[p] }));
-    return { updatedAt: _projectGroups.updatedAt, entries: entries };
+    const ord = _projectGroups.order || {};
+    const order = Object.keys(ord).map(g => ({ folder: g, pos: ord[g] }));
+    return { updatedAt: _projectGroups.updatedAt, entries: entries, order: order };
 }
 
 function projectGroupsFromCloud(raw) {
     const map = {};
     ((raw && raw.entries) || []).forEach(e => { if (e && e.project && e.folder) map[e.project] = e.folder; });
-    return { map: map, updatedAt: Number(raw && raw.updatedAt) || 0 };
+    const order = {};
+    ((raw && raw.order) || []).forEach(o => { if (o && o.folder && Number.isFinite(Number(o.pos))) order[o.folder] = Number(o.pos); });
+    return { map: map, order: order, updatedAt: Number(raw && raw.updatedAt) || 0 };
 }
 
 async function pushProjectGroups() {
@@ -5280,6 +5285,8 @@ function buildProjectGroupCard(groupName, count) {
         <div class="card-name">${_escHtml(groupName)}</div>
         <div class="card-meta">${count} project${count !== 1 ? 's' : ''}</div>`;
     div.onclick = () => openProjectGroup(groupName);
+    div.draggable = true;
+    attachGroupDragHandlers(div);
     return div;
 }
 
@@ -5292,6 +5299,93 @@ function projectGroupVisibleKeys(keys, grid) {
     if (_openProjectGroup) return members.get(_openProjectGroup);
     projectGroupNames().forEach(g => grid.appendChild(buildProjectGroupCard(g, members.get(g).length)));
     return keys.filter(k => !projectGroupOf(k));
+}
+
+let _dragGroupName = null;
+
+// Puts each folder card at its saved slot among the project cards.
+// Folders with no saved slot stay at the front, like before.
+function applyProjectGroupOrder(grid) {
+    if (_openProjectGroup || !grid) return;
+    const folderCards = Array.from(grid.children).filter(c => c.classList.contains('project-group-card'));
+    if (!folderCards.length) return;
+    const projectCards = Array.from(grid.children).filter(c => !c.classList.contains('project-group-card'));
+    const order = _projectGroups.order || {};
+    const ranked = folderCards.map((c, i) => {
+        const saved = Object.prototype.hasOwnProperty.call(order, c.dataset.group) ? Number(order[c.dataset.group]) : -1;
+        return { c: c, i: i, pos: Number.isFinite(saved) ? saved : -1 };
+    }).sort((a, b) => (a.pos - b.pos) || (a.i - b.i));
+    const list = projectCards.slice();
+    let last = -1;
+    ranked.forEach(f => {
+        const p = Math.max(f.pos, last + 1);
+        last = p;
+        list.splice(Math.min(p, list.length), 0, f.c);
+    });
+    list.forEach(c => grid.appendChild(c));
+}
+
+// Moves a folder to the slot of the card it was dropped on, then saves every folder's slot.
+function moveProjectGroupTo(groupName, targetKind, targetName) {
+    _dragSrcIndex = null; _dragType = null; _dragGroupName = null;
+    if (_adminView || !groupName) return;
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+    const items = Array.from(grid.children).map(c => c.classList.contains('project-group-card')
+        ? { kind: 'group', name: c.dataset.group }
+        : { kind: 'project', name: c.dataset.name }
+    ).filter(it => it.name);
+    const from = items.findIndex(it => it.kind === 'group' && it.name === groupName);
+    const to = items.findIndex(it => it.kind === targetKind && it.name === targetName);
+    if (from === -1 || to === -1 || from === to) return;
+    const moved = items.splice(from, 1)[0];
+    items.splice(to, 0, moved);
+    const order = {};
+    items.forEach((it, i) => { if (it.kind === 'group') order[it.name] = i; });
+    _projectGroups.order = order;
+    commitProjectGroups();
+    renderProjects();
+}
+
+function attachGroupDragHandlers(div) {
+    div.addEventListener('dragstart', e => {
+        _dragSrcIndex = -1;
+        _dragType = 'group';
+        _dragMoved = false;
+        _dragGroupName = div.dataset.group;
+        div.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        try { e.dataTransfer.setData('text/plain', div.dataset.group); } catch (err) {}
+        const ghost = document.createElement('div');
+        ghost.style.cssText = 'position:fixed;top:-999px;opacity:0;';
+        document.body.appendChild(ghost);
+        e.dataTransfer.setDragImage(ghost, 0, 0);
+        setTimeout(() => document.body.removeChild(ghost), 0);
+    });
+
+    div.addEventListener('dragend', () => {
+        div.classList.remove('dragging');
+        document.querySelectorAll('.studio-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+        _dragSrcIndex = null; _dragType = null; _dragGroupName = null;
+    });
+
+    div.addEventListener('dragover', e => {
+        if (_dragType !== 'group' || _dragGroupName === div.dataset.group) return;
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        document.querySelectorAll('.studio-card.drag-over').forEach(el => el.classList.remove('drag-over'));
+        div.classList.add('drag-over');
+    });
+
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+
+    div.addEventListener('drop', e => {
+        if (_dragType !== 'group') return;
+        e.preventDefault();
+        e.stopPropagation();
+        div.classList.remove('drag-over');
+        moveProjectGroupTo(_dragGroupName, 'group', div.dataset.group);
+    });
 }
 
 function openProjectGroup(name) {
@@ -5388,6 +5482,10 @@ async function renameProjectGroup(oldName) {
         if (_projectGroups.map[p] === oldName) _projectGroups.map[p] = trimmed;
     });
     if (_openProjectGroup === oldName) _openProjectGroup = trimmed;
+    if (_projectGroups.order && Object.prototype.hasOwnProperty.call(_projectGroups.order, oldName)) {
+        _projectGroups.order[trimmed] = _projectGroups.order[oldName];
+        delete _projectGroups.order[oldName];
+    }
     commitProjectGroups();
     renderProjects();
 }
@@ -11495,6 +11593,7 @@ function attachDragHandlers(div, type) {
         e.stopPropagation();
         div.classList.remove('drag-over');
         const targetIndex = parseInt(div.dataset.index);
+        if (_dragType === 'group' && type === 'project') { moveProjectGroupTo(_dragGroupName, 'project', div.dataset.name); return; }
         if (_dragSrcIndex === null || targetIndex === _dragSrcIndex || _dragType !== type) return;
         _dragMoved = true;
         markOrderDirty();
