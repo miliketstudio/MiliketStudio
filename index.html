@@ -2568,6 +2568,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
         <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
         <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave All</button>
         <button onclick="toggleSsInterleaveSlide()" id="ss-interleave-slide-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">▤ This slide</button>
+        <button onclick="toggleSsWrapSelect()" id="ss-wrap-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↵ Wrap: On</button>
         <button onclick="toggleSsBg()" id="ss-bg-btn" style="background:var(--gold);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">☀ Bright (switched on)</button>
         <button onclick="toggleSsTranslit()" id="ss-translit-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Aa Translit: Off</button>
         <button onclick="resetSsLayout()" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↺ Reset</button>
@@ -8384,6 +8385,8 @@ function finishAndPresent() {
     _ssZoomLevels = [];
     _ssLayoutOverrides = {}; // fresh session
     _ssInterleaveOverrides = {}; // fresh session: don't inherit per-slide interleave choices
+    ssResetWrapLines();
+    _ssWrapOverrides = {};
     document.getElementById('slideshow-overlay').style.display = 'flex';
     renderSlideshowSlide();
     showSsHud();
@@ -8794,6 +8797,7 @@ const SS_INTERLEAVE_TRANS_RATIO = 0.6;    // translation text size relative to t
 const SS_INTERLEAVE_TRANSLIT_RATIO = 0.38; // transliteration text size relative to the Ge'ez letter size (smaller than the translation)
 const SS_INTERLEAVE_GAP = 14;             // minimum space between one line group and the next (px)
 let _ssInterleave = false;
+let _ssWrapOverrides = {};                // { [slideIndex]: false } = slides where interleaved lines are forced onto one line (wrap is ON by default)
 let _ssInterleaveOverrides = {};          // { [slideIndex]: true | false } — per-slide exceptions to the master switch
 let _ssTranslit = false;                  // transliteration is OFF by default
 try { _ssInterleave = localStorage.getItem('miliket_ss_interleave') === '1'; } catch (e) {}
@@ -9005,6 +9009,171 @@ function toggleSsInterleaveSlide() {
     }
 }
 
+// Wrap is ON for every slide unless this slide was switched off.
+
+let _ssWrapLines = {};        // { [slideIndex]: { [lineIndex]: true|false } } lines you picked; a line not listed follows the whole-slide setting
+let _ssWrapSelect = false;    // true while you are clicking lines to switch their wrap
+let _ssWrapSelectIdx = -1;    // the slide the picking mode belongs to
+
+// Does this line wrap? A line you picked wins, otherwise the whole-slide setting applies.
+function ssLineWrapOn(slideIdx, lineIdx) {
+    const m = _ssWrapLines[slideIdx];
+    if (m && Object.prototype.hasOwnProperty.call(m, lineIdx)) return !!m[lineIdx];
+    return ssSlideWrapOn(slideIdx);
+}
+
+// Clicking a line: flip it and redraw the slide right away.
+function ssToggleLineWrap(lineIdx) {
+    const idx = _ssIndex;
+    const makeOn = !ssLineWrapOn(idx, lineIdx);
+    const m = _ssWrapLines[idx] || (_ssWrapLines[idx] = {});
+    if (makeOn === ssSlideWrapOn(idx)) delete m[lineIdx]; else m[lineIdx] = makeOn;
+    if (!Object.keys(m).length) delete _ssWrapLines[idx];
+    renderSlideshowSlide();
+}
+
+// "Wrap all" / "No wrap": sets every line of this slide at once.
+function ssSetAllLinesWrap(on) {
+    delete _ssWrapLines[_ssIndex];
+    if (on === SS_INTERLEAVE_ALLOW_WRAP) delete _ssWrapOverrides[_ssIndex]; else _ssWrapOverrides[_ssIndex] = on;
+    renderSlideshowSlide();
+}
+
+// The bar at the bottom of the slide while you are picking lines.
+function ssWrapBanner(show) {
+    const old = document.getElementById('ss-wrap-banner');
+    if (old) old.remove();
+    if (!show) return;
+    const hud = document.getElementById('ss-hud');
+    if (!hud) return;
+
+    const b = document.createElement('div');
+    b.id = 'ss-wrap-banner';
+    b.style.cssText = 'position:fixed;left:50%;bottom:18px;transform:translateX(-50%);display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:10px;max-width:92%;padding:10px 16px;background:#1a2a3a;border:2px solid #b8860b;border-radius:10px;box-shadow:0 4px 18px rgba(0,0,0,0.4);color:#fffdf8;font-family:sans-serif;font-size:13px;z-index:60;';
+
+    const msg = document.createElement('span');
+    msg.innerHTML = 'Click a line to switch it: <b style="color:#5fd68a;">green = may wrap</b> · <b style="color:#ff8a7e;">red = one line</b>';
+    b.appendChild(msg);
+
+    function mk(label, bg, fn) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.textContent = label;
+        btn.style.cssText = 'background:' + bg + ';border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:bold;cursor:pointer;font-family:sans-serif;';
+        btn.onclick = function (e) { e.stopPropagation(); fn(); };
+        return btn;
+    }
+    b.appendChild(mk('Wrap all', '#3a5a82', function () { ssSetAllLinesWrap(true); }));
+    b.appendChild(mk('No wrap', '#7a3a2a', function () { ssSetAllLinesWrap(false); }));
+    b.appendChild(mk('✓ Done', '#27ae60', function () { ssEndWrapSelect(true); }));
+    hud.appendChild(b);
+}
+
+// The Wrap button in the bar: starts or finishes picking lines.
+function toggleSsWrapSelect() {
+    if (_ssWrapSelect) { ssEndWrapSelect(true); return; }
+    if (!_ssSlides.length || !_ssSlides[_ssIndex]) return;
+    const plan = ssInterleaveRows(_ssSlides[_ssIndex]);
+    if (!plan.rows) {
+        if (typeof showToast === 'function') {
+            showToast(plan.reason === 'off'
+                ? 'Turn interleave on for this slide first, then choose which lines wrap.'
+                : 'Lines can only be chosen on an interleaved slide. This one stays classic (' + plan.reason + ').', 'warning');
+        }
+        return;
+    }
+    _ssWrapSelect = true;
+    _ssWrapSelectIdx = _ssIndex;
+    ssWrapBanner(true);
+    renderSlideshowSlide();
+}
+
+function ssEndWrapSelect(rerender) {
+    _ssWrapSelect = false;
+    _ssWrapSelectIdx = -1;
+    ssWrapBanner(false);
+    if (rerender) renderSlideshowSlide();
+}
+
+// Fresh slideshow: forget every picked line.
+function ssResetWrapLines() {
+    _ssWrapLines = {};
+    _ssWrapSelect = false;
+    _ssWrapSelectIdx = -1;
+    ssWrapBanner(false);
+}
+
+// Keeps the Wrap button label right and closes the picking mode if you left the slide.
+function ssRefreshWrapUi(plan) {
+    const interleaved = !!(plan && plan.rows);
+    if (_ssWrapSelect && (!interleaved || _ssWrapSelectIdx !== _ssIndex)) ssEndWrapSelect(false);
+
+    const wbtn = document.getElementById('ss-wrap-btn');
+    if (!wbtn) return;
+
+    if (_ssWrapSelect) {
+        wbtn.style.background = 'var(--gold)';
+        wbtn.style.borderColor = '#f0c040';
+        wbtn.style.opacity = '1';
+        wbtn.textContent = '✓ Wrap: choosing lines';
+        wbtn.title = 'Click a line on the slide to switch it. Click here (or Done) when finished.';
+        return;
+    }
+
+    let label, allOn = true;
+    if (interleaved) {
+        const n = plan.rows.length;
+        let on = 0;
+        for (let i = 0; i < n; i++) if (ssLineWrapOn(_ssIndex, i)) on++;
+        allOn = on === n;
+        label = on === n ? 'On' : (on === 0 ? 'Off' : on + '/' + n + ' lines');
+    } else {
+        label = ssSlideWrapOn(_ssIndex) ? 'On' : 'Off';
+        allOn = ssSlideWrapOn(_ssIndex);
+    }
+    const custom = !!_ssWrapLines[_ssIndex] || Object.prototype.hasOwnProperty.call(_ssWrapOverrides, _ssIndex);
+    wbtn.style.background = allOn ? 'rgba(80,80,80,0.7)' : 'var(--gold)';
+    wbtn.style.borderColor = custom ? '#f0c040' : '#aaa';
+    wbtn.style.opacity = interleaved ? '1' : '0.55';
+    wbtn.textContent = '↵ Wrap: ' + label;
+    wbtn.title = 'Click, then click lines on the slide to choose which ones may wrap.';
+}
+
+// Outlines every line (green = may wrap, red = one line) and makes it clickable. Only while picking.
+function ssWrapSelectDecorate(pairs) {
+    if (!_ssWrapSelect || _ssWrapSelectIdx !== _ssIndex) return;
+    const g = document.getElementById('gslides-export-overlay');
+    if ((g && g.style.display === 'flex') || document.getElementById('pptx-export-loader')) return;   // never mark slides during an export
+    pairs.forEach(function (p, i) {
+        const group = p.wrap && p.wrap.parentNode;
+        if (!group) return;
+        const on = ssLineWrapOn(_ssIndex, i);
+        group.style.cursor = 'pointer';
+        group.style.outline = '3px dashed ' + (on ? '#27ae60' : '#e74c3c');
+        group.style.outlineOffset = '-3px';
+        group.title = on ? 'This line may wrap. Click to keep it on one line.' : 'This line stays on one line. Click to let it wrap.';
+        group.onclick = function (e) { e.stopPropagation(); ssToggleLineWrap(i); };
+    });
+}
+
+function ssSlideWrapOn(idx) {
+    return Object.prototype.hasOwnProperty.call(_ssWrapOverrides, idx)
+        ? !!_ssWrapOverrides[idx]
+        : SS_INTERLEAVE_ALLOW_WRAP;
+}
+
+// Flips wrapping for ONLY the slide you are on. Click again to put it back.
+function toggleSsWrapSlide() {
+    if (!_ssSlides.length || !_ssSlides[_ssIndex]) return;
+    const makeOn = !ssSlideWrapOn(_ssIndex);
+    if (makeOn === SS_INTERLEAVE_ALLOW_WRAP) delete _ssWrapOverrides[_ssIndex];   // back to the default: no exception needed
+    else _ssWrapOverrides[_ssIndex] = makeOn;
+    renderSlideshowSlide();
+    if (!ssInterleaveRows(_ssSlides[_ssIndex]).rows && typeof showToast === 'function') {
+        showToast('Saved. Wrapping only applies while this slide is interleaved.', 'info');
+    }
+}
+
 function ssUpdateInterleaveButtons(plan) {
     const changed = ssInterleaveOverrideCount();
 
@@ -9030,6 +9199,18 @@ function ssUpdateInterleaveButtons(plan) {
             : 'Flip only this slide to the opposite layout';
     }
 
+    const wbtn = document.getElementById('ss-wrap-btn');
+    if (wbtn) {
+        const wrapOn = ssSlideWrapOn(_ssIndex);
+        const wrapChanged = Object.prototype.hasOwnProperty.call(_ssWrapOverrides, _ssIndex);
+        wbtn.style.background = wrapOn ? 'rgba(80,80,80,0.7)' : 'var(--gold)';
+        wbtn.style.borderColor = wrapChanged ? '#f0c040' : '#aaa';
+        wbtn.style.opacity = plan.rows ? '1' : '0.55';
+        wbtn.textContent = '↵ Wrap: ' + (wrapOn ? 'On' : 'Off');
+        wbtn.title = wrapOn
+            ? 'Long Ge\u2019ez lines on this slide may wrap onto a second line. Click to keep every line on ONE line.'
+            : 'Every Ge\u2019ez line on this slide stays on ONE line. Click to allow wrapping again.';
+    }
     const tbtn = document.getElementById('ss-translit-btn');
     if (tbtn) {
         tbtn.style.background = _ssTranslit ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
@@ -9278,6 +9459,7 @@ function ssSpreadInterleaveGaps(pairs, host, availH, usedH) {
 function ssTryRenderInterleaved(slide, counter) {
     const plan = ssInterleaveRows(slide);
     ssUpdateInterleaveButtons(plan);
+    ssRefreshWrapUi(plan);
     if (!plan.rows) return false;
 
     ssEnsureInterleaveStyles();
@@ -9394,7 +9576,10 @@ function ssTryRenderInterleaved(slide, counter) {
             (layoutAt(mid, 1) <= availH) ? (lo = mid) : (hi = mid);
         }
         const _oneLineScale = Math.min.apply(null, pairs.map(function (p) { return p.fit; }).filter(function (f) { return f > 0; }));
-        const sFinal = (SS_INTERLEAVE_ALLOW_WRAP ? lo : Math.min(lo, _oneLineScale)) * 0.995;
+        // Lines switched to "one line" may not wrap, so the shared size can't be bigger than what fits the longest of them.
+        const _noWrapFits = pairs.filter(function (p, i) { return !ssLineWrapOn(_ssIndex, i) && p.fit > 0; }).map(function (p) { return p.fit; });
+        const _capFit = _noWrapFits.length ? Math.min.apply(null, _noWrapFits) : Infinity;
+        const sFinal = Math.min(lo, _capFit) * 0.995;
 
         // Pass 2: spare height goes to the text.
         let mLo = 1, mHi = Math.max(1, SS_INTERLEAVE_TEXT_MAX_RATIO / SS_INTERLEAVE_TRANS_RATIO);
@@ -9404,6 +9589,7 @@ function ssTryRenderInterleaved(slide, counter) {
         }
         const _usedH = layoutAt(sFinal, mLo);
         ssSpreadInterleaveGaps(pairs, host, availH, _usedH);
+        ssWrapSelectDecorate(pairs);
     }
 
     document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
@@ -9649,6 +9835,74 @@ function ssContainerIsBare(lc) {
 }
 
 // Undoes any earlier compaction, then compacts bare wrapped lines. Returns the letter-containers it compacted.
+// ===== Tight gaps between wrapped lines =====
+// A wrapped line normally keeps the full height of its (mostly empty) miliket rows, which leaves a big gap above it.
+// This pulls every wrapped line up until its highest ink (miliket or letter) sits just under the lowest ink of the line above.
+const SS_TRIM_WRAP_GAPS = true;   // false = switch the feature off
+const SS_WRAP_GAP_EM = 0.05;      // gap between the lowest ink of one line and the highest ink of the next, as a fraction of the Ge'ez letter size (5rem = 80px, so 0.05 = 4px at 100% size)
+
+// Where a letter-container's real ink starts and ends, in px from the top of that container. Measured once, then remembered.
+function ssWrapInkOf(lc) {
+    if (lc.__ssInk === undefined) {
+        const m = ssMeasureInkCells({ children: [lc] });
+        lc.__ssInk = m.length ? { top: m[0].top, bot: m[0].bot } : null;
+    }
+    return lc.__ssInk;
+}
+
+function ssTrimWrapGaps(inner) {
+    if (!SS_TRIM_WRAP_GAPS) return;
+
+    const lcs = Array.from(inner.children).filter(function (el) {
+        return el.classList && el.classList.contains('letter-container');
+    });
+    if (lcs.length < 2) return;
+
+    // Group the containers into wrapped lines (items on one flex line share the same bottom edge).
+    const lines = [];
+    lcs.forEach(function (el) {
+        const bottom = el.offsetTop + el.offsetHeight;
+        const last = lines[lines.length - 1];
+        if (last && Math.abs(last.bottom - bottom) <= 20) last.items.push(el);
+        else lines.push({ bottom: bottom, items: [el] });
+    });
+    if (lines.length < 2) return;
+
+    const gap = SS_WRAP_GAP_EM * 5 * (parseFloat(getComputedStyle(document.documentElement).fontSize) || 16);
+
+    // Read everything first (nothing is changed yet), so every number comes from the same untouched layout.
+    lines.forEach(function (line) {
+        line.inkTop = Infinity;
+        line.inkBot = -Infinity;
+        line.bare = false;
+        line.items.forEach(function (el) {
+            const t = el.offsetTop;
+            if (el.classList.contains('ss-compact-lc')) {   // a bare line already collapsed by the older feature
+                line.bare = true;
+                line.inkBot = Math.max(line.inkBot, t + el.offsetHeight);
+                return;
+            }
+            const ink = ssWrapInkOf(el);
+            if (!ink) return;                                // blank space: no ink
+            line.inkTop = Math.min(line.inkTop, t + ink.top);
+            line.inkBot = Math.max(line.inkBot, t + ink.bot);
+        });
+    });
+
+    // Pull each wrapped line up by its empty space, leaving only the small gap.
+    for (let k = 1; k < lines.length; k++) {
+        const line = lines[k], prev = lines[k - 1];
+        if (line.bare) continue;
+        if (!isFinite(line.inkTop) || !isFinite(prev.inkBot)) continue;
+        const trim = (line.inkTop - prev.inkBot) - gap;
+        if (trim > 0.5) {
+            line.items.forEach(function (el) {
+                el.classList.add('ss-trim-lc');
+                el.style.marginTop = (-trim).toFixed(1) + 'px';
+            });
+        }
+    }
+}
 function ssCompactBareWraps(inner) {
     inner.querySelectorAll('.ss-compact-cell').forEach(function (c) {
         c.classList.remove('ss-compact-cell');
@@ -9657,6 +9911,10 @@ function ssCompactBareWraps(inner) {
     inner.querySelectorAll('.ss-compact-lc').forEach(function (lc) {
         lc.classList.remove('ss-compact-lc');
         lc.style.paddingTop = '';
+    });
+    inner.querySelectorAll('.ss-trim-lc').forEach(function (lc) {
+        lc.classList.remove('ss-trim-lc');
+        lc.style.marginTop = '';
     });
     if (!SS_COMPACT_BARE_WRAPS) return [];
 
@@ -9689,6 +9947,7 @@ function ssCompactBareWraps(inner) {
             compacted.push(el);
         });
     });
+    ssTrimWrapGaps(inner);
     return compacted;
 }
 
@@ -14815,6 +15074,8 @@ function updateChronoDisplay() {
         if (presetCreator) presetCreator.classList.remove('open');
 
         _ssSlides = previewDeck;
+        ssResetWrapLines();
+        _ssWrapOverrides = {};
         _ssInterleaveOverrides = {};
         _ssIndex = 0;
         _ssHudHidden = false;
