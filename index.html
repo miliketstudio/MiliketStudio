@@ -2500,6 +2500,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
                     <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="copyHairSpace(this)">hairspace</button>
+                    <button id="cleanPieceBtn" class="btn" title="Clean this piece: removes stray spaces and hairspaces from the miliket boxes. Undo brings them back." style="background:#b8860b; color:white; border:1px solid #d4a017; font-size:0.9rem;" onclick="cleanEditorPiece()">🧹 Clean</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
@@ -4036,6 +4037,50 @@ function multiPasteBox() {
 document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape' && multiSelectMode && !document.querySelector('.sd-overlay')) exitMultiSelect();
 });
+
+let _cleanEditorLast = null;   // the editor content right after the last Clean, to catch a second press
+
+// Cleans the piece that is open in the editor, using the same rules as the card version.
+async function cleanEditorPiece() {
+    const $c = $('#container');
+    if (!$c.find('.letter-container').length) {
+        alert('There is nothing to clean here. Open a piece that has text, not an image.');
+        return;
+    }
+
+    // Cleaning twice would delete the single hairspaces the first clean kept, so ask first.
+    if (_cleanEditorLast !== null && _editorSnapshot() === _cleanEditorLast) {
+        const again = await studioConfirm({
+            title: 'Clean Again?',
+            message: 'This piece was already cleaned. Cleaning it again will delete the single hairspaces that were kept between milikits. Clean it again anyway?',
+            icon: '🧹',
+            confirmLabel: 'Clean Again',
+            tone: 'warning'
+        });
+        if (!again) return;
+    }
+
+    const result = cleanPieceHtml($c.html());
+    if (!result.boxes) {
+        showToast('This piece is already clean. Nothing was changed.', 'info');
+        return;
+    }
+
+    snapshotForUndo();            // so the ↩ Undo button brings everything back
+    $c.html(result.html);
+    rebindCussta();
+    bindLetterClicks();
+    updaterowcount();
+    _cleanEditorLast = _editorSnapshot();
+    triggerAutoSave();
+
+    showToast(
+        'Removed ' + result.removed + ' space' + (result.removed === 1 ? '' : 's') +
+        ' from ' + result.boxes + ' box' + (result.boxes === 1 ? '' : 'es') +
+        '. Press ↩ Undo if you want them back.',
+        'success'
+    );
+}
 
 function copyHairSpace(btn) {
     var HAIR = '\u200A';
@@ -7026,6 +7071,202 @@ async function copyPieceForIdefisseha(index) {
     } catch (e) {
         alert('Clipboard access denied.');
     }
+}
+
+// ============================================================
+// CLEAN PIECE: removes stray spaces and hairspaces from the miliket boxes of a piece
+// ============================================================
+const CLEAN_SPACE = /[ \u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g;   // normal space, non-breaking space, hairspace and the other width-spaces
+const CLEAN_HAIR = '\u200A';
+const CLEAN_STACK_MAX = 3;   // custom stack slots holding MORE milikits than this are left untouched
+let _cleanBackups = {};      // { [pieceId]: { before, after } } this session only, used by Undo
+
+function cleanCountSpaces(el) {
+    return (el.textContent.match(CLEAN_SPACE) || []).length;
+}
+
+// One stack slot (the little boxes inside Empty stack / Empty wide stack / Custom overlined).
+function cleanStackSlot(slot) {
+    const wrapper = slot.parentElement;
+    const isWide = !!slot.closest('.widestack');
+    const isOverlined = !!wrapper && /underline/.test(wrapper.getAttribute('style') || '');
+
+    // Wide stack and custom overlined: always remove every space.
+    // Custom stack: only when it holds 3 milikits or fewer, otherwise leave it exactly as it is.
+    if (!isWide && !isOverlined) {
+        const count = Array.from(slot.childNodes).filter(function (n) {
+            return n.nodeType === 1 || (n.nodeType === 3 && n.nodeValue.replace(/\s/g, '') !== '');
+        }).length;
+        if (count > CLEAN_STACK_MAX) return;
+    }
+
+    Array.from(slot.childNodes).forEach(function (n) {
+        if (n.nodeType !== 3) return;
+        const v = n.nodeValue.replace(CLEAN_SPACE, '').replace(/[\t\n\v\f\r]/g, '');
+        if (v) n.nodeValue = v; else slot.removeChild(n);
+    });
+}
+
+// One miliket box (.letter): one hairspace at the start, a gap between two milikits only if there were 2 or more.
+function cleanBox(cell) {
+    cell.querySelectorAll('.cussta').forEach(cleanStackSlot);
+
+    const tokens = [];
+    Array.from(cell.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+            n.nodeValue.split(/(\s+)/).forEach(function (part) {
+                if (!part) return;
+                if (/^\s+$/.test(part)) tokens.push({ gap: part.replace(/[\t\n\v\f\r]/g, '').length });
+                else tokens.push({ node: document.createTextNode(part) });
+            });
+        } else {
+            tokens.push({ node: n });
+        }
+    });
+
+    const out = [];
+    let gap = 0, seenItem = false;
+    tokens.forEach(function (t) {
+        if (t.node === undefined) { gap += t.gap; return; }
+        if (seenItem && gap >= 2) out.push(document.createTextNode(CLEAN_HAIR));   // 2 or more spaces between two milikits become one hairspace
+        gap = 0;                                                                    // exactly 1 is deleted, and a trailing gap is deleted too
+        seenItem = true;
+        out.push(t.node);
+    });
+
+    while (cell.firstChild) cell.removeChild(cell.firstChild);
+    cell.appendChild(document.createTextNode(CLEAN_HAIR));                          // the one hairspace at the beginning of the box
+    out.forEach(function (n) { cell.appendChild(n); });
+    if (cell.hasAttribute('data-orig')) cell.setAttribute('data-orig', CLEAN_HAIR); // "Clear box" now restores the clean blank box
+}
+
+function cleanPieceHtml(html) {
+    const root = document.createElement('div');
+    root.innerHTML = html;
+    let boxes = 0, removed = 0;
+    root.querySelectorAll('.letter').forEach(function (cell) {
+        const beforeHtml = cell.innerHTML;
+        const beforeSpaces = cleanCountSpaces(cell);
+        cleanBox(cell);
+        if (cell.innerHTML !== beforeHtml) {
+            boxes++;
+            removed += Math.max(0, beforeSpaces - cleanCountSpaces(cell));
+        }
+    });
+    return { html: root.innerHTML, boxes: boxes, removed: removed };
+}
+
+async function cleanPiece(index) {
+    const piece = appData[currentUser].folders[currentFolder].pieces[index];
+    if (!piece || !piece.visualData || !piece.visualData.trim()) {
+        alert('This piece has no saved visual yet. Open it in the editor and save it first.');
+        return;
+    }
+    if (isImagePieceHtml(piece.visualData)) {
+        alert('This is an image piece, so there are no miliket boxes to clean.');
+        return;
+    }
+
+    // Cleaning twice would delete the single hairspaces the first clean kept, so ask first.
+    const prior = _cleanBackups[piece.id];
+    if (prior && prior.after === piece.visualData) {
+        const again = await studioConfirm({
+            title: 'Clean Again?',
+            message: '“' + piece.name + '” was already cleaned. Cleaning it again will delete the single hairspaces that were kept between milikits. Clean it again anyway?',
+            icon: '🧹',
+            confirmLabel: 'Clean Again',
+            tone: 'warning'
+        });
+        if (!again) return;
+    }
+
+    const result = cleanPieceHtml(piece.visualData);
+    if (!result.boxes) {
+        showToast('“' + piece.name + '” is already clean. Nothing was changed.', 'info');
+        return;
+    }
+
+    const before = piece.visualData;
+    piece.visualData = result.html;
+    piece.lastModified = new Date().toISOString();
+    markPieceDirty(piece.id);
+    _cleanBackups[piece.id] = { before: before, after: result.html };
+    saveAndSync();
+    renderPieces();
+
+    cleanUndoToast(
+        'Removed ' + result.removed + ' space' + (result.removed === 1 ? '' : 's') +
+        ' from ' + result.boxes + ' box' + (result.boxes === 1 ? '' : 'es') + ' in “' + piece.name + '”.',
+        piece.id
+    );
+}
+
+function cleanUndo(pieceId) {
+    const bk = _cleanBackups[pieceId];
+    const live = findLivePieceById(pieceId);
+    if (!bk || !live) { alert('Nothing to undo for this piece.'); return; }
+    if (live.visualData !== bk.after) {
+        alert('This piece was changed after it was cleaned, so Undo was skipped to avoid overwriting your newer work.');
+        return;
+    }
+    live.visualData = bk.before;
+    live.lastModified = new Date().toISOString();
+    markPieceDirty(live.id);
+    delete _cleanBackups[pieceId];
+    saveAndSync();
+    renderPieces();
+    showToast('Undone. “' + live.name + '” is back to how it was before cleaning.', 'success');
+}
+
+// The "Cleaned" message with an Undo button (stays for 15 seconds).
+function cleanUndoToast(message, pieceId) {
+    let stack = document.getElementById('sd-toast-stack');
+    if (!stack) {
+        stack = document.createElement('div');
+        stack.id = 'sd-toast-stack';
+        document.body.appendChild(stack);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'sd-toast sd-green';
+
+    const icon = document.createElement('div');
+    icon.className = 'sd-icon';
+    icon.textContent = '✓';
+
+    const text = document.createElement('div');
+    text.style.flex = '1';
+    const title = document.createElement('div');
+    title.className = 'sd-toast-title';
+    title.textContent = 'Cleaned';
+    const msg = document.createElement('div');
+    msg.className = 'sd-toast-msg';
+    msg.textContent = message;
+    text.appendChild(title);
+    text.appendChild(msg);
+
+    const undo = document.createElement('button');
+    undo.type = 'button';
+    undo.textContent = '↩ Undo';
+    undo.style.cssText = 'align-self:center;flex-shrink:0;background:var(--sd-accent);color:#fff;border:none;border-radius:6px;padding:6px 12px;font:bold 12px sans-serif;cursor:pointer;';
+
+    toast.appendChild(icon);
+    toast.appendChild(text);
+    toast.appendChild(undo);
+    stack.appendChild(toast);
+    while (stack.children.length > 4) stack.removeChild(stack.firstChild);
+    requestAnimationFrame(function () { toast.classList.add('show'); });
+
+    let timer = null;
+    function close() {
+        clearTimeout(timer);
+        toast.classList.remove('show');
+        setTimeout(function () { toast.remove(); }, 220);
+    }
+    undo.onclick = function (e) { e.stopPropagation(); close(); cleanUndo(pieceId); };
+    toast.addEventListener('click', close);
+    toast.addEventListener('mouseenter', function () { clearTimeout(timer); });
+    toast.addEventListener('mouseleave', function () { timer = setTimeout(close, 4000); });
+    timer = setTimeout(close, 15000);
 }
 
 async function renamePiece(index) {
