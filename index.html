@@ -945,6 +945,17 @@
             transition: background 0.2s;
         }
         #hairSpaceBtn:hover { background: #2a5a5a; }
+#thinSpaceBtn {
+            background: #3D7B7B;
+            color: white;
+            border: 1px solid #2a5a5a;
+            font-size: 0.9rem;
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 12px;
+            transition: background 0.2s;
+        }
+#thinSpaceBtn:hover { background: #2a5a5a; }
 
 /* Edit text button on piece card */
         .edit-text-link {
@@ -2501,6 +2512,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
                     <button id="pullFromLocalBtn" class="btn" style="background:#6c757d; color:white; border:1px solid #888; font-size:0.9rem;" onclick="pullFromLocal()">⟳ Restore from Local</button>
                     <button id="pushToPresent" class="btn" style="background:#6a1a82; color:white; border:1px solid #9a4aaa; font-size:0.9rem;">📡 Push to Present</button>
                     <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="copyHairSpace(this)">hairspace</button>
+                    <button id="thinSpaceBtn" class="btn" title="Copy Thin Space (2px)" onclick="copyThinSpace(this)">thinspace</button>
                     <button id="cleanPieceBtn" class="btn" title="Clean this piece: removes stray spaces and hairspaces from the miliket boxes. Undo brings them back." style="background:#b8860b; color:white; border:1px solid #d4a017; font-size:0.9rem;" onclick="cleanEditorPiece()">🧹 Clean</button>
                 </div>
             </div>
@@ -4106,6 +4118,31 @@ function copyHairSpace(btn) {
         })]).then(ok).catch(plainFallback);
     } catch (e) {
         plainFallback();
+    }
+}
+
+// Thin space: a hairspace inside a smaller font-size span. A hairspace is 1/8 of the font size,
+// so 1rem (16px) gives 2px, against 5px in the 2.5rem box. Works as a normal character: the cursor and delete treat it like any text.
+function copyThinSpace(btn) {
+    var HAIR = '\u200A';
+    var html = '<span style="font-size:1rem">' + HAIR + '</span>';
+    function ok() {
+        btn.style.background = '#137333';
+        setTimeout(function(){ btn.style.background = ''; }, 1500);
+    }
+    function failed() {
+        btn.style.background = '#8b0000';
+        setTimeout(function(){ btn.style.background = ''; }, 1500);
+    }
+    // No plain-text fallback on purpose: plain text would paste a normal 5px hairspace, which is the wrong size.
+    try {
+        if (!navigator.clipboard || !window.ClipboardItem) { failed(); return; }
+        navigator.clipboard.write([new ClipboardItem({
+            'text/html': new Blob([html], { type: 'text/html' }),
+            'text/plain': new Blob([HAIR], { type: 'text/plain' })
+        })]).then(ok).catch(failed);
+    } catch (e) {
+        failed();
     }
 }
 
