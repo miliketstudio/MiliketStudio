@@ -7119,12 +7119,88 @@ const CLEAN_HAIR = '\u200A';
 const CLEAN_STACK_MAX = 3;   // custom stack slots holding MORE milikits than this are left untouched
 let _cleanBackups = {};      // { [pieceId]: { before, after } } this session only, used by Undo
 
+const CLEAN_OVERLINE_CLASSES = ['ihita', 'seregela', 'tirikeza', 'others'];   // ጉረሮ መጠበቂያ, ሠረገላዎች, ትርከዛ, ሌሎች: these draw an overline
+const CLEAN_KEEP_STRUT_ALL_STACKS = true;   // true = every stack slot keeps the height hairspace (empty stack, wide stack, custom overlined)
+
+// The thin space pasted by the thinspace button: a hairspace inside a 1rem span.
+function cleanIsThinSpace(n) {
+    return !!n && n.nodeType === 1 && n.tagName === 'SPAN' && !n.children.length &&
+        /^[\u200A]+$/.test(n.textContent) && /font-size\s*:\s*1rem/i.test(n.getAttribute('style') || '');
+}
+
+// A milikit that draws an overline: one of the four categories, or a custom overlined box.
+function cleanIsOverlined(n) {
+    if (!n || n.nodeType !== 1) return false;
+    if (CLEAN_OVERLINE_CLASSES.some(function (c) { return n.classList.contains(c); })) return true;
+    return /underline/i.test(n.getAttribute('style') || '');
+}
+
+function cleanMakeThin() {
+    const s = document.createElement('span');
+    s.setAttribute('style', 'font-size:1rem');
+    s.textContent = CLEAN_HAIR;
+    return s;
+}
+
+// Counts spaces, ignoring the thin spaces, so the "removed N spaces" message stays honest.
 function cleanCountSpaces(el) {
+    let n = 0;
+    const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    let t;
+    while ((t = walker.nextNode())) {
+        if (cleanIsThinSpace(t.parentElement)) continue;
+        n += (t.nodeValue.match(CLEAN_SPACE) || []).length;
+    }
+    return n;
+}
+
+function cleanCountSpacesOld(el) {
     return (el.textContent.match(CLEAN_SPACE) || []).length;
 }
 
 // One stack slot (the little boxes inside Empty stack / Empty wide stack / Custom overlined).
 function cleanStackSlot(slot) {
+    const wrapper = slot.parentElement;
+    const isWide = !!slot.closest('.widestack');
+    const isOverlinedBox = !!wrapper && /underline/.test(wrapper.getAttribute('style') || '');
+
+    // Read the slot first (nothing is changed yet): items and the thin spaces between them
+    const items = [], gaps = [];
+    let thins = 0;
+    Array.from(slot.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+            const v = n.nodeValue.replace(CLEAN_SPACE, '').replace(/[\t\n\v\f\r]/g, '');
+            if (v) { gaps.push(thins); thins = 0; items.push({ node: n, text: v, over: false }); }
+        } else if (cleanIsThinSpace(n)) {
+            thins++;
+        } else {
+            gaps.push(thins); thins = 0;
+            items.push({ node: n, over: cleanIsOverlined(n) });
+        }
+    });
+    gaps.push(thins);
+
+    // Custom stack with more than 3 milikits: left exactly as it is (thin spaces do not count)
+    if (!isWide && !isOverlinedBox && items.length > CLEAN_STACK_MAX) return;
+
+    const out = [];
+    // The hairspace is what gives an empty slot its height. Without it a wide stack slot collapses.
+    if (isWide || CLEAN_KEEP_STRUT_ALL_STACKS) out.push(document.createTextNode(CLEAN_HAIR));
+
+    items.forEach(function (it, i) {
+        if (i > 0 && !isOverlinedBox) {
+            if (items[i - 1].over && it.over) out.push(cleanMakeThin());   // two overlined milikits: one thin space between
+            else if (gaps[i]) out.push(cleanMakeThin());                   // a thin space you placed by hand is kept (one)
+        }
+        if (it.text !== undefined) it.node.nodeValue = it.text;
+        out.push(it.node);
+    });
+
+    while (slot.firstChild) slot.removeChild(slot.firstChild);
+    out.forEach(function (n) { slot.appendChild(n); });
+}
+
+function cleanStackSlotOld(slot) {
     const wrapper = slot.parentElement;
     const isWide = !!slot.closest('.widestack');
     const isOverlined = !!wrapper && /underline/.test(wrapper.getAttribute('style') || '');
@@ -7147,6 +7223,49 @@ function cleanStackSlot(slot) {
 
 // One miliket box (.letter): one hairspace at the start, a gap between two milikits only if there were 2 or more.
 function cleanBox(cell) {
+    cell.querySelectorAll('.cussta').forEach(cleanStackSlot);
+
+    // Read the box as items (milikits, stacks, text) and the gaps between them. gaps[i] sits before items[i].
+    const items = [], gaps = [];
+    let spaces = 0, thins = 0;
+    function closeGap() { gaps.push({ spaces: spaces, thins: thins }); spaces = 0; thins = 0; }
+
+    Array.from(cell.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) {
+            n.nodeValue.split(/(\s+)/).forEach(function (part) {
+                if (!part) return;
+                if (/^\s+$/.test(part)) { spaces += part.replace(/[\t\n\v\f\r]/g, '').length; return; }
+                closeGap();
+                items.push({ node: document.createTextNode(part), over: false });
+            });
+        } else if (cleanIsThinSpace(n)) {
+            thins++;
+        } else {
+            closeGap();
+            items.push({ node: n, over: cleanIsOverlined(n) });
+        }
+    });
+    closeGap();
+
+    const out = [];
+    items.forEach(function (it, i) {
+        if (i > 0) {
+            const g = gaps[i];
+            if (items[i - 1].over && it.over) out.push(cleanMakeThin());                    // two overlined milikits: one thin space
+            else if (g.spaces >= 2) out.push(document.createTextNode(CLEAN_HAIR));          // 2 or more spaces: one hairspace
+            else if (g.thins) out.push(cleanMakeThin());                                    // a thin space placed by hand: kept
+            // exactly 1 space, or none: nothing
+        }
+        out.push(it.node);
+    });
+
+    while (cell.firstChild) cell.removeChild(cell.firstChild);
+    cell.appendChild(document.createTextNode(CLEAN_HAIR));                                  // the one hairspace at the start of the box
+    out.forEach(function (n) { cell.appendChild(n); });
+    if (cell.hasAttribute('data-orig')) cell.setAttribute('data-orig', CLEAN_HAIR);
+}
+
+function cleanBoxOld(cell) {
     cell.querySelectorAll('.cussta').forEach(cleanStackSlot);
 
     const tokens = [];
