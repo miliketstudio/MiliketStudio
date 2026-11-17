@@ -2514,6 +2514,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
                     <button id="hairSpaceBtn" class="btn" title="Copy Hair Space" onclick="copyHairSpace(this)">hairspace</button>
                     <button id="thinSpaceBtn" class="btn" title="Copy Thin Space (2px)" onclick="copyThinSpace(this)">thinspace</button>
                     <button id="cleanPieceBtn" class="btn" title="Clean this piece: removes stray spaces and hairspaces from the miliket boxes. Undo brings them back." style="background:#b8860b; color:white; border:1px solid #d4a017; font-size:0.9rem;" onclick="cleanEditorPiece()">🧹 Clean</button>
+                    <button id="notesBtn" class="btn" title="Add or edit notes (ማብራሪያ) for this piece" style="background:#2a7a8a; color:white; border:1px solid #3a9aaa; font-size:0.9rem;" onclick="openNotesFromEditor()">ማብራሪያ</button>
                 </div>
             </div>
             <div id="container" class="borders-on red-off" contenteditable></div>
@@ -2582,6 +2583,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
         <button onclick="toggleSsEditMode()" id="ss-edit-toggle-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">✎ Edit Layout</button>
         <button onclick="toggleSsInterleave()" id="ss-interleave-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">⇅ Interleave All</button>
         <button onclick="toggleSsInterleaveSlide()" id="ss-interleave-slide-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">▤ This slide</button>
+        <button onclick="toggleSsNotePanel()" id="ss-note-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">ማብራሪያ</button>
         <button onclick="toggleSsWrapSelect()" id="ss-wrap-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">↵ Wrap: On</button>
         <button onclick="toggleSsBg()" id="ss-bg-btn" style="background:var(--gold);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">☀ Bright (switched on)</button>
         <button onclick="toggleSsTranslit()" id="ss-translit-btn" style="background:rgba(80,80,80,0.7);border:1px solid #aaa;color:white;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-family:sans-serif;">Aa Translit: Off</button>
@@ -2598,6 +2600,7 @@ body.admin-view [onclick="saveAndSync()"] { display: none !important; }
         <div id="ss-geez-frame" class="ss-frame">
             <div id="ss-geez" style="width:100%;height:100%;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start;padding:5px;box-sizing:border-box;"></div>
         </div>
+        <div id="ss-note-frame" style="display:none;"></div>
         <div id="ss-translation-frame" class="ss-frame">
             <div id="ss-translation" style="width:100%;height:100%;background:transparent;border-top:none;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0;box-sizing:border-box;"></div>
         </div>
@@ -4879,6 +4882,7 @@ function buildIndexData() {
                     translation: piece.translation || '',
                     transliteration: piece.transliteration || '',
                     translationModified: piece.translationModified || '',
+                    notes: Array.isArray(piece.notes) ? piece.notes : [],
                     lastModified: piece.lastModified || ''
                 }))
             }))
@@ -5913,6 +5917,7 @@ function renderPieces() {
             <div class="card-actions">
                 <button class="card-action-btn ren" onclick="event.stopPropagation(); closeCardMenus(); renamePiece(${index})">✎ Rename</button>
                 <button class="card-action-btn dup" onclick="event.stopPropagation(); closeCardMenus(); duplicatePiece(${index})">⧉ Duplicate</button>
+                <button class="card-action-btn" onclick="event.stopPropagation(); closeCardMenus(); openNotesModal(${index})">✎ ማብራሪያ${(piece.notes && piece.notes.length) ? ' (' + piece.notes.length + ')' : ''}</button>
                 <button class="card-action-btn" onclick="event.stopPropagation(); closeCardMenus(); copyPieceForIdefisseha(${index})">📋 Copy HTML (idefisseha)</button>
                 <button class="card-action-btn mov" onclick="event.stopPropagation(); closeCardMenus(); movePiece(${index})">↪ Move</button>
                 <button class="card-action-btn del" onclick="event.stopPropagation(); closeCardMenus(); deletePiece(${index})">× Delete</button>
@@ -8115,6 +8120,7 @@ function goToSlidesManual() {
         if (!piece || !piece.visualData) return;
             if (isImagePieceHtml(piece.visualData)) {
             pieceSegments.push({
+                pieceId: piece.id,
                 pieceName: piece.name,
                 segments: [piece.visualData],
                 transSegs: (piece.translation && piece.translation.trim()) ? [piece.translation.trim()] : [],
@@ -8123,6 +8129,7 @@ function goToSlidesManual() {
         } else {
             pieceSegments.push({
                 pieceName: piece.name,
+                pieceId: piece.id,
                 segments: splitByPunctuation(piece.visualData),
                 transSegs: splitTranslation(piece.translation || ''),
                 translitSegs: ssPieceTranslitLines(piece),
@@ -8145,7 +8152,9 @@ function goToSlidesManual() {
                 translitLines: pc.translitSegs ? [pc.translitSegs[segIdx] || ''] : [],
                 segmentHtml: segHtml,
                 translation: pc.isImage ? (pc.transSegs[0] || '') : getTranslationForSegment(pc.transSegs, segIdx, pc.segments.length),
-                isImage: !!pc.isImage
+                isImage: !!pc.isImage,
+                pieceId: pc.pieceId,
+                lineIdx: [segIdx]
             });
         });
     });
@@ -8551,6 +8560,7 @@ async function exportToPptx() {
 }
 
 async function exportToPptxExact() {
+    ssNoteCarryCapture();
     if (!_builtSlides.length) { alert('No slides to export.'); return; }
 
     // ── 1. Loading overlay ───────────────────────────────────────────────────
@@ -8597,6 +8607,7 @@ async function exportToPptxExact() {
     const prevBtn = document.getElementById('ss-prev');
     const nextBtn = document.getElementById('ss-next');
 
+    ssAttachNotes();
     overlay.style.display    = 'flex';
     overlay.style.visibility = 'visible';
     hud.style.visibility     = 'hidden';
@@ -8612,7 +8623,7 @@ async function exportToPptxExact() {
         const total = _ssSlides.length;
 
         for (let si = 0; si < total; si++) {
-            await ssEnsureFonts(); setMsg(`Exporting slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
+            ssNoteCarryApply(si); await ssEnsureFonts(); setMsg(`Exporting slide ${si + 1} of ${total}`, _ssSlides[si].translation || '');
 
             _ssIndex = si;
             renderSlideshowSlide();
@@ -8782,6 +8793,8 @@ function finishAndPresent() {
     _ssHudHidden = false;
     _ssZoomLevels = [];
     _ssLayoutOverrides = {}; // fresh session
+    _ssNotePanelOpen = false;
+    ssAttachNotes();
     _ssInterleaveOverrides = {}; // fresh session: don't inherit per-slide interleave choices
     ssResetWrapLines();
     _ssWrapOverrides = {};
@@ -9867,6 +9880,7 @@ function ssTryRenderInterleaved(slide, counter) {
     ssRenderFramesForCurrentSlide();
     const gf = document.getElementById('ss-geez-frame');
     gf.style.left = '0%'; gf.style.top = '0%'; gf.style.width = '100%'; gf.style.height = '100%';
+    ssLayoutNote(true);
     document.getElementById('ss-translation-frame').style.display = 'none';
     transEl.innerHTML = '';
     counter.textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
@@ -10375,6 +10389,8 @@ function renderSlideshowSlide() {
 
     ssEnsureFonts();
     applySlideZoom();
+    ssLayoutNote(false);
+    if (ssRenderNoteSlide(slide)) return;
     if (ssTryRenderInterleaved(slide, counter)) return;
     if (isImagePieceHtml(slide.geezHtml)) {
         const _imgSrc = (slide.geezHtml.match(/<img[^>]*\ssrc="([^"]+)"/) || [])[1] || '';
@@ -10663,6 +10679,7 @@ function slideshowNav(dir) {
 
 function ssKeyHandler(e) {
     if (document.getElementById('slideshow-overlay').style.display === 'none') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
     if (e.key === 'h' || e.key === 'H') { _ssHudHidden = !_ssHudHidden; document.getElementById('ss-hud').style.opacity = _ssHudHidden ? '0' : '1'; return; }
     if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); slideshowNav(1); }
     if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); slideshowNav(-1); }
@@ -12294,6 +12311,1134 @@ function attachDragHandlers(div, type) {
 }
 
 // --- Init ---
+// ============================================================
+// ማብራሪያ (NOTES): data, notes window, slideshow display
+// ============================================================
+const SS_NOTE_BG = '#f3e2b3';
+const SS_NOTE_COLOR = '#000000';
+const SS_NOTE_BORDER = '#b8860b';
+const SS_NOTE_MAX_PCT = 11;          // the top strip never takes more than this % of the slide height
+const SS_NOTE_FONT = "'Abyssinica SIL', Lexend, sans-serif";
+let _ssNotePanelOpen = false;
+
+function nmNewId() { return 'n_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ---------- which notes apply to a slide ----------
+function ssSlideRefs(slide) {
+    if (!slide) return [];
+    if (Array.isArray(slide.noteRefs)) return slide.noteRefs;
+    if (slide.pieceId && Array.isArray(slide.lineIdx)) return [{ pieceId: slide.pieceId, lines: slide.lineIdx }];
+    return [];
+}
+
+function ssNoteCovers(note, lines) {
+    if (note.all) return true;
+    const nl = Array.isArray(note.lines) ? note.lines : [];
+    return lines.some(function (l) { return nl.indexOf(l) !== -1; });
+}
+
+// Notes related to the slide's lines, in the order set in the notes window.
+function ssNoteCandidates(slide) {
+    const out = [], seen = new Set();
+    ssSlideRefs(slide).forEach(function (ref) {
+        const piece = findLivePieceById(ref.pieceId);
+        if (!piece || !Array.isArray(piece.notes)) return;
+        piece.notes.forEach(function (n, ni) {
+            if (!n || !String(n.text || '').trim()) return;
+            const key = piece.id + '|' + n.id;
+            if (seen.has(key) || !ssNoteCovers(n, ref.lines || [])) return;
+            seen.add(key);
+            out.push({ piece: piece, note: n, num: ni + 1 });
+        });
+    });
+    return out;
+}
+
+// The note this slide shows: your per-slide choice, otherwise the first related note.
+function ssNoteResolve(slide) {
+    if (!slide || slide.isNoteSlide) return null;
+    const c = slide.noteChoice;
+    if (c && c.mode === 'none') return null;
+    if (c && c.mode === 'custom') return { text: c.text, style: 'strip', pos: 'left', custom: true };
+    const cands = ssNoteCandidates(slide);
+    if (c && c.mode === 'note') {
+        const f = cands.filter(function (x) { return x.note.id === c.id; })[0];
+        if (f) return f.note;
+    }
+    const first = cands[0];
+    return first && first.note.style !== 'own' ? first.note : null;
+}
+
+// Runs when a presentation starts: records each slide's source lines and adds own-slide notes.
+function ssAttachNotes() {
+    try {
+        if (!Array.isArray(_ssSlides) || !Array.isArray(_builtSlides)) return;
+        if (_ssSlides.length === _builtSlides.length) {
+            _ssSlides.forEach(function (s, k) {
+                if (s.isNoteSlide) return;
+                const refs = [];
+                (_builtSlides[k] || []).forEach(function (i) {
+                    const L = _allLines[i];
+                    if (L && L.pieceId && Array.isArray(L.lineIdx)) refs.push({ pieceId: L.pieceId, lines: L.lineIdx });
+                });
+                s.noteRefs = refs;
+            });
+        }
+        const out = [];
+        let prevKey = '';
+        _ssSlides.forEach(function (s) {
+            if (s.isNoteSlide) { out.push(s); return; }
+            const first = ssNoteCandidates(s)[0];
+            const key = first && first.note.style === 'own' ? first.piece.id + '|' + first.note.id : '';
+            if (key && key !== prevKey) {
+                out.push({ isNoteSlide: true, geezHtml: '', translation: '', translitLines: [], noteRefs: [], noteText: first.note.text });
+            }
+            prevKey = key;
+            out.push(s);
+        });
+        _ssSlides.length = 0;
+        out.forEach(function (s) { _ssSlides.push(s); });
+    } catch (e) {
+        console.error('Could not attach notes to slides:', e);
+    }
+}
+
+// ---------- drawing the note on a slide ----------
+function ssLayoutNote(fullFrame) {
+    const el = document.getElementById('ss-note-frame');
+    const stage = document.getElementById('ss-slide-content');
+    const gf = document.getElementById('ss-geez-frame');
+    const slide = _ssSlides[_ssIndex];
+    const note = ssNoteResolve(slide);
+    const text = note ? String(note.text || '').trim() : '';
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+    ssNoteRefreshUi();
+    if (!el || !stage || !gf || !text || note.style === 'own') return;
+
+    const Hs = stage.clientHeight, Ws = stage.clientWidth;
+    if (!(Hs > 0) || !(Ws > 0)) return;
+    const center = note.pos === 'center';
+
+    if (note.style === 'corner') {
+        const fs = Math.max(14, Math.min(40, Hs * 0.045));
+        el.style.cssText = 'display:block;position:absolute;top:' + Math.round(Hs * 0.012 + 4) + 'px;' +
+            (center ? 'left:50%;transform:translateX(-50%);' : 'left:14px;') +
+            'max-width:70%;box-sizing:border-box;padding:4px 16px;border-radius:999px;z-index:15;pointer-events:none;' +
+            'font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.2;font-size:' + fs + 'px;' +
+            'color:' + SS_NOTE_COLOR + ';background:' + SS_NOTE_BG + ';border:2px solid ' + SS_NOTE_BORDER + ';';
+        el.textContent = text;
+        return;
+    }
+
+    // Top strip: the biggest text that fits inside the strip's height limit.
+    el.style.cssText = 'display:block;position:absolute;left:0;top:0;width:100%;box-sizing:border-box;padding:6px 18px;z-index:15;' +
+        'pointer-events:none;overflow:hidden;word-break:break-word;font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.15;' +
+        'color:' + SS_NOTE_COLOR + ';background:' + SS_NOTE_BG + ';border-bottom:2px solid ' + SS_NOTE_BORDER + ';' +
+        'text-align:' + (center ? 'center' : 'left') + ';';
+    el.textContent = text;
+    const maxH = Hs * SS_NOTE_MAX_PCT / 100;
+    let lo = 12, hi = Math.max(14, Hs * 0.09);
+    for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2;
+        el.style.fontSize = mid + 'px';
+        (el.scrollHeight <= maxH) ? (lo = mid) : (hi = mid);
+    }
+    el.style.fontSize = lo + 'px';
+    const h = Math.min(maxH, Math.ceil(el.scrollHeight));
+    el.style.height = h + 'px';
+    const pct = h / Hs * 100;
+
+    // The Ge'ez block gives up that strip. Slides with a hand-moved layout are left alone.
+    const lay = ssGetLayoutForSlide(_ssIndex);
+    if (fullFrame) {
+        gf.style.top = pct + '%';
+        gf.style.height = (100 - pct) + '%';
+    } else if (!lay.manual) {
+        gf.style.top = (lay.geez.yPct + pct) + '%';
+        gf.style.height = Math.max(20, lay.geez.hPct - pct) + '%';
+    }
+}
+
+// A slide that is only a note, big and centred.
+function ssRenderNoteSlide(slide) {
+    if (!slide || !slide.isNoteSlide) return false;
+    const geezEl = document.getElementById('ss-geez');
+    const gf = document.getElementById('ss-geez-frame');
+    ssEndWrapSelect(false);
+    gf.style.left = '0%'; gf.style.top = '0%'; gf.style.width = '100%'; gf.style.height = '100%';
+    document.getElementById('ss-translation-frame').style.display = 'none';
+    document.getElementById('ss-translation').innerHTML = '';
+    document.getElementById('ss-counter').textContent = 'Slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length;
+    geezEl.style.padding = '24px';
+    geezEl.style.justifyContent = 'center';
+    geezEl.style.alignItems = 'center';
+    geezEl.style.background = '';
+    geezEl.innerHTML = '';
+    const d = document.createElement('div');
+    d.style.cssText = 'width:100%;text-align:center;font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.25;color:#1a2a3a;word-break:break-word;';
+    d.textContent = slide.noteText || '';
+    geezEl.appendChild(d);
+    const availH = geezEl.clientHeight - 48;
+    let lo = 16, hi = Math.max(24, geezEl.clientHeight * 0.4);
+    for (let i = 0; i < 14; i++) {
+        const mid = (lo + hi) / 2;
+        d.style.fontSize = mid + 'px';
+        (d.scrollHeight <= availH) ? (lo = mid) : (hi = mid);
+    }
+    d.style.fontSize = lo + 'px';
+    document.getElementById('ss-prev').style.visibility = _ssIndex === 0 ? 'hidden' : 'visible';
+    document.getElementById('ss-next').style.visibility = _ssIndex === _ssSlides.length - 1 ? 'hidden' : 'visible';
+    applySlideZoom();
+    return true;
+}
+
+// ---------- the ማብራሪያ button and its panel (this slide only) ----------
+function toggleSsNotePanel() {
+    _ssNotePanelOpen = !_ssNotePanelOpen;
+    ssNoteRefreshUi();
+}
+
+function ssNoteEnsurePanel() {
+    let p = document.getElementById('ss-note-panel');
+    if (p) return p;
+    p = document.createElement('div');
+    p.id = 'ss-note-panel';
+    p.style.cssText = 'display:none;position:absolute;right:16px;top:calc(100% + 8px);width:330px;max-width:calc(100vw - 32px);max-height:70vh;overflow-y:auto;' +
+        'background:#fffdf8;color:#1a2a3a;border:2px solid #b8860b;border-radius:10px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,0.35);' +
+        'font-family:sans-serif;font-size:13px;z-index:100;text-align:left;cursor:default;';
+    p.addEventListener('click', ssNotePanelClick);
+    document.getElementById('ss-hud').appendChild(p);
+    return p;
+}
+
+function ssNotePanelHtml(slide) {
+    const E = _escHtml;
+    if (!slide) return '';
+    if (slide.isNoteSlide) {
+        return '<div style="line-height:1.5;">This slide shows a note on its own. Own-slide notes are set when the deck is built, so they can\'t be swapped here.</div>';
+    }
+    const cands = ssNoteCandidates(slide);
+    const c = slide.noteChoice || null;
+    const auto = cands.length && cands[0].note.style !== 'own' ? cands[0] : null;
+    const multi = cands.some(function (x) { return x.piece.id !== cands[0].piece.id; });
+
+    function row(sel, attrs, title, body, tag, dim) {
+        return '<div ' + attrs + ' style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;margin-bottom:6px;border:1px solid ' + (sel ? '#b8860b' : '#d8cfb8') +
+            ';border-radius:8px;background:' + (sel ? '#fff4d6' : '#ffffff') + ';' + (dim ? 'opacity:0.55;' : 'cursor:pointer;') + '">' +
+            '<span style="font-size:16px;line-height:1.2;color:#b8860b;">' + (sel ? '●' : '○') + '</span>' +
+            '<span style="flex:1;min-width:0;"><span style="font-weight:bold;">' + title + '</span>' +
+            (tag ? '<span style="margin-left:6px;font-size:11px;color:#666;border:1px solid #ccc;border-radius:10px;padding:0 6px;">' + tag + '</span>' : '') +
+            (body ? '<br><span style="font-size:13px;line-height:1.4;word-break:break-word;font-family:' + SS_NOTE_FONT + ';">' + body + '</span>' : '') +
+            '</span></div>';
+    }
+
+    let h = '<div style="font-weight:bold;margin-bottom:2px;">Notes for this slide</div>' +
+        '<div style="color:#666;margin-bottom:10px;line-height:1.4;">' +
+        (cands.length ? 'A change here applies to this slide only.' : 'No notes cover the lines on this slide. Add notes from the piece card menu or the editor.') + '</div>';
+
+    cands.forEach(function (x) {
+        const own = x.note.style === 'own';
+        const sel = !own && ((c && c.mode === 'note' && c.id === x.note.id) || (!c && auto && auto.note.id === x.note.id));
+        const title = 'Note ' + x.num + (multi ? ' · ' + E(x.piece.name || '') : '');
+        h += row(sel, own ? '' : 'data-pick="' + E(x.note.id) + '"', title, E(x.note.text),
+            own ? 'own slide' : (auto && auto.note.id === x.note.id ? 'default' : ''), own);
+    });
+
+    h += row(c && c.mode === 'none', 'data-none="1"', 'No note on this slide', '', '', false);
+
+    const customSel = !!(c && c.mode === 'custom');
+    h += '<div style="padding:8px 10px;border:1px solid ' + (customSel ? '#b8860b' : '#d8cfb8') + ';border-radius:8px;background:' + (customSel ? '#fff4d6' : '#ffffff') + ';margin-bottom:6px;">' +
+        '<div style="font-weight:bold;margin-bottom:6px;"><span style="color:#b8860b;">' + (customSel ? '●' : '○') + '</span> Write a note for this slide</div>' +
+        '<div style="display:flex;gap:6px;"><input id="ss-note-custom" type="text" value="' + E(customSel ? c.text : '') + '" placeholder="Note text" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;">' +
+        '<button type="button" data-use="1" style="background:#b8860b;border:none;color:#fff;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Use</button></div>' +
+        '<div id="ss-note-err" style="display:none;color:#c0392b;font-size:12px;margin-top:4px;">Enter a note first</div></div>';
+
+    if (c) h += '<button type="button" data-reset="1" style="background:#eee;border:none;color:#333;border-radius:6px;padding:6px 14px;font-size:13px;font-weight:bold;cursor:pointer;">Back to automatic</button>';
+    return h;
+}
+
+function ssNotePanelClick(e) {
+    const t = e.target.closest('[data-pick],[data-none],[data-use],[data-reset]');
+    if (!t) return;
+    const slide = _ssSlides[_ssIndex];
+    if (!slide) return;
+    if (t.dataset.pick) slide.noteChoice = { mode: 'note', id: t.dataset.pick };
+    else if (t.dataset.none) slide.noteChoice = { mode: 'none' };
+    else if (t.dataset.reset) delete slide.noteChoice;
+    else if (t.dataset.use) {
+        const v = (document.getElementById('ss-note-custom').value || '').trim();
+        if (!v) { document.getElementById('ss-note-err').style.display = 'block'; return; }
+        slide.noteChoice = { mode: 'custom', text: v };
+    }
+    renderSlideshowSlide();
+}
+
+function ssNoteRefreshUi() {
+    const hud = document.getElementById('ss-hud');
+    if (!hud) return;
+    const slide = _ssSlides[_ssIndex];
+    const panel = ssNoteEnsurePanel();
+    const btn = document.getElementById('ss-note-btn');
+    const changed = !!(slide && slide.noteChoice);
+    const related = slide && !slide.isNoteSlide ? ssNoteCandidates(slide).length : 0;
+    if (btn) {
+        btn.textContent = 'ማብራሪያ' + (changed ? ' (changed)' : '');
+        btn.style.background = _ssNotePanelOpen ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+        btn.style.borderColor = changed ? '#f0c040' : '#aaa';
+        btn.style.opacity = (related || changed || (slide && slide.isNoteSlide)) ? '1' : '0.6';
+    }
+    if (!_ssNotePanelOpen || !slide) { panel.style.display = 'none'; return; }
+    if (document.activeElement && document.activeElement.id === 'ss-note-custom') return;
+    panel.innerHTML = ssNotePanelHtml(slide);
+    panel.style.display = 'block';
+}
+
+// ---------- the notes window (piece card menu and editor) ----------
+let _nm = null;
+
+function nmLinesFor(html) {
+    if (!html || !html.trim()) return [];
+    if (isImagePieceHtml(html)) return [{ words: 'Image' }];
+    return splitByPunctuation(html).map(function (seg) {
+        return { words: extractFirstTwoWords(seg, false) || '—' };
+    });
+}
+
+function nmNewNote(total) {
+    const all = [];
+    for (let i = 0; i < total; i++) all.push(i);
+    return { id: nmNewId(), text: '', lines: all, all: true, style: 'strip', pos: 'left' };
+}
+
+function openNotesModal(index) {
+    if (currentUser === null || currentFolder === null || !appData[currentUser]) return;
+    const piece = appData[currentUser].folders[currentFolder].pieces[index];
+    if (!piece) return;
+    nmOpen(piece, piece.visualData || '');
+}
+
+function openNotesFromEditor() {
+    if (currentUser === null || currentFolder === null || currentPiece === null) { alert('No piece is open.'); return; }
+    const piece = appData[currentUser].folders[currentFolder].pieces[currentPiece];
+    if (!piece) { alert('No piece is open.'); return; }
+    nmOpen(piece, _editorCleanHtml());
+}
+
+function nmOpen(piece, html) {
+    const lines = nmLinesFor(html);
+    if (!lines.length) { alert('This piece has no saved lines yet. Open it in the editor and save it first.'); return; }
+    const notes = JSON.parse(JSON.stringify(Array.isArray(piece.notes) ? piece.notes : []));
+    notes.forEach(function (n) {
+        if (!Array.isArray(n.lines)) n.lines = [];
+        n.lines = n.lines.filter(function (l) { return l < lines.length; });
+        n.all = !!n.all;
+        if (n.all) n.lines = lines.map(function (_, i) { return i; });
+        if (!n.style) n.style = 'strip';
+        if (!n.pos) n.pos = 'left';
+        if (!n.id) n.id = nmNewId();
+        if (typeof n.text !== 'string') n.text = '';
+    });
+    if (!notes.length) notes.push(nmNewNote(lines.length));
+    _nm = { piece: piece, lines: lines, notes: notes, cur: 0, orig: JSON.stringify(notes) };
+    nmBuild();
+    nmRender();
+}
+
+function nmEnsureStyle() {
+    if (document.getElementById('nm-style')) return;
+    const s = document.createElement('style');
+    s.id = 'nm-style';
+    s.textContent = `
+.nm-overlay{position:fixed;inset:0;z-index:100080;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(15,21,32,.68)}
+.nm-box{width:min(720px,96vw);max-height:92vh;display:flex;flex-direction:column;background:var(--card-bg);color:var(--text);border:2px solid var(--gold);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4);font-family:'Abyssinica SIL',serif;overflow:hidden}
+.nm-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 20px;border-bottom:1px solid var(--card-border);background:rgba(184,134,11,.08)}
+.nm-head h3{margin:0;font-size:1.05rem;color:var(--gold);font-weight:bold}
+.nm-x{width:32px;height:32px;border:none;border-radius:50%;background:transparent;color:var(--text-muted);font-size:24px;line-height:1;cursor:pointer}
+.nm-body{padding:16px 20px;overflow-y:auto;flex:1}
+.nm-tabs{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.nm-tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;max-width:200px;padding:6px 12px;border:1px solid var(--card-border);border-radius:8px;background:var(--page-bg);color:var(--text);cursor:pointer;text-align:left}
+.nm-tab b{font-size:.85rem}
+.nm-tab small{font-size:.78rem;color:var(--text-muted);max-width:176px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nm-tab.on{border-color:var(--gold);background:rgba(184,134,11,.12)}
+.nm-lab{display:block;margin:10px 0 4px;font:bold .74rem sans-serif;color:var(--text-muted);text-transform:uppercase;letter-spacing:.4px}
+.nm-body textarea,.nm-body select{width:100%;padding:8px 10px;border:2px solid var(--card-border);border-radius:8px;background:var(--page-bg);color:var(--text);font-size:1rem;font-family:'Abyssinica SIL',serif;outline:none;box-sizing:border-box}
+.nm-body textarea:focus,.nm-body select:focus{border-color:var(--gold)}
+.nm-row{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}
+.nm-row>div{flex:1;min-width:180px}
+.nm-btn{border:1px solid var(--card-border);border-radius:7px;padding:6px 12px;background:var(--card-bg);color:var(--text);font:bold .78rem sans-serif;cursor:pointer}
+.nm-btn:hover{border-color:var(--gold)}
+.nm-btn.on,.nm-btn.gold{background:var(--gold);border-color:var(--gold);color:#fff}
+.nm-btn.red{color:#c0392b}
+.nm-list{border:1px solid var(--card-border);border-radius:8px;background:var(--page-bg);max-height:240px;overflow-y:auto}
+.nm-line{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--card-border);cursor:pointer;font-size:1.05rem}
+.nm-line:last-child{border-bottom:none}
+.nm-line input{width:17px;height:17px;accent-color:#b8860b;flex:none}
+.nm-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;padding:12px 20px;border-top:1px solid var(--card-border)}
+.nm-hint{margin:6px 0 0;font:.76rem/1.5 sans-serif;color:var(--text-muted)}
+`;
+    document.head.appendChild(s);
+}
+
+function nmBuild() {
+    nmEnsureStyle();
+    nmClose();
+    const o = document.createElement('div');
+    o.id = 'nm-overlay';
+    o.className = 'nm-overlay';
+    o.innerHTML =
+        '<div class="nm-box" role="dialog" aria-modal="true" aria-labelledby="nm-title">' +
+        '<div class="nm-head"><h3 id="nm-title"></h3><button type="button" class="nm-x" data-act="cancel" aria-label="Close">×</button></div>' +
+        '<div class="nm-body">' +
+        '<div id="nm-tabs" class="nm-tabs"></div>' +
+        '<label class="nm-lab" for="nm-text">Note text</label><textarea id="nm-text" rows="3" placeholder="Write the note"></textarea>' +
+        '<div class="nm-row"><div><label class="nm-lab" for="nm-style">Display</label><select id="nm-style"><option value="strip">Top strip</option><option value="corner">Corner label</option><option value="own">Own slide</option></select></div>' +
+        '<div><label class="nm-lab" for="nm-pos">Position</label><select id="nm-pos"><option value="left">Top left</option><option value="center">Top centre</option></select></div></div>' +
+        '<div class="nm-row" style="margin-top:12px;"><span class="nm-lab" style="margin:0;">Applies to</span>' +
+        '<button type="button" class="nm-btn" id="nm-all" data-act="all">All lines</button>' +
+        '<button type="button" class="nm-btn" data-act="clear">Clear</button>' +
+        '<span id="nm-count" class="nm-hint" style="margin:0;"></span></div>' +
+        '<div id="nm-list" class="nm-list" style="margin-top:8px;"></div>' +
+        '<p class="nm-hint">If two notes cover the same line, the first note above is the default. Swap it for one slide with the ማብራሪያ button while presenting.</p>' +
+        '<span class="nm-lab">Preview</span><div id="nm-prev"></div>' +
+        '</div>' +
+        '<div class="nm-foot"><div style="display:flex;flex-wrap:wrap;gap:8px;">' +
+        '<button type="button" class="nm-btn" data-act="up">Move earlier</button>' +
+        '<button type="button" class="nm-btn" data-act="down">Move later</button>' +
+        '<button type="button" class="nm-btn" data-act="add">Add note</button>' +
+        '<button type="button" class="nm-btn red" data-act="del">Delete note</button></div>' +
+        '<div style="display:flex;gap:8px;"><button type="button" class="nm-btn" data-act="cancel">Cancel</button>' +
+        '<button type="button" class="nm-btn gold" data-act="save">Save</button></div></div></div>';
+    document.body.appendChild(o);
+    o.addEventListener('click', nmClick);
+    o.addEventListener('input', nmInput);
+    o.addEventListener('change', nmChange);
+    document.getElementById('nm-title').textContent = 'ማብራሪያ — ' + (_nm.piece.name || '');
+}
+
+function nmRenderTabs() {
+    _nm.notes.forEach(function () {});
+    document.getElementById('nm-tabs').innerHTML = _nm.notes.map(function (x, i) {
+        const t = String(x.text || '').trim();
+        return '<button type="button" class="nm-tab' + (i === _nm.cur ? ' on' : '') + '" data-nt="' + i + '"><b>Note ' + (i + 1) + '</b><small>' +
+            _escHtml(t ? t : '(empty)') + '</small></button>';
+    }).join('');
+}
+
+function nmRenderPreview() {
+    const n = _nm.notes[_nm.cur], E = _escHtml;
+    const text = E(String(n.text || '').trim() || '(empty note)');
+    const first = n.lines.length ? Math.min.apply(null, n.lines) : 0;
+    const words = E(_nm.lines[first] ? _nm.lines[first].words : '');
+    const frame = 'width:270px;aspect-ratio:16/9;box-sizing:border-box;border:1px solid var(--card-border);border-radius:8px;background:#fffdf8;color:#1a2a3a;display:flex;flex-direction:column;overflow:hidden;position:relative;flex:none;';
+    const nf = 'font-family:' + SS_NOTE_FONT + ';font-weight:700;';
+    const body = '<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">' + words + '</div><div style="font:11px sans-serif;color:#888;text-align:center;padding:3px;">translation</div>';
+    let h;
+    if (n.style === 'own') {
+        h = '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;"><div style="' + frame + 'align-items:center;justify-content:center;background:' + SS_NOTE_BG + ';"><div style="' + nf + 'font-size:1.15rem;text-align:center;padding:8px;color:' + SS_NOTE_COLOR + ';">' + text + '</div></div>' +
+            '<span style="font-size:20px;color:var(--text-muted);">→</span><div style="' + frame + '">' + body + '</div></div>' +
+            '<p class="nm-hint">A slide of its own comes before the lines, once at the start of each run of slides that use this note.</p>';
+    } else if (n.style === 'corner') {
+        h = '<div style="' + frame + '"><span style="position:absolute;top:6px;' + (n.pos === 'center' ? 'left:50%;transform:translateX(-50%);' : 'left:8px;') +
+            'max-width:80%;' + nf + 'font-size:.85rem;background:' + SS_NOTE_BG + ';border:2px solid ' + SS_NOTE_BORDER + ';border-radius:999px;padding:2px 12px;color:' + SS_NOTE_COLOR + ';">' + text + '</span>' + body + '</div>' +
+            '<p class="nm-hint">Floats over the Ge\'ez. Nothing is resized, but it can cover letters.</p>';
+    } else {
+        h = '<div style="' + frame + '"><div style="' + nf + 'font-size:.95rem;background:' + SS_NOTE_BG + ';border-bottom:2px solid ' + SS_NOTE_BORDER + ';padding:3px 10px;text-align:' + (n.pos === 'center' ? 'center' : 'left') + ';color:' + SS_NOTE_COLOR + ';">' + text + '</div>' + body + '</div>' +
+            '<p class="nm-hint">Takes up to about ' + SS_NOTE_MAX_PCT + '% of the slide height, only on slides that show this note.</p>';
+    }
+    document.getElementById('nm-prev').innerHTML = h;
+}
+
+function nmRenderMeta() {
+    const n = _nm.notes[_nm.cur];
+    document.getElementById('nm-count').textContent = n.lines.length + ' of ' + _nm.lines.length + ' lines';
+    document.getElementById('nm-all').className = 'nm-btn' + (n.lines.length === _nm.lines.length ? ' on' : '');
+    nmRenderPreview();
+}
+
+function nmRender() {
+    const n = _nm.notes[_nm.cur];
+    nmRenderTabs();
+    const ta = document.getElementById('nm-text');
+    if (document.activeElement !== ta) ta.value = n.text || '';
+    document.getElementById('nm-style').value = n.style;
+    document.getElementById('nm-pos').value = n.pos;
+    document.getElementById('nm-list').innerHTML = _nm.lines.map(function (l, i) {
+        return '<label class="nm-line"><input type="checkbox" data-li="' + i + '"' + (n.lines.indexOf(i) !== -1 ? ' checked' : '') + '><span>' + _escHtml(l.words) + '</span></label>';
+    }).join('');
+    nmRenderMeta();
+}
+
+function nmClick(e) {
+    if (!_nm) return;
+    const tab = e.target.closest('[data-nt]');
+    if (tab) { _nm.cur = +tab.dataset.nt; nmRender(); return; }
+    const b = e.target.closest('[data-act]');
+    if (!b) return;
+    const act = b.dataset.act, n = _nm.notes[_nm.cur], total = _nm.lines.length, a = _nm.notes;
+    if (act === 'save') { nmSave(); return; }
+    if (act === 'cancel') { nmCancel(); return; }
+    if (act === 'all') { n.lines = _nm.lines.map(function (_, i) { return i; }); n.all = true; }
+    else if (act === 'clear') { n.lines = []; n.all = false; }
+    else if (act === 'add') { a.push(nmNewNote(total)); _nm.cur = a.length - 1; }
+    else if (act === 'del') {
+        if (a.length === 1) a[0] = nmNewNote(total);
+        else { a.splice(_nm.cur, 1); _nm.cur = Math.max(0, _nm.cur - 1); }
+    }
+    else if (act === 'up' && _nm.cur > 0) { const t = a[_nm.cur]; a[_nm.cur] = a[_nm.cur - 1]; a[_nm.cur - 1] = t; _nm.cur--; }
+    else if (act === 'down' && _nm.cur < a.length - 1) { const t = a[_nm.cur]; a[_nm.cur] = a[_nm.cur + 1]; a[_nm.cur + 1] = t; _nm.cur++; }
+    else return;
+    nmRender();
+}
+
+function nmInput(e) {
+    if (!_nm || e.target.id !== 'nm-text') return;
+    _nm.notes[_nm.cur].text = e.target.value;
+    nmRenderTabs();
+    nmRenderPreview();
+}
+
+function nmChange(e) {
+    if (!_nm) return;
+    const t = e.target, n = _nm.notes[_nm.cur];
+    if (t.dataset && t.dataset.li !== undefined) {
+        const i = +t.dataset.li, at = n.lines.indexOf(i);
+        if (t.checked && at === -1) n.lines.push(i);
+        if (!t.checked && at !== -1) n.lines.splice(at, 1);
+        n.lines.sort(function (x, y) { return x - y; });
+        n.all = n.lines.length === _nm.lines.length;
+        nmRenderMeta();
+    } else if (t.id === 'nm-style') { n.style = t.value; nmRenderPreview(); }
+    else if (t.id === 'nm-pos') { n.pos = t.value; nmRenderPreview(); }
+}
+
+function nmClose() {
+    const o = document.getElementById('nm-overlay');
+    if (o) o.remove();
+}
+
+async function nmCancel() {
+    if (!_nm) { nmClose(); return; }
+    if (JSON.stringify(_nm.notes) !== _nm.orig) {
+        const ok = await studioConfirm({
+            title: 'Discard Changes?',
+            message: 'Your changes to these notes have not been saved.',
+            confirmLabel: 'Discard',
+            tone: 'warning'
+        });
+        if (!ok) return;
+    }
+    nmClose();
+    _nm = null;
+}
+
+function nmSave() {
+    if (!_nm) return;
+    for (let i = 0; i < _nm.notes.length; i++) {
+        const n = _nm.notes[i];
+        if (String(n.text || '').trim() && !n.all && !n.lines.length) {
+            _nm.cur = i;
+            nmRender();
+            alert('Choose at least one line for Note ' + (i + 1) + ', or clear its text.');
+            return;
+        }
+    }
+    const total = _nm.lines.length;
+    const piece = _nm.piece;
+    piece.notes = _nm.notes
+        .filter(function (n) { return String(n.text || '').trim(); })
+        .map(function (n) {
+            return {
+                id: n.id,
+                text: String(n.text).trim(),
+                lines: n.lines.filter(function (l) { return l < total; }).sort(function (x, y) { return x - y; }),
+                all: !!n.all,
+                style: n.style,
+                pos: n.pos
+            };
+        });
+    const stamp = new Date().toISOString();
+    piece.lastModified = stamp;
+    _ownStamps.add(stamp);
+    if (piece.id) markPieceDirty(piece.id);
+    saveAndSync();
+    if (document.getElementById('page-pieces').classList.contains('active')) renderPieces();
+    nmClose();
+    _nm = null;
+    showToast('Notes saved.', 'success');
+}
+
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && _nm && document.getElementById('nm-overlay') && !document.querySelector('.sd-overlay')) {
+        e.preventDefault();
+        nmCancel();
+    }
+});
+
+// ============================================================
+// ማብራሪያ UPDATE: tick many notes per slide + change each note's display live
+// (each function below replaces the earlier one with the same name)
+// ============================================================
+const SS_NOTE_MAX_TOTAL_PCT = 30;   // all top strips together never take more than this % of the slide height
+
+// Slides move when a note slide is added or removed, so everything stored by slide number moves with them.
+function ssShiftIndexMaps(at, delta) {
+    function shift(obj) {
+        const out = {};
+        Object.keys(obj || {}).forEach(function (k) {
+            const i = +k;
+            if (delta < 0 && i === at) return;
+            out[i >= at ? i + (delta > 0 ? 1 : -1) : i] = obj[k];
+        });
+        return out;
+    }
+    _ssLayoutOverrides = shift(_ssLayoutOverrides);
+    _ssInterleaveOverrides = shift(_ssInterleaveOverrides);
+    _ssWrapOverrides = shift(_ssWrapOverrides);
+    _ssWrapLines = shift(_ssWrapLines);
+    if (_ssZoomLevels.length > at) {
+        if (delta > 0) _ssZoomLevels.splice(at, 0, undefined);
+        else _ssZoomLevels.splice(at, 1);
+    }
+    if (_ssWrapSelectIdx >= at) _ssWrapSelectIdx += (delta > 0 ? 1 : -1);
+}
+
+// Is there a note slide for this note directly in front of slide number idx?
+function ssHasNoteSlideBefore(idx, key) {
+    for (let j = idx - 1; j >= 0 && _ssSlides[j] && _ssSlides[j].isNoteSlide; j--) {
+        if (_ssSlides[j].noteKey === key) return true;
+    }
+    return false;
+}
+
+// Adds a note slide just before the slide you are on, and keeps you on that same slide.
+function ssNoteAddOwn(key, text, userAdded) {
+    ssShiftIndexMaps(_ssIndex, 1);
+    _ssSlides.splice(_ssIndex, 0, { isNoteSlide: true, userAdded: !!userAdded, geezHtml: '', translation: '', translitLines: [], noteRefs: [], noteText: text, noteKey: key });
+    _ssIndex++;
+}
+
+// Removes the note slide for this note that sits just before the slide you are on.
+function ssNoteDropOwn(slide, key) {
+    for (let j = _ssIndex - 1; j >= 0 && _ssSlides[j] && _ssSlides[j].isNoteSlide; j--) {
+        if (_ssSlides[j].noteKey !== key) continue;
+        const gone = _ssSlides[j];
+        ssShiftIndexMaps(j, -1);
+        _ssSlides.splice(j, 1);
+        _ssIndex--;
+        if (!gone.userAdded) {
+            slide.noteGone = slide.noteGone || {};
+            slide.noteGone[key] = gone.noteText;
+        }
+        return true;
+    }
+    return false;
+}
+
+// Notes related to the slide's lines, in the order set in the notes window.
+function ssNoteCandidates(slide) {
+    const out = [], seen = new Set();
+    ssSlideRefs(slide).forEach(function (ref) {
+        const piece = findLivePieceById(ref.pieceId);
+        if (!piece || !Array.isArray(piece.notes)) return;
+        piece.notes.forEach(function (n, ni) {
+            if (!n || !String(n.text || '').trim()) return;
+            const key = piece.id + '|' + n.id;
+            if (seen.has(key) || !ssNoteCovers(n, ref.lines || [])) return;
+            seen.add(key);
+            out.push({ key: key, piece: piece, note: n, num: ni + 1 });
+        });
+    });
+    return out;
+}
+
+// Saved notes plus the note you wrote yourself for this slide (if any).
+function ssNoteList(slide) {
+    const out = ssNoteCandidates(slide);
+    if (slide && slide.noteCustom && String(slide.noteCustom.text || '').trim()) {
+        out.push({ key: '__custom', piece: null, num: 0, custom: true,
+            note: { text: slide.noteCustom.text, style: slide.noteCustom.style || 'strip', pos: slide.noteCustom.pos || 'left', x: slide.noteCustom.x, y: slide.noteCustom.y, size: slide.noteCustom.size } });
+    }
+    return out;
+}
+
+// The display this note has on this slide: your change here, otherwise the saved one.
+function ssNoteDisp(slide, c) {
+    const o = c.custom ? null : (slide && slide.noteDisp && slide.noteDisp[c.key]);
+    const src = o || c.note;
+    const num = function (v) { return (typeof v === 'number' && isFinite(v)) ? v : null; };
+    return {
+        style: (o && o.style) || c.note.style || 'strip',
+        pos: (o && o.pos) || c.note.pos || 'left',
+        x: num(src.x), y: num(src.y), size: num(src.size)
+    };
+}
+
+// Is this note showing on this slide? Own-slide notes count as showing when their note slide sits right before it.
+function ssNoteOn(slide, idx, c, list) {
+    const d = ssNoteDisp(slide, c);
+    if (d.style === 'own') return ssHasNoteSlideBefore(idx, c.key);
+    if (slide.noteSel && Object.prototype.hasOwnProperty.call(slide.noteSel, c.key)) return !!slide.noteSel[c.key];
+    if (c.custom) return true;
+    const first = list.filter(function (x) { return !x.custom; })[0];
+    return !!first && first.key === c.key && c.note.style !== 'own';
+}
+
+// Every note that is drawn on top of this slide (strip or corner).
+function ssNoteOverlayList(slide, idx) {
+    if (!slide || slide.isNoteSlide) return [];
+    const list = ssNoteList(slide), out = [];
+    list.forEach(function (c) {
+        const d = ssNoteDisp(slide, c);
+        const text = String(c.note.text || '').trim();
+        if (d.style === 'own' || !text || !ssNoteOn(slide, idx, c, list)) return;
+        out.push({ key: c.key, text: text, style: d.style, pos: d.pos, x: d.x, y: d.y, size: d.size });
+    });
+    return out;
+}
+
+function ssNoteSetOn(slide, c, on) {
+    const d = ssNoteDisp(slide, c);
+    if (d.style === 'own') {
+        const has = ssHasNoteSlideBefore(_ssIndex, c.key);
+        if (on && !has) ssNoteAddOwn(c.key, String(c.note.text || '').trim(), true);
+        else if (!on && has) ssNoteDropOwn(slide, c.key);
+        return;
+    }
+    slide.noteSel = slide.noteSel || {};
+    slide.noteSel[c.key] = !!on;
+}
+
+// Changes how one note is shown on this slide. Picking a display also turns the note on.
+function ssNoteSetDisplay(slide, c, style, pos) {
+    const cur = ssNoteDisp(slide, c);
+    const ns = style || cur.style, np = pos || cur.pos;
+    if (cur.style === 'own' && ns !== 'own') ssNoteDropOwn(slide, c.key);
+    if (c.custom) { slide.noteCustom.style = ns; slide.noteCustom.pos = np; }
+    else { slide.noteDisp = slide.noteDisp || {}; slide.noteDisp[c.key] = { style: ns, pos: np, x: cur.x, y: cur.y, size: cur.size }; }
+    if (ns === 'own') {
+        if (!ssHasNoteSlideBefore(_ssIndex, c.key)) ssNoteAddOwn(c.key, String(c.note.text || '').trim(), true);
+    } else {
+        slide.noteSel = slide.noteSel || {};
+        slide.noteSel[c.key] = true;
+    }
+}
+
+// Puts this slide back the way it was when the presentation started.
+const SS_NOTE_CORNER_SIZE = 4.5;   // default pill text size, % of slide height
+const SS_NOTE_CORNER_MIN = 1.5;
+const SS_NOTE_CORNER_MAX = 20;
+
+// Drag a custom corner pill. Position is saved as % of the slide so it survives resize, fullscreen and exports.
+function ssNoteWirePill(p, key) {
+    p.addEventListener('touchstart', function (e) { e.stopPropagation(); }, { passive: true });
+    p.addEventListener('touchend', function (e) { e.stopPropagation(); }, { passive: true });
+    p.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const stage = document.getElementById('ss-slide-content');
+        const sr = stage ? stage.getBoundingClientRect() : null;
+        if (!sr || !sr.width || !sr.height) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const pr = p.getBoundingClientRect();
+        const offX = e.clientX - pr.left, offY = e.clientY - pr.top;
+        const maxX = Math.max(0, 100 - pr.width / sr.width * 100);
+        const maxY = Math.max(0, 100 - pr.height / sr.height * 100);
+        let xPct = (pr.left - sr.left) / sr.width * 100;
+        let yPct = (pr.top - sr.top) / sr.height * 100;
+        let moved = false;
+        try { p.setPointerCapture(e.pointerId); } catch (err) {}
+        p.style.cursor = 'grabbing';
+        function move(ev) {
+            xPct = Math.min(maxX, Math.max(0, (ev.clientX - offX - sr.left) / sr.width * 100));
+            yPct = Math.min(maxY, Math.max(0, (ev.clientY - offY - sr.top) / sr.height * 100));
+            moved = true;
+            p.style.left = xPct + '%';
+            p.style.top = yPct + '%';
+        }
+        function up() {
+            p.removeEventListener('pointermove', move);
+            p.removeEventListener('pointerup', up);
+            p.removeEventListener('pointercancel', up);
+            p.style.cursor = 'grab';
+            if (moved) ssNoteSaveCustomPos(key, xPct, yPct);
+        }
+        p.addEventListener('pointermove', move);
+        p.addEventListener('pointerup', up);
+        p.addEventListener('pointercancel', up);
+    });
+}
+
+function ssNoteSaveCustomPos(key, x, y) {
+    const slide = _ssSlides[_ssIndex];
+    if (!slide) return;
+    x = Math.round(x * 100) / 100;
+    y = Math.round(y * 100) / 100;
+    if (key === '__custom') {
+        if (slide.noteCustom) { slide.noteCustom.x = x; slide.noteCustom.y = y; }
+        return;
+    }
+    slide.noteDisp = slide.noteDisp || {};
+    slide.noteDisp[key] = Object.assign({ style: 'corner', pos: 'custom' }, slide.noteDisp[key] || {}, { x: x, y: y });
+}
+
+function ssNoteSetSize(slide, c, delta) {
+    const cur = ssNoteDisp(slide, c);
+    let s = (cur.size != null ? cur.size : SS_NOTE_CORNER_SIZE) + (delta || 0);
+    s = Math.min(SS_NOTE_CORNER_MAX, Math.max(SS_NOTE_CORNER_MIN, Math.round(s * 10) / 10));
+    if (c.custom) { slide.noteCustom.size = s; return; }
+    slide.noteDisp = slide.noteDisp || {};
+    slide.noteDisp[c.key] = { style: cur.style, pos: cur.pos, x: cur.x, y: cur.y, size: s };
+}
+
+function ssNoteResetPos(slide, c) {
+    if (c.custom) { slide.noteCustom.x = null; slide.noteCustom.y = null; return; }
+    const cur = ssNoteDisp(slide, c);
+    slide.noteDisp = slide.noteDisp || {};
+    slide.noteDisp[c.key] = { style: cur.style, pos: cur.pos, x: null, y: null, size: cur.size };
+}
+
+// The "Exact Copy" PPTX export rebuilds the deck, so it borrows the note settings you changed in the live slideshow.
+function ssNoteCarryCapture() {
+    const real = _ssSlides.filter(function (s) { return !s.isNoteSlide; });
+    window.__ssNoteCarry = (real.length && real.length === _builtSlides.length) ? real.map(function (s) {
+        return { html: s.geezHtml, sel: s.noteSel, disp: s.noteDisp, custom: s.noteCustom, choice: s.noteChoice };
+    }) : null;
+}
+
+function ssNoteCarryApply(si) {
+    const list = window.__ssNoteCarry;
+    const s = _ssSlides[si];
+    if (!list || !s || s.isNoteSlide) return;
+    const real = _ssSlides.slice(0, si).filter(function (x) { return !x.isNoteSlide; }).length;
+    const c = list[real];
+    if (!c || c.html !== s.geezHtml) return;
+    if (c.sel) s.noteSel = c.sel;
+    if (c.disp) s.noteDisp = c.disp;
+    if (c.custom) s.noteCustom = c.custom;
+    if (c.choice) s.noteChoice = c.choice;
+}
+
+function ssNoteResetSlide(slide) {
+    let j = _ssIndex - 1;
+    while (j >= 0 && _ssSlides[j] && _ssSlides[j].isNoteSlide) {
+        if (_ssSlides[j].userAdded) { ssShiftIndexMaps(j, -1); _ssSlides.splice(j, 1); _ssIndex--; }
+        j--;
+    }
+    const gone = slide.noteGone || {};
+    Object.keys(gone).forEach(function (k) {
+        if (!ssHasNoteSlideBefore(_ssIndex, k)) ssNoteAddOwn(k, gone[k], false);
+    });
+    delete slide.noteSel; delete slide.noteDisp; delete slide.noteCustom; delete slide.noteGone;
+}
+
+function ssNoteChanged(slide, idx) {
+    if (!slide || slide.isNoteSlide) return false;
+    if ((slide.noteSel && Object.keys(slide.noteSel).length) || (slide.noteDisp && Object.keys(slide.noteDisp).length) ||
+        slide.noteCustom || (slide.noteGone && Object.keys(slide.noteGone).length)) return true;
+    for (let j = idx - 1; j >= 0 && _ssSlides[j] && _ssSlides[j].isNoteSlide; j--) {
+        if (_ssSlides[j].userAdded) return true;
+    }
+    return false;
+}
+
+// Runs when a presentation starts: records each slide's source lines and adds own-slide notes.
+function ssAttachNotes() {
+    try {
+        if (!Array.isArray(_ssSlides) || !Array.isArray(_builtSlides)) return;
+        if (_ssSlides.length === _builtSlides.length) {
+            _ssSlides.forEach(function (s, k) {
+                if (s.isNoteSlide) return;
+                const refs = [];
+                (_builtSlides[k] || []).forEach(function (i) {
+                    const L = _allLines[i];
+                    if (L && L.pieceId && Array.isArray(L.lineIdx)) refs.push({ pieceId: L.pieceId, lines: L.lineIdx });
+                });
+                s.noteRefs = refs;
+            });
+        }
+        const out = [];
+        let prevKey = '';
+        _ssSlides.forEach(function (s) {
+            if (s.isNoteSlide) { out.push(s); return; }
+            const first = ssNoteCandidates(s)[0];
+            const key = first && first.note.style === 'own' ? first.key : '';
+            if (key && key !== prevKey) {
+                out.push({ isNoteSlide: true, geezHtml: '', translation: '', translitLines: [], noteRefs: [], noteText: first.note.text, noteKey: key });
+            }
+            prevKey = key;
+            out.push(s);
+        });
+        _ssSlides.length = 0;
+        out.forEach(function (s) { _ssSlides.push(s); });
+    } catch (e) {
+        console.error('Could not attach notes to slides:', e);
+    }
+}
+
+// ---------- drawing the notes on a slide ----------
+function ssLayoutNote(fullFrame) {
+    const el = document.getElementById('ss-note-frame');
+    const stage = document.getElementById('ss-slide-content');
+    const gf = document.getElementById('ss-geez-frame');
+    const notes = ssNoteOverlayList(_ssSlides[_ssIndex], _ssIndex);
+    if (el) { el.style.display = 'none'; el.innerHTML = ''; }
+    ssNoteRefreshUi();
+    if (!el || !stage || !gf || !notes.length) return;
+
+    const Hs = stage.clientHeight, Ws = stage.clientWidth;
+    if (!(Hs > 0) || !(Ws > 0)) return;
+    el.style.cssText = 'display:block;position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;z-index:15;';
+
+    const strips = notes.filter(function (n) { return n.style === 'strip'; });
+    const corners = notes.filter(function (n) { return n.style === 'corner'; });
+    let stripH = 0, pct = 0;
+
+    // Top strip: every strip note gets its own row, and the biggest text that fits is used.
+    if (strips.length) {
+        const bar = document.createElement('div');
+        bar.style.cssText = 'position:absolute;left:0;top:0;width:100%;box-sizing:border-box;padding:6px 18px;overflow:hidden;word-break:break-word;' +
+            'font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.15;color:' + SS_NOTE_COLOR + ';background:' + SS_NOTE_BG +
+            ';border-bottom:2px solid ' + SS_NOTE_BORDER + ';';
+        strips.forEach(function (n, i) {
+            const row = document.createElement('div');
+            row.style.cssText = 'text-align:' + (n.pos === 'center' ? 'center' : 'left') + ';' + (i ? 'margin-top:4px;' : '');
+            row.textContent = n.text;
+            bar.appendChild(row);
+        });
+        el.appendChild(bar);
+        const maxH = Hs * Math.min(SS_NOTE_MAX_TOTAL_PCT, SS_NOTE_MAX_PCT * strips.length) / 100;
+        let lo = 12, hi = Math.max(14, Hs * 0.09);
+        for (let i = 0; i < 14; i++) {
+            const mid = (lo + hi) / 2;
+            bar.style.fontSize = mid + 'px';
+            (bar.scrollHeight <= maxH) ? (lo = mid) : (hi = mid);
+        }
+        bar.style.fontSize = lo + 'px';
+        stripH = Math.min(maxH, Math.ceil(bar.scrollHeight));
+        bar.style.height = stripH + 'px';
+        pct = stripH / Hs * 100;
+    }
+
+    // Corner labels float over the Ge'ez (below the strip when there is one).
+    if (corners.length) {
+        const fs = Math.max(14, Math.min(40, Hs * 0.045));
+        const top = stripH ? stripH + 8 : Math.round(Hs * 0.012 + 4);
+        const lefts = corners.filter(function (n) { return n.pos !== 'center' && n.pos !== 'custom'; });
+        const mids = corners.filter(function (n) { return n.pos === 'center'; });
+        const maxW = (lefts.length && mids.length) ? 45 : 70;
+        [[lefts, false], [mids, true]].forEach(function (g) {
+            if (!g[0].length) return;
+            const col = document.createElement('div');
+            col.style.cssText = 'position:absolute;top:' + top + 'px;display:flex;flex-direction:column;gap:6px;max-width:' + maxW + '%;' +
+                (g[1] ? 'left:50%;transform:translateX(-50%);align-items:center;' : 'left:14px;align-items:flex-start;');
+            g[0].forEach(function (n) {
+                const p = document.createElement('div');
+                p.style.cssText = 'box-sizing:border-box;padding:4px 16px;border-radius:999px;font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.2;font-size:' + fs + 'px;' +
+                    'color:' + SS_NOTE_COLOR + ';background:' + SS_NOTE_BG + ';border:2px solid ' + SS_NOTE_BORDER + ';';
+                p.textContent = n.text;
+                col.appendChild(p);
+            });
+            el.appendChild(col);
+        });
+    }
+
+    // Custom corner pills: free position + own size, set per slide in the ማብራሪያ panel.
+    corners.filter(function (n) { return n.pos === 'custom'; }).forEach(function (n, k) {
+        const px = Math.max(8, Hs * (n.size != null ? n.size : SS_NOTE_CORNER_SIZE) / 100);
+        const defTop = (stripH ? stripH + 8 : Math.round(Hs * 0.012 + 4)) + k * Math.round(px * 2);
+        const p = document.createElement('div');
+        p.className = 'ss-note-pill';
+        p.dataset.key = n.key;
+        p.title = 'Drag to move';
+        p.style.cssText = 'position:absolute;box-sizing:border-box;max-width:80%;z-index:16;pointer-events:auto;cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none;' +
+            'left:' + (n.x != null ? n.x + '%' : '14px') + ';top:' + (n.y != null ? n.y + '%' : defTop + 'px') + ';' +
+            'padding:' + (px * 0.12).toFixed(1) + 'px ' + (px * 0.45).toFixed(1) + 'px;border-radius:999px;' +
+            'font-family:' + SS_NOTE_FONT + ';font-weight:700;line-height:1.2;font-size:' + px.toFixed(1) + 'px;' +
+            'color:' + SS_NOTE_COLOR + ';background:' + SS_NOTE_BG + ';border:2px solid ' + SS_NOTE_BORDER + ';';
+        p.textContent = n.text;
+        el.appendChild(p);
+        ssNoteWirePill(p, n.key);
+    });
+
+    // The Ge'ez block gives up the strip's height. Slides with a hand-moved layout are left alone.
+    if (pct > 0) {
+        const lay = ssGetLayoutForSlide(_ssIndex);
+        if (fullFrame) {
+            gf.style.top = pct + '%';
+            gf.style.height = (100 - pct) + '%';
+        } else if (!lay.manual) {
+            gf.style.top = (lay.geez.yPct + pct) + '%';
+            gf.style.height = Math.max(20, lay.geez.hPct - pct) + '%';
+        }
+    }
+}
+
+// ---------- the ማብራሪያ button and its panel ----------
+function ssNoteEnsurePanel() {
+    let p = document.getElementById('ss-note-panel');
+    if (p) return p;
+    p = document.createElement('div');
+    p.id = 'ss-note-panel';
+    p.style.cssText = 'display:none;position:absolute;right:16px;top:calc(100% + 8px);width:440px;max-width:calc(100vw - 32px);max-height:78vh;overflow-y:auto;' +
+        'background:#fffdf8;color:#1a2a3a;border:2px solid #b8860b;border-radius:10px;padding:12px;box-shadow:0 6px 24px rgba(0,0,0,0.35);' +
+        'font-family:sans-serif;font-size:13px;z-index:100;text-align:left;cursor:default;';
+    p.addEventListener('click', ssNotePanelClick);
+    p.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && e.target && e.target.id === 'ss-note-custom') {
+            e.preventDefault();
+            e.target.blur();
+            ssNotePanelClick({ target: p.querySelector('[data-act="cadd"]') });
+        }
+    });
+    document.getElementById('ss-hud').appendChild(p);
+    return p;
+}
+
+function ssNoteSeg(act, key, val, label, active) {
+    return '<button type="button" data-act="' + act + '" data-key="' + key + '" data-val="' + val + '" style="border:1px solid #b8860b;border-radius:6px;padding:3px 9px;font-size:12px;font-weight:bold;cursor:pointer;background:' +
+        (active ? '#b8860b' : '#ffffff') + ';color:' + (active ? '#ffffff' : '#6b5a2a') + ';">' + label + '</button>';
+}
+
+function ssNoteRowHtml(slide, idx, c, list, multi) {
+    const E = _escHtml;
+    const d = ssNoteDisp(slide, c);
+    const on = ssNoteOn(slide, idx, c, list);
+    const k = E(c.key);
+    const title = c.custom ? 'Your own note' : 'Note ' + c.num + (multi ? ' · ' + E(c.piece.name || '') : '');
+    const over = !c.custom && !!(slide.noteDisp && slide.noteDisp[c.key]);
+    const tag = on ? (d.style === 'own' ? 'own slide before this one' : 'showing') : '';
+    let h = '<div style="border:1px solid ' + (on ? '#b8860b' : '#d8cfb8') + ';border-radius:8px;background:' + (on ? '#fff4d6' : '#ffffff') + ';padding:8px 10px;margin-bottom:8px;">' +
+        '<div data-act="tog" data-key="' + k + '" style="display:flex;gap:10px;align-items:flex-start;cursor:pointer;">' +
+        '<span style="font-size:18px;line-height:1.1;color:#b8860b;">' + (on ? '☑' : '☐') + '</span>' +
+        '<span style="flex:1;min-width:0;"><span style="font-weight:bold;">' + title + '</span>' +
+        (tag ? '<span style="margin-left:6px;font-size:11px;color:#666;border:1px solid #ccc;border-radius:10px;padding:0 6px;">' + tag + '</span>' : '') +
+        '<br><span style="font-size:13px;line-height:1.4;word-break:break-word;font-family:' + SS_NOTE_FONT + ';">' + E(c.note.text) + '</span></span></div>' +
+        '<div style="display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin-top:8px;padding-left:28px;">' +
+        '<span style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:#777;margin-right:2px;">Display</span>' +
+        ssNoteSeg('ds', k, 'strip', 'Strip', d.style === 'strip') +
+        ssNoteSeg('ds', k, 'corner', 'Corner', d.style === 'corner') +
+        ssNoteSeg('ds', k, 'own', 'Own slide', d.style === 'own') + '</span>';
+    if (d.style !== 'own') {
+        h += '<span style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:#777;margin-right:2px;">Position</span>' +
+            ssNoteSeg('ps', k, 'left', 'Left', d.pos !== 'center' && (d.pos !== 'custom' || d.style !== 'corner')) +
+            ssNoteSeg('ps', k, 'center', 'Centre', d.pos === 'center') +
+            (d.style === 'corner' ? ssNoteSeg('ps', k, 'custom', 'Custom', d.pos === 'custom') : '') + '</span>';
+    }
+    if (d.style === 'corner' && d.pos === 'custom') {
+        const curSize = d.size != null ? d.size : SS_NOTE_CORNER_SIZE;
+        h += '<span style="display:flex;gap:4px;align-items:center;"><span style="font-size:11px;color:#777;margin-right:2px;">Size</span>' +
+            ssNoteSeg('sz', k, '-2', 'A−−', false) + ssNoteSeg('sz', k, '-0.5', 'A−', false) +
+            '<span style="min-width:34px;text-align:center;font-weight:bold;">' + (Math.round(curSize * 10) / 10) + '</span>' +
+            ssNoteSeg('sz', k, '0.5', 'A+', false) + ssNoteSeg('sz', k, '2', 'A++', false) + '</span>' +
+            '<button type="button" data-act="pr" data-key="' + k + '" style="border:none;background:transparent;color:#8e6a00;font-size:12px;font-weight:bold;cursor:pointer;">⌖ Reset position</button>' +
+            '<span style="flex-basis:100%;font-size:11px;color:#777;">Drag the pill on the slide to move it.</span>';
+    }
+    if (over) h += '<button type="button" data-act="rst" data-key="' + k + '" title="Back to the saved display" style="border:none;background:transparent;color:#8e6a00;font-size:12px;font-weight:bold;cursor:pointer;">↺ saved display</button>';
+    if (c.custom) h += '<button type="button" data-act="crem" data-key="' + k + '" style="border:none;background:transparent;color:#c0392b;font-size:12px;font-weight:bold;cursor:pointer;">✕ Remove</button>';
+    if (d.style === 'own') h += '<span style="flex-basis:100%;font-size:11px;color:#777;">Shown as a separate slide just before this one.</span>';
+    h += '</div></div>';
+    return h;
+}
+
+function ssNotePanelHtml(slide) {
+    const E = _escHtml;
+    if (!slide) return '';
+    if (slide.isNoteSlide) {
+        return '<div style="line-height:1.5;"><b>This is a note slide.</b><br>To remove it, go to the slide after it, open ማብራሪያ and untick the note (or switch its display to Strip or Corner).</div>';
+    }
+    const idx = _ssIndex;
+    const list = ssNoteList(slide);
+    const real = list.filter(function (x) { return !x.custom; });
+    const multi = real.some(function (x) { return x.piece.id !== real[0].piece.id; });
+    const B = 'border:none;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:bold;cursor:pointer;';
+    const cust = slide.noteCustom;
+
+    let h = '<div style="font-weight:bold;font-size:14px;margin-bottom:2px;">Notes for this slide</div>' +
+        '<div style="color:#666;margin-bottom:10px;line-height:1.4;">' +
+        (real.length ? 'Tick as many notes as you want. Changes apply to this slide only.' : 'No saved notes cover the lines on this slide. You can still write one below.') + '</div>';
+
+    list.forEach(function (c) { h += ssNoteRowHtml(slide, idx, c, list, multi); });
+
+    h += '<div style="padding:8px 10px;border:1px dashed #cdbf98;border-radius:8px;background:#fffaf0;margin-bottom:8px;">' +
+        '<div style="font-weight:bold;margin-bottom:6px;">' + (cust ? 'Edit your own note' : 'Write your own note for this slide') + '</div>' +
+        '<div style="display:flex;gap:6px;"><input id="ss-note-custom" type="text" value="' + E(cust ? cust.text : '') + '" placeholder="Note text" style="flex:1;min-width:0;padding:6px 8px;border:1px solid #ccc;border-radius:6px;font-size:13px;">' +
+        '<button type="button" data-act="cadd" style="' + B + 'background:#b8860b;color:#fff;">' + (cust ? 'Update' : 'Add') + '</button></div>' +
+        '<div id="ss-note-err" style="display:none;color:#c0392b;font-size:12px;margin-top:4px;">Enter a note first</div></div>';
+
+    h += '<div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+        (list.length ? '<button type="button" data-act="all" style="' + B + 'background:#3a5a82;color:#fff;">Tick all</button>' +
+                       '<button type="button" data-act="none" style="' + B + 'background:#6c757d;color:#fff;">Untick all</button>' : '') +
+        (ssNoteChanged(slide, idx) ? '<button type="button" data-act="reset" style="' + B + 'background:#eee;color:#333;">↺ Reset this slide</button>' : '') + '</div>';
+    return h;
+}
+
+function ssNotePanelClick(e) {
+    const t = e.target && e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!t) return;
+    const slide = _ssSlides[_ssIndex];
+    if (!slide || slide.isNoteSlide) return;
+    const act = t.dataset.act, val = t.dataset.val;
+    const list = ssNoteList(slide);
+    const c = t.dataset.key ? list.filter(function (x) { return x.key === t.dataset.key; })[0] : null;
+    const before = _ssSlides.length;
+
+    if (act === 'tog' && c) ssNoteSetOn(slide, c, !ssNoteOn(slide, _ssIndex, c, list));
+    else if (act === 'ds' && c) ssNoteSetDisplay(slide, c, val, null);
+    else if (act === 'ps' && c) ssNoteSetDisplay(slide, c, null, val);
+    else if (act === 'sz' && c) ssNoteSetSize(slide, c, parseFloat(val));
+    else if (act === 'pr' && c) ssNoteResetPos(slide, c);
+    else if (act === 'rst' && c && !c.custom) {
+        ssNoteSetDisplay(slide, c, c.note.style || 'strip', c.note.pos || 'left');
+        if (slide.noteDisp) delete slide.noteDisp[c.key];
+    }
+    else if (act === 'all' || act === 'none') list.forEach(function (x) { ssNoteSetOn(slide, x, act === 'all'); });
+    else if (act === 'reset') ssNoteResetSlide(slide);
+    else if (act === 'crem') {
+        ssNoteDropOwn(slide, '__custom');
+        delete slide.noteCustom;
+        if (slide.noteSel) delete slide.noteSel['__custom'];
+    }
+    else if (act === 'cadd') {
+        const inp = document.getElementById('ss-note-custom');
+        const v = inp ? String(inp.value || '').trim() : '';
+        if (!v) { const er = document.getElementById('ss-note-err'); if (er) er.style.display = 'block'; return; }
+        if (slide.noteCustom) slide.noteCustom.text = v;
+        else slide.noteCustom = { text: v, style: 'strip', pos: 'left' };
+        for (let j = _ssIndex - 1; j >= 0 && _ssSlides[j] && _ssSlides[j].isNoteSlide; j--) {
+            if (_ssSlides[j].noteKey === '__custom') _ssSlides[j].noteText = v;
+        }
+        const cc = ssNoteList(slide).filter(function (x) { return x.custom; })[0];
+        if (cc) ssNoteSetOn(slide, cc, true);
+    }
+    else return;
+
+    renderSlideshowSlide();
+    if (_ssSlides.length > before) showToast('A note slide was added just before this slide. You are now on slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length + '. Press ← to see it.', 'info');
+    else if (_ssSlides.length < before) showToast('A note slide was removed. You are now on slide ' + (_ssIndex + 1) + ' of ' + _ssSlides.length + '.', 'info');
+}
+
+function ssNoteRefreshUi() {
+    const hud = document.getElementById('ss-hud');
+    if (!hud) return;
+    const slide = _ssSlides[_ssIndex];
+    const panel = ssNoteEnsurePanel();
+    const btn = document.getElementById('ss-note-btn');
+    const isNote = !!(slide && slide.isNoteSlide);
+    const list = slide && !isNote ? ssNoteList(slide) : [];
+    const shown = list.filter(function (c) { return ssNoteOn(slide, _ssIndex, c, list); }).length;
+    const changed = ssNoteChanged(slide, _ssIndex);
+    if (btn) {
+        btn.textContent = 'ማብራሪያ' + (shown ? ' (' + shown + ')' : '');
+        btn.style.background = _ssNotePanelOpen ? 'var(--gold)' : 'rgba(80,80,80,0.7)';
+        btn.style.borderColor = changed ? '#f0c040' : '#aaa';
+        btn.style.opacity = (list.length || changed || isNote) ? '1' : '0.6';
+    }
+    if (!_ssNotePanelOpen || !slide) { panel.style.display = 'none'; return; }
+    if (document.activeElement && document.activeElement.id === 'ss-note-custom') return;
+    panel.innerHTML = ssNotePanelHtml(slide);
+    panel.style.display = 'block';
+}
+
 let _studioInitialized = false;
 
 // Admin dashboard: type  admin  in the browser console. It opens on top of the studio.
@@ -14075,6 +15220,8 @@ function updateChronoDisplay() {
                 pieceName: piece.name || slot.id,
                 presetSlot: slot.id,
                 translitLines: valid.map(function (i) { return translit[i] || ''; }),
+                pieceId: piece.id,
+                lineIdx: valid.slice(),
                 isImage: info.isImage
             });
         });
@@ -15446,6 +16593,8 @@ function updateChronoDisplay() {
                 pieceName: piece.name || slot.id,
                 presetSlot: slot.id,
                 translitLines: ssPieceTranslitLines(piece).slice(segmentOffset - chunk.length, segmentOffset),
+            pieceId: piece.id,
+            lineIdx: presetNoteLineIdx(segments, (typeof previewType !== 'undefined' ? previewType : slot.type), segmentOffset - chunk.length, chunk.length),
                 isImage: isImagePieceHtml(geezHtml)
             });
         });
@@ -16047,6 +17196,14 @@ function smartSelectPresetPieces(showStatus = true) {
         return i;
     }
 
+    // Original line numbers of a chunk, so notes can find the lines a preset slide shows.
+    function presetNoteLineIdx(segments, type, start, len) {
+        const base = presetLeadingSkipCount(segments, type);
+        const out = [];
+        for (let j = 0; j < len; j++) out.push(base + start + j);
+        return out;
+    }
+
     function presetChunkSegments(segments, ruleType, customRule) {
         if (ruleType === 'Zema Halleluya' && Array.isArray(segments)) {
             segments = presetHalleluyaCut(segments);
@@ -16251,6 +17408,8 @@ function appendPresetSlotToDeck(deck, slot) {
             pieceName: piece.name || slot.id,
             presetSlot: slot.id,
             translitLines: ssPieceTranslitLines(piece).slice(segmentOffset - chunk.length, segmentOffset),
+            pieceId: piece.id,
+            lineIdx: isImage ? [0] : presetNoteLineIdx(segments, slot.type, segmentOffset - chunk.length, chunk.length),
             isImage
         });
     });
@@ -16337,7 +17496,9 @@ function generatePresetDeck() {
         segmentHtml: slide.geezHtml,
         translation: slide.translation || '',
         translitLines: slide.translitLines || [],
-        isImage: !!slide.isImage
+        isImage: !!slide.isImage,
+        pieceId: slide.pieceId,
+        lineIdx: slide.lineIdx
     }));
 
     _builtSlides = _allLines.map((_, i) => [i]);
