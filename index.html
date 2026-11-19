@@ -3617,7 +3617,7 @@ function populateContainer() {
 }
 
 function addStack() {
-    $('#container').children('.letter-container').each(function() {
+    $('#container').find('.letter-container').each(function() {
         $(this).prepend(
             $('<span style="margin-bottom:-1rem;" id="space' + (idcount++) + '" class="letter">&hairsp;&hairsp;</span>')
         );
@@ -3630,7 +3630,7 @@ function addStack() {
 function updaterowcount() {
     // numOfRows is informational only - the old #rowCount select no longer exists in the
     // markup, and reading the first .letter-container works for imported pieces whose ids differ.
-    numOfRows = $('#container').children('.letter-container').first().children('.letter').length;
+    numOfRows = $('#container').find('.letter-container').first().children('.letter').length;
 }
 
 function removeGlow() { $('#container .highlight').removeClass('highlight'); }
@@ -3687,7 +3687,7 @@ function boxOriginalHtml($s) {
     // blank content among the untouched boxes in the same row.
     var idx = $s.parent().children('.letter').index(el);
     var counts = {}, best = null, bestN = 0;
-    $('#container').children('.letter-container').each(function () {
+    $('#container').find('.letter-container').each(function () {
         var cell = $(this).children('.letter').get(idx);
         if (!cell || cell === el || cell.hasAttribute('data-orig') || !_cellIsBlank(cell)) return;
         var h = cell.innerHTML;
@@ -3980,7 +3980,7 @@ function multiCopyCommit() {
     var $sel = $('#container .letter.multi-selected');
     if (!$sel.length) { alert('Click the boxes you want to copy first, or press Cancel.'); return; }
 
-    var cols = $('#container').children('.letter-container').toArray();
+    var cols = $('#container').find('.letter-container').toArray();
     var items = [], minC = Infinity, minR = Infinity;
 
     $sel.each(function () {
@@ -4016,7 +4016,7 @@ function multiPasteBox() {
     var $anchor = $('#container').find('#' + selectedSpanId).closest('.letter');
     if (!$anchor.length) { alert('Click the box where the top-left of the copied pattern should land.'); return; }
 
-    var cols = $('#container').children('.letter-container').toArray();
+    var cols = $('#container').find('.letter-container').toArray();
     var aLc = $anchor[0].parentNode;
     var aC = cols.indexOf(aLc);
     var aR = $(aLc).children('.letter').index($anchor[0]);
@@ -4170,7 +4170,7 @@ function init() {
         if (rowSelectMode && selectedRowIndices.size > 0) {
             snapshotForUndo();
             var indicesDesc = Array.from(selectedRowIndices).sort(function(a, b) { return b - a; });
-            $('#container').children('.letter-container').each(function() {
+            $('#container').find('.letter-container').each(function() {
                 var $lc = $(this);
                 indicesDesc.forEach(function(idx) {
                     $lc.children('.letter').eq(idx).remove();
@@ -4207,7 +4207,7 @@ function init() {
         } else {
             selectedRowIndices.add(rowIdx);
         }
-        $('#container').children('.letter-container').each(function() {
+        $('#container').find('.letter-container').each(function() {
             var $row = $(this).children('.letter').eq(rowIdx);
             $row.toggleClass('row-selected', selectedRowIndices.has(rowIdx));
         });
@@ -7551,7 +7551,7 @@ async function loadPieceIntoEditor(index) {
         $('.page').removeClass('active');
         $('#page-editor').addClass('active');
         $('#container').html(piece.visualData);
-        loadednotelength = $('#container').children('.letter-container').length;
+        loadednotelength = $('#container').find('.letter-container').length;
         _editorBaselineHtml = _editorSnapshot();
         var max = 0;
         $('#container span[id^="cussta"]').each(function(){
