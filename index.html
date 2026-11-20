@@ -88,6 +88,11 @@
         background: #ffffff !important;
         }
         .letter-container { display:inline-block; }
+        /* Boxes sit in front of the Geez base letter, so a click in the overlap goes to the box */
+        #container .letter { position:relative; }
+        #container .baseletter { pointer-events:auto; }
+        /* Pieces made here: pull the base letter up 1rem, the same as imported pieces already are */
+        #container .letter-container > .letter:nth-last-child(2) { margin-bottom:-0.8rem !important; }
         .letter { display:flex; z-index:1000; align-items:flex-end; font-size:2.5rem; height:5rem; }
         .borders-on .letter,.borders-on .basics,.borders-on .added,.borders-on .cussta { border:1px solid #ccc; }
         .borders-off .letter,.borders-off .basics,.borders-off .added,.borders-off .cussta { border:none; }
