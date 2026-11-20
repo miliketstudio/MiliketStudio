@@ -90,6 +90,7 @@
         .letter-container { display:inline-block; }
         /* Boxes sit in front of the Geez base letter, so a click in the overlap goes to the box */
         #container .letter { position:relative; }
+        #container { isolation:isolate; }
         #container .baseletter { pointer-events:auto; }
         /* Pieces made here: pull the base letter up 1rem, the same as imported pieces already are */
         #container .letter-container > .letter:nth-last-child(2) { margin-bottom:-0.8rem !important; }
